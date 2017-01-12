@@ -33,44 +33,6 @@ uint8_t char_to_nuc(char x) {
 	}
 }
 
-void print_n_alignment(BGZF *fp, size_t n) {
-	bam1_t *b = bam_init1();
-
-	cout << "qname\tseq\tqual\tcigar\taux";
-
-	for (size_t r = 0; r < n; ++r) {
-
-		if (bam_read1(fp, b) > 0) {
-			cout << bam_get_qname(b) << '\t';
-
-			for (size_t i = 0; i < b->core.l_qseq; ++i) {
-				cout << nuc_to_char(bam_seqi(bam_get_seq(b), i));
-			}
-			cout << '\t';
-
-			const uint8_t* qual = bam_get_qual(b);
-			for (size_t i = 0; i < b->core.l_qseq; ++i) {
-				cout << char((*qual) + 33);
-				++qual;
-			}
-			cout << '\t';
-
-			const uint32_t* cigar = bam_get_cigar(b);
-			for (size_t i = 0; i < b->core.n_cigar; ++i) {
-				cout << *cigar++;
-			}
-			cout << '\t';
-
-			cout << bam_get_aux(b);
-		} else {
-			cerr << "Error: Could not read record" << endl;
-		}
-
-	}
-
-	bam_destroy1(b);
-}
-
 // @param ref_pos  position in the reference
 void func(bam1_t *b, int ref_pos) {
 	cout
@@ -144,21 +106,14 @@ void func(bam1_t *b, int ref_pos) {
 	cout << endl;
 }
 
-
 struct plp_aux_t {
 	htsFile *hf;
 	bam_hdr_t *hdr;
 	hts_itr_t *itr;
 	hts_idx_t *idx;
 
-	uint64_t pos0;
-	int irange0;
-
-	//bam_mate_iter_t iter;
-	void *pbuffer; /* for buffered pileup */
-
 	plp_aux_t()
-		: hf(NULL), hdr(NULL), itr(NULL), idx(NULL), pbuffer(NULL) {}
+		: hf(NULL), hdr(NULL), itr(NULL), idx(NULL) {}
 
 	int open(const char* path) {
 		clear();
@@ -168,9 +123,6 @@ struct plp_aux_t {
 			cerr << "Error in " << __func__ << ": failed to open: " << path << endl;
 			return -1;
 		}
-		//pos0 = bgzf_tell(hf->fp.bgzf);
-		pos0 = 0;
-		irange0 = 0;
 
 		hdr = sam_hdr_read(hf);
 		if (!hdr) {
@@ -200,11 +152,6 @@ struct plp_aux_t {
 				<< tid << ", start: " << start << ", end: " << end << " };" << endl;
 		}
 
-		cerr << "tid = " << tid << endl;
-		cerr << "start = " << start << endl;
-		//cerr << "seq[" << plp->qpos << "] = " << 
-		//	nuc_to_char(bam_seqi(bam_get_seq(plp->b), plp->qpos)) << endl;
-
 		// extract alignments to b at itr
 		while (sam_itr_next(hf, itr, b) >= 0) {
 			func(b, pos);
@@ -231,23 +178,63 @@ struct plp_aux_t {
 	}
 };
 
-int fetch(const bam1_t *b, void *data) {
-	return 0;
+
+void print_references(plp_aux_t* bfile, size_t n) {
+	cout << "reference sequences [" << bfile->hdr->n_targets << "]:" << endl;
+	const int total = bfile->hdr->n_targets;
+	for (size_t i = 0; i < total; ++i) {
+		if (i == n - 2 && n < total) {
+			cout << "..." << endl;
+		} else if (i > n - 2 && i < bfile->hdr->n_targets - 1) {
+			// print nothing
+		} else {
+			cout << bfile->hdr->target_name[i] << endl;
+		}
+	}
+	cout << endl;
 }
 
+void print_n_alignment(plp_aux_t* bfile, size_t n) {
+	BGZF *fp = bfile->hf->fp.bgzf;
 
-int plp_f(void *data, bam1_t *b) {
-	cerr << "plp_f" << endl;
-	plp_aux_t *p = (plp_aux_t*)data;
-	int ret;
-	//while ((ret = hts_itr_next(p->hf->fp.bgzf, p->itr, b, NULL)) >= 0) {
-	//	func(b);
-	//}
-	if ((ret = hts_itr_next(p->hf->fp.bgzf, p->itr, b, NULL)) >= 0) {
-		func(b, 0);
-		cerr << "plp_f ret " << ret << endl;
+	bam1_t *b = bam_init1();
+
+	cout << "qname\tseq\tqual\tcigar\taux" << endl;
+
+	for (size_t r = 0; r < n; ++r) {
+
+		if (bam_read1(fp, b) > 0) {
+			cout << bam_get_qname(b) << '\t';
+
+			for (size_t i = 0; i < b->core.l_qseq; ++i) {
+				cout << nuc_to_char(bam_seqi(bam_get_seq(b), i));
+			}
+			cout << '\t';
+
+			const uint8_t* qual = bam_get_qual(b);
+			for (size_t i = 0; i < b->core.l_qseq; ++i) {
+				cout << char((*qual) + 33);
+				++qual;
+			}
+			cout << '\t';
+
+			const uint32_t* cigar = bam_get_cigar(b);
+			for (size_t i = 0; i < b->core.n_cigar; ++i) {
+				cout << *cigar++;
+			}
+			cout << '\t';
+
+			cout << bam_get_aux(b);
+
+			cout << endl;
+		} else {
+			cerr << "Error: Could not read record" << endl;
+		}
+
 	}
-	return ret;
+	cout << endl;
+
+	bam_destroy1(b);
 }
 
 int main(int argc, char** argv) {
@@ -255,23 +242,10 @@ int main(int argc, char** argv) {
 
 	plp_aux_t bfile;
 
-	cerr << "start" << endl;
-
 	bfile.open(path);
 
-	//cerr << h->text << endl << endl;
-	cerr << "Reference sequences [" << bfile.hdr->n_targets << "]:" << endl;
-	for (size_t i = 0; i < bfile.hdr->n_targets; ++i) {
-		if (i == 9) {
-			cerr << "..." << endl;
-		} else if (i > 9 && i < bfile.hdr->n_targets - 1) {
-			continue;
-		}
-		cerr << bfile.hdr->target_name[i] << endl;
-	}
-	cerr << endl;
-
-	//print_n_alignment(bfile.hf->fp.bgzf, 3);
+	print_references(&bfile, 10);
+	print_n_alignment(&bfile, 10);
 
 	// set target region
 	char target[] = "chr17";
@@ -280,36 +254,8 @@ int main(int argc, char** argv) {
 	char seq[] = "GATGGAATCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCATGATCTCAGCTCACTGCAAGCTCCACCGCCCAG";
 	//int pos = 7674361 - 1;   // 1 A, 2 C, 0 G, 536 T, 202 del, 15 ins
 	//int pos = 7674360 - 1;    // 0 A, 759 C, 0 G, 9 T
-
-	cerr << seq << endl;
-	cerr << "chr17:7674420G>A" << endl;
-	cerr << endl;
 	
 	bfile.fetch_pos(rid, pos);
-
-	/*
-	// seek region
-	bfile.itr = sam_itr_queryi(bfile.idx, rid, start, end);
-
-	bam_plp_t plp_itr = bam_plp_init(plp_f, &bfile);
-
-	int max_depth = 1000;
-	bam_plp_set_maxcnt(plp_itr, max_depth);
-
-	int tid, pos, n_plp;
-	const bam_pileup1_t* plp;
-	while (true) {
-		plp = bam_plp_auto(plp_itr, &tid, &pos, &n_plp);
-		cout << "  tid = " << tid << endl;
-		cout << "  pos = " << tid << endl;
-		if (!plp) break;
-		cout << "  qname = " << bam_get_qname(plp->b) << endl;
-		cout << "  seq[" << plp->qpos << "] = " << 
-			nuc_to_char(bam_seqi(bam_get_seq(plp->b), plp->qpos)) << endl;
-	}
-	
-	bam_plp_destroy(plp_itr);
-	*/
 	
 	return 0;
 }
