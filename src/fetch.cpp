@@ -15,45 +15,53 @@ enum nucleotide {
 
 char nuc_to_char(uint8_t x) {
 	switch (x) {
-		case 1: return 'A';
-		case 2: return 'C';
-		case 4: return 'G';
-		case 8: return 'T';
+		case nuc_A: return 'A';
+		case nuc_C: return 'C';
+		case nuc_G: return 'G';
+		case nuc_T: return 'T';
 		default: return 'N';
+	}
+}
+
+uint8_t char_to_nuc(char x) {
+	switch (x) {
+		case 'A': return nuc_A;
+		case 'C': return nuc_C;
+		case 'G': return nuc_G;
+		case 'T': return nuc_T;
+		default: return nuc_N;
 	}
 }
 
 void print_n_alignment(BGZF *fp, size_t n) {
 	bam1_t *b = bam_init1();
 
+	cout << "qname\tseq\tqual\tcigar\taux";
+
 	for (size_t r = 0; r < n; ++r) {
 
 		if (bam_read1(fp, b) > 0) {
-			cout << "read " << r << ": " << endl;
-			cout << "qname = " << bam_get_qname(b) << endl;
+			cout << bam_get_qname(b) << '\t';
 
-			cout << "seq   = ";
 			for (size_t i = 0; i < b->core.l_qseq; ++i) {
 				cout << nuc_to_char(bam_seqi(bam_get_seq(b), i));
 			}
-			cout << endl;
+			cout << '\t';
 
-			cout << "qual  = ";
 			const uint8_t* qual = bam_get_qual(b);
 			for (size_t i = 0; i < b->core.l_qseq; ++i) {
 				cout << char((*qual) + 33);
 				++qual;
 			}
-			cout << endl;
+			cout << '\t';
 
-			cout << "cigar = ";
 			const uint32_t* cigar = bam_get_cigar(b);
 			for (size_t i = 0; i < b->core.n_cigar; ++i) {
 				cout << *cigar++;
 			}
-			cout << endl;
+			cout << '\t';
 
-			cout << "aux   = " << bam_get_aux(b) << endl;
+			cout << bam_get_aux(b);
 		} else {
 			cerr << "Error: Could not read record" << endl;
 		}
@@ -65,8 +73,11 @@ void print_n_alignment(BGZF *fp, size_t n) {
 
 // @param ref_pos  position in the reference
 void func(bam1_t *b, int ref_pos) {
-	cout << bam_get_qname(b) << '\t';
-	cout << b->core.tid << '\t' << b->core.pos << '\t' << bam_endpos(b) << '\t';
+	cout
+		<< bam_get_qname(b) << '\t'
+		<< b->core.tid << '\t' 
+		<< b->core.pos << '\t' 
+		<< bam_endpos(b) << '\t';
 
 	// correct query position for preceeding cigar operations:
 	// - del
