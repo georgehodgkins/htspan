@@ -40,6 +40,7 @@ void func(bam1_t *b, int ref_pos) {
 		<< b->core.pos << '\t' 
 		<< bam_endpos(b) << '\t';
 
+	// qpos will contain the nucleotide of interest in the read
 	// correct query position for preceeding cigar operations:
 	// - del
 	// - ref-skip
@@ -47,9 +48,8 @@ void func(bam1_t *b, int ref_pos) {
 	// + ins
 	int qpos = ref_pos - b->core.pos;
 	int qend = bam_endpos(b);
-	// qpos will contain the nucleotide of interest in the read
-	int j = 0;
 	// running total of nucleotides affected by cigar operations
+	int j = 0;
 	int n_cigar = b->core.n_cigar;
 	const uint32_t* cigar = bam_get_cigar(b);
 	int l, k;
@@ -74,44 +74,44 @@ void func(bam1_t *b, int ref_pos) {
 		if (j >= qpos) break;
 	}
 
-	char nuc_char = '.';
+	char nuc_c = '.';
 
 	if (j == qpos) {
 		// check the next cigar operation for ins or del
 		switch (bam_cigar_op(cigar[k+1])) {
 				case BAM_CDEL:
-					nuc_char = '-';	
+					nuc_c = '-';	
 					break;
 				case BAM_CINS:
-					nuc_char = '+';
+					nuc_c = '+';
 					break;
 		}
 	}
 	
-	if (nuc_char == '.') {
+	if (nuc_c == '.') {
 		if (qpos < 0) {
 			// query nucleotide is in a deletion that consumed the rest of the read
-			nuc_char = '-';	
+			nuc_c = '-';	
 		} else if (qpos >= qend) {
 			// a preceding insertion or softclip consumed the rest of the read,
 			// so the read does not actually contain the sequence
-			// leave the nuc_char at the default null value.
+			// leave the nuc_c at the default null value.
 		} else {
-			nuc_char = nuc_to_char(bam_seqi(bam_get_seq(b), qpos));
+			nuc_c = nuc_to_char(bam_seqi(bam_get_seq(b), qpos));
 		}
 	}
 
-	cout << nuc_char;
+	cout << nuc_c;
 	cout << endl;
 }
 
-struct plp_aux_t {
+struct bamfile {
 	htsFile *hf;
 	bam_hdr_t *hdr;
 	hts_itr_t *itr;
 	hts_idx_t *idx;
 
-	plp_aux_t()
+	bamfile()
 		: hf(NULL), hdr(NULL), itr(NULL), idx(NULL) {}
 
 	int open(const char* path) {
@@ -138,7 +138,6 @@ struct plp_aux_t {
 		return 0;
 	}
 
-	//int fetch(int tid, int start, int end, void *data, bam_fetch_f f) {
 	int fetch_pos(int tid, int pos) {
 		bam1_t *b = bam_init1();
 
@@ -172,77 +171,17 @@ struct plp_aux_t {
 		if (hf) hts_close(hf);
 	}
 
-	~plp_aux_t() {
+	~bamfile() {
 		clear();
 	}
 };
 
-
-void print_references(plp_aux_t* bfile, size_t n) {
-	cout << "reference sequences [" << bfile->hdr->n_targets << "]:" << endl;
-	const int total = bfile->hdr->n_targets;
-	for (size_t i = 0; i < total; ++i) {
-		if (i == n - 2 && n < total) {
-			cout << "..." << endl;
-		} else if (i > n - 2 && i < bfile->hdr->n_targets - 1) {
-			// print nothing
-		} else {
-			cout << bfile->hdr->target_name[i] << endl;
-		}
-	}
-	cout << endl;
-}
-
-void print_n_alignment(plp_aux_t* bfile, size_t n) {
-	bam1_t *b = bam_init1();
-
-	cout << "qname\tseq\tqual\tcigar\taux" << endl;
-
-	for (size_t r = 0; r < n; ++r) {
-
-		if (bam_read1(bfile->hf->fp.bgzf, b) > 0) {
-			cout << bam_get_qname(b) << '\t';
-
-			for (size_t i = 0; i < b->core.l_qseq; ++i) {
-				cout << nuc_to_char(bam_seqi(bam_get_seq(b), i));
-			}
-			cout << '\t';
-
-			const uint8_t* qual = bam_get_qual(b);
-			for (size_t i = 0; i < b->core.l_qseq; ++i) {
-				cout << char((*qual) + 33);
-				++qual;
-			}
-			cout << '\t';
-
-			const uint32_t* cigar = bam_get_cigar(b);
-			for (size_t i = 0; i < b->core.n_cigar; ++i) {
-				cout << *cigar++;
-			}
-			cout << '\t';
-
-			cout << bam_get_aux(b);
-
-			cout << endl;
-		} else {
-			cerr << "Error: Could not read record" << endl;
-		}
-
-	}
-	cout << endl;
-
-	bam_destroy1(b);
-}
-
 int main(int argc, char** argv) {
 	char path[] = "../data/KP7-092916.bam"; 
 
-	plp_aux_t bfile;
+	bamfile bfile;
 
 	bfile.open(path);
-
-	print_references(&bfile, 10);
-	print_n_alignment(&bfile, 10);
 
 	// set target region
 	char target[] = "chr17";
