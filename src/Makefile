@@ -1,5 +1,5 @@
-fetch:
-	g++ -lhts fetch.cpp -o fetch
+hts-fetch:
+	g++ -lhts fetch.cpp -o hts-fetch
 
 clean:
-	rm -f fetch
+	rm -f hts-fetch
