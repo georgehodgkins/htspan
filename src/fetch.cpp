@@ -2,7 +2,6 @@
 using namespace std;
 
 #include <htslib/hts.h>
-#include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
 enum nucleotide {
@@ -195,15 +194,13 @@ void print_references(plp_aux_t* bfile, size_t n) {
 }
 
 void print_n_alignment(plp_aux_t* bfile, size_t n) {
-	BGZF *fp = bfile->hf->fp.bgzf;
-
 	bam1_t *b = bam_init1();
 
 	cout << "qname\tseq\tqual\tcigar\taux" << endl;
 
 	for (size_t r = 0; r < n; ++r) {
 
-		if (bam_read1(fp, b) > 0) {
+		if (bam_read1(bfile->hf->fp.bgzf, b) > 0) {
 			cout << bam_get_qname(b) << '\t';
 
 			for (size_t i = 0; i < b->core.l_qseq; ++i) {
