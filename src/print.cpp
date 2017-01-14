@@ -1,26 +1,26 @@
-void print_references(plp_aux_t* bfile, size_t n) {
-	cout << "reference sequences [" << bfile->hdr->n_targets << "]:" << endl;
-	const int total = bfile->hdr->n_targets;
+void print_references(fetcher& f, size_t n) {
+	cout << "reference sequences [" << f->hdr->n_targets << "]:" << endl;
+	const int total = f.hdr->n_targets;
 	for (size_t i = 0; i < total; ++i) {
 		if (i == n - 2 && n < total) {
 			cout << "..." << endl;
-		} else if (i > n - 2 && i < bfile->hdr->n_targets - 1) {
+		} else if (i > n - 2 && i < f->hdr->n_targets - 1) {
 			// print nothing
 		} else {
-			cout << bfile->hdr->target_name[i] << endl;
+			cout << f.hdr->target_name[i] << endl;
 		}
 	}
 	cout << endl;
 }
 
-void print_n_alignment(plp_aux_t* bfile, size_t n) {
+void print_n_alignment(fetcher& f, size_t n) {
 	bam1_t *b = bam_init1();
 
 	cout << "qname\tseq\tqual\tcigar\taux" << endl;
 
 	for (size_t r = 0; r < n; ++r) {
 
-		if (bam_read1(bfile->hf->fp.bgzf, b) > 0) {
+		if (bam_read1(f.hf->fp.bgzf, b) > 0) {
 			cout << bam_get_qname(b) << '\t';
 
 			for (size_t i = 0; i < b->core.l_qseq; ++i) {
