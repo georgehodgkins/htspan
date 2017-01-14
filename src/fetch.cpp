@@ -317,6 +317,11 @@ struct query_pile {
 			bam_destroy1(mates[i]);
 		}
 		mates.clear();
+
+		while (!mate_queue.empty()) {
+			delete mate_queue.front();
+			mate_queue.pop();
+		}
 	}
 
 	~query_pile() {
