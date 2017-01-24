@@ -20,9 +20,9 @@ int main(int argc, char** argv) {
 	// set target region
 	char target[] = "chr17";
 	int32_t rid = bam_name2id(f.hdr, target);
-	int32_t pos = 7674420 - 1;  // dup: 8 A, 94 G; nodup: 2 A
+	int32_t pos = 7674420 - 1;  // dup: 8 A, 94 G; nodup: 2 A, 24 G
 	//int32_t pos = 7674361 - 1;   // 1 A, 2 C, 0 G, 536 T, 202 del, 15 ins
-	//int32_t pos = 7674360 - 1;    // 0 A, 759 C, 0 G, 9 T
+	//int32_t pos = 7674360 - 1;    // dup: 0 A, 759 C, 0 G, 9 T; nodup: 198 C, 1 T
 	
 	//f.fetch(rid, pos);
 	f.fetch(rid, pos, nuc_A, true);
