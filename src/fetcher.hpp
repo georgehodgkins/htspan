@@ -168,16 +168,16 @@ void print_query(const bam1_t *b, int32_t pos) {
 }
 
 void print_seq(const bam1_t *b, bool original) {
+	size_t n = (size_t) b->core.l_qseq;
 	if (original && bam_is_rev(b)) {
 		// query aligned to the reverse strand: the stored sequence is the reverse
 		// complement of the original sequence
 		// thus, reverse complement the stored sequence
-		size_t n = (size_t) b->core.l_qseq;
 		for (size_t i = 0; i < n; ++i) {
 			cout << nuc_to_char(nuc_complement(bam_seqi(bam_get_seq(b), n - i - 1)));
 		}
 	} else {
-		for (size_t i = 0; i < b->core.l_qseq; ++i) {
+		for (size_t i = 0; i < n; ++i) {
 			cout << nuc_to_char(bam_seqi(bam_get_seq(b), i));
 		}
 	}
@@ -185,6 +185,27 @@ void print_seq(const bam1_t *b, bool original) {
 
 void print_seq(const bam1_t *b) {
 	print_seq(b, false);
+}
+
+void bam_seq_str(const bam1_t *b, string& s, bool original) {
+	size_t n = (size_t) b->core.l_qseq;
+	s.resize(n);
+	if (original && bam_is_rev(b)) {
+		// query aligned to the reverse strand: the stored sequence is the reverse
+		// complement of the original sequence
+		// thus, reverse complement the stored sequence
+		for (size_t i = 0; i < n; ++i) {
+			s[i] = nuc_to_char(nuc_complement(bam_seqi(bam_get_seq(b), n - i - 1)));
+		}
+	} else {
+		for (size_t i = 0; i < n; ++i) {
+			s[i] = nuc_to_char(bam_seqi(bam_get_seq(b), i));
+		}
+	}
+}
+
+void bam_seq_str(const bam1_t *b, string& s) {
+	bam_seq_str(b, s, false);
 }
 
 void print_qual(const bam1_t *b, bool original) {
