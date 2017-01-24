@@ -158,6 +158,7 @@ uint8_t query_nucleotide(const bam1_t *b, int32_t ref_pos) {
 }
 
 void print_query(const bam1_t *b, int32_t pos) {
+	if (b == NULL) return;
 	cout
 		<< bam_get_qname(b) << '\t'
 		<< b->core.tid << '\t' 
@@ -168,6 +169,7 @@ void print_query(const bam1_t *b, int32_t pos) {
 }
 
 void print_seq(const bam1_t *b, bool original) {
+	if (b == NULL) return;
 	size_t n = (size_t) b->core.l_qseq;
 	if (original && bam_is_rev(b)) {
 		// query aligned to the reverse strand: the stored sequence is the reverse
@@ -188,6 +190,7 @@ void print_seq(const bam1_t *b) {
 }
 
 void bam_seq_str(const bam1_t *b, string& s, bool original) {
+	if (b == NULL) return;
 	size_t n = (size_t) b->core.l_qseq;
 	s.resize(n);
 	if (original && bam_is_rev(b)) {
@@ -209,6 +212,7 @@ void bam_seq_str(const bam1_t *b, string& s) {
 }
 
 void print_qual(const bam1_t *b, bool original) {
+	if (b == NULL) return;
 	const uint8_t* qual = bam_get_qual(b);
 	if (original && bam_is_rev(b)) {
 		// query aligned to the reverse strand: the stored quality is reversed
@@ -230,11 +234,13 @@ void print_qual(const bam1_t *b) {
 }
 
 void print_query_fasta(const bam1_t *b) {
+	if (b == NULL) return;
 	cout << '>' << bam_get_qname(b) << endl;
 	print_seq(b, true); cout << endl;
 }
 
 void print_query_fastq(const bam1_t *b) {
+	if (b == NULL) return;
 	cout << '@' << bam_get_qname(b) << endl;
 	print_seq(b, true); cout << endl;
 	cout << '+' << endl;
