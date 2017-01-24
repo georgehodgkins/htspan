@@ -255,15 +255,36 @@ struct query_filter_f {
 	// minimum base quality at query position for inclusion
 	int min_baseq;
 
+	// by default, exclude reads that are:
+	// 1. unmapped
+	// 2. secondary
+	// 3. QC failed
+	// 4. duplicates
 	query_filter_f()
 		: excl_flags(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP), prereq_flags(0),
 		min_mapq(5), min_baseq(20)
 	{}
 
+	void enable_excl_flags(int flags) {
+		excl_flags |= flags;
+	}
+
+	void disable_excl_flags(int flags) {
+		excl_flags &= ~flags;
+	}
+
+	void enable_prereq_flags(int flags) {
+		prereq_flags |= flags;
+	}
+
+	void disable_prereq_flags(int flags) {
+		prereq_flags &= ~flags;
+	}
+
 	bool operator()(const bam1_t *b, int32_t pos) const {
 		// check alignment flags
-		if (prereq_flags && (b->core.flag & prereq_flags) == prereq_flags) return false;
-		if (excl_flags && (b->core.flag & excl_flags) == 0) return false;
+		if (prereq_flags && (b->core.flag & prereq_flags) != prereq_flags) return false;
+		if (excl_flags && (b->core.flag & excl_flags) != 0) return false;
 
 		// check mapping quality
 		if (b->core.qual < min_mapq) return false;
