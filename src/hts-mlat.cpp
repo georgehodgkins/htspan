@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 		cout << b1seq << endl;
 		{
 			strcpy(querySeq, b1seq.c_str());
-			mlat::Result res = m.search(querySeq);
+			mlat::Result res(m.search(querySeq));
 			print_align(res[0]);
 			cout << res[0].score - res[1].score << endl;
 		}
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
 		cout << b2seq << endl;
 		{
 			strcpy(querySeq, b2seq.c_str());
-			mlat::Result res = m.search(querySeq);
+			mlat::Result res(m.search(querySeq));
 			print_align(res[0]);
 			cout << res[0].score - res[1].score << endl;
 		}
