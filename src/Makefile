@@ -10,6 +10,7 @@ hts-fasta:
 clean:
 	rm -f hts-fetch hts-fasta hts-mlat
 
-test: hts-fasta
-	./test.sh
+test: hts-fetch hts-fasta
+	./test-fasta.sh
+	./test-fetch.sh
 
