@@ -7,7 +7,6 @@ using namespace std;
 int main(int argc, char** argv) {
 	--argc;
 
-
 	if (argc != 3 && argc != 7) {
 		cerr << "usage: " << argv[0] 
 			<< "<bam_path> <target> <pos> [<nucleotide> <keep_dup> <get_mate> <format>]" << endl;
