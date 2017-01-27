@@ -66,14 +66,17 @@ struct mlat_summary
 		pass(true) {}
 };
 
-void write_mlat_summary_header(ofstream& fout) {
+void write_mlat_summary_header(ofstream& fout, bool show_coords) {
+	if (show_coords) {
+		fout <<
+			"tid1\t"
+			"start1\t"
+			"end1\t"
+			"tid2\t"
+			"start2\t"
+			"end2\t";
+	}
 	fout <<
-		"tid1\t"
-		"start1\t"
-		"end1\t"
-		"tid2\t"
-		"start2\t"
-		"end2\t"
 		"idx1\t"
 		"idx2\t"
 		"sdiff1\t"
@@ -82,14 +85,17 @@ void write_mlat_summary_header(ofstream& fout) {
 		"pass";
 }
 
-void write_mlat_summary(ofstream& fout, const mlat_summary& s, int32_t offset) {
+void write_mlat_summary(ofstream& fout, const mlat_summary& s, int32_t offset, bool show_coords) {
+	if (show_coords) {
+		fout
+			<< s.tid1+1 << '\t'
+			<< s.start1+1 + offset << '\t'
+			<< s.end1 + offset << '\t'
+			<< s.tid2+1 << '\t'
+			<< s.start2+1 + offset << '\t'
+			<< s.end2 + offset << '\t';
+	}
 	fout
-		<< s.tid1+1 << '\t'
-		<< s.start1+1 + offset << '\t'
-		<< s.end1 + offset << '\t'
-		<< s.tid2+1 << '\t'
-		<< s.start2+1 + offset << '\t'
-		<< s.end2 + offset << '\t'
 		<< s.idx1+1 << '\t'
 		<< s.idx2+1 << '\t'
 		<< s.sdiff1 << '\t'
@@ -191,19 +197,20 @@ int main(int argc, char** argv) {
 
 	char *snv_path, *bam_path, *database, *out_path;
 	int32_t db_offset;
-	bool add_chr_prefix;
+	bool add_chr_prefix, show_coords;
 
 	--argc;
-	if (argc == 6) {
+	if (argc == 7) {
 		snv_path = argv[1];
 		bam_path = argv[2];
 		database = argv[3];
 		out_path = argv[4];
 		db_offset = atol(argv[5]);
 		add_chr_prefix = (atoi(argv[6]) != 0);
+		show_coords = (atoi(argv[7]) != 0);
 	} else {
 		cerr << "usage: " << argv[0] <<
-			" <snv.tsv> <reads.bam> <db.{fasta,2bit}> <out.tsv> <db_offset> <add_chr_prefix>" << endl;
+			" <snv.tsv> <reads.bam> <db.fasta|db.2bit> <out.tsv> <db_offset> <add_chr_prefix> <show_coords>" << endl;
 		return 1;
 	}
 
@@ -243,7 +250,7 @@ int main(int argc, char** argv) {
 	}
 
 	outf << "query\treadpair\t";
-	write_mlat_summary_header(outf);
+	write_mlat_summary_header(outf, show_coords);
 	outf << endl;
 
 	/// process each input snv
@@ -289,7 +296,7 @@ int main(int argc, char** argv) {
 			mlat_pair(m, f.pile.queries[i], f.pile.mates[i], f, rid, pos - db_offset, s);
 
 			outf << snv_i+1 << '\t' << i+1 << '\t';
-			write_mlat_summary(outf, s, db_offset);
+			write_mlat_summary(outf, s, db_offset, show_coords);
 			outf << endl;
 		}
 
