@@ -7,6 +7,8 @@ using namespace std;
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
+typedef uint8_t nuc_t;
+
 enum nucleotide {
 	// definitions taken from htslib
 	nuc_A = 1,
@@ -77,6 +79,7 @@ int32_t query_position(const bam1_t *b, int32_t ref_pos) {
 	// - ref-skip
 	// + soft-clip
 	// + ins
+	// cigar string is in the same orientation as the stored reads
 	int32_t qpos = ref_pos - b->core.pos;
 	int32_t qend = bam_endpos(b);
 	// running total of nucleotides affected by cigar operations
@@ -209,6 +212,30 @@ void bam_seq_str(const bam1_t *b, string& s, bool original) {
 
 void bam_seq_str(const bam1_t *b, string& s) {
 	bam_seq_str(b, s, false);
+}
+
+char *bam_seq_cstr(const bam1_t *b, bool original) {
+	if (b == NULL) return NULL;
+	size_t n = (size_t) b->core.l_qseq;
+	char* s = new char[n + 1];
+	if (original && bam_is_rev(b)) {
+		// query aligned to the reverse strand: the stored sequence is the reverse
+		// complement of the original sequence
+		// thus, reverse complement the stored sequence
+		for (size_t i = 0; i < n; ++i) {
+			s[i] = nuc_to_char(nuc_complement(bam_seqi(bam_get_seq(b), n - i - 1)));
+		}
+	} else {
+		for (size_t i = 0; i < n; ++i) {
+			s[i] = nuc_to_char(bam_seqi(bam_get_seq(b), i));
+		}
+	}
+	s[n] = '\0';
+	return s;
+}
+
+char *bam_seq_cstr(const bam1_t *b) {
+	return bam_seq_cstr(b, false);
 }
 
 void print_qual(const bam1_t *b, bool original) {
@@ -403,7 +430,7 @@ struct fetcher {
 	}
 
 	bool open(const char* path) {
-		clear();
+		reset();
 
 		hf = hts_open(path, "rb");
 		if (!hf) {
@@ -474,6 +501,7 @@ struct fetcher {
 		return true;
 	}
 
+	// fetch reads and add to pile
 	bool fetch(int32_t tid, int32_t pos, uint8_t nuc, bool mate) {
 		if (!seek(tid, pos, pos + 1)) return false;
 
@@ -482,7 +510,6 @@ struct fetcher {
 			if (qfilter(buf, pos)) {
 				// process alignment
 				pile.push(buf, pos, nuc, mate);
-				//print_query(buf, pos);
 			}
 		}
 
@@ -498,7 +525,12 @@ struct fetcher {
 		return fetch(bam_name2id(hdr, target_name), pos, nuc_NULL, false);
 	}
 
+	// clear pile
 	void clear() {
+		pile.clear();
+	}
+
+	void reset() {
 		if (idx) hts_idx_destroy(idx);
 		if (itr) sam_itr_destroy(itr);
 		if (hdr) bam_hdr_destroy(hdr);	
@@ -506,7 +538,7 @@ struct fetcher {
 	}
 
 	~fetcher() {
-		clear();
+		reset();
 		bam_destroy1(buf);
 	}
 };

@@ -1,6 +1,9 @@
 hts-mlat:
 	g++ -lhts -lmlat hts-mlat.cpp -o hts-mlat
 
+hts-mlat-filter:
+	g++ -lhts -lmlat hts-mlat-filter.cpp -o hts-mlat-filter
+
 hts-fetch:
 	g++ -lhts hts-fetch.cpp -o hts-fetch
 
