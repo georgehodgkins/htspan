@@ -12,9 +12,9 @@ using namespace std;
 int main(int argc, char** argv) {
 	--argc;
 
-	if (argc != 4) {
+	if (argc != 6) {
 		cerr << "usage: " << argv[0]
-			<< " <bam_path> <target> <pos> <keep_dup>" << endl;
+			<< " <bam_path> <target> <pos> <keep_dup> <min_mapq> <min_baseq>" << endl;
 		return 1;
 	}
 
@@ -22,12 +22,14 @@ int main(int argc, char** argv) {
 	char* target = argv[2];
 	int32_t pos = atol(argv[3]) - 1;
 	bool keep_dup = (atoi(argv[4]) != 0);
+	int min_mapq = atoi(argv[5]);
+	int min_baseq = atoi(argv[6]);
 
 	fetcher f;
 
 	// disable quality filters
-	f.qfilter.min_mapq = 0;
-	f.qfilter.min_baseq = 0;
+	f.qfilter.min_mapq = min_mapq;
+	f.qfilter.min_baseq = min_baseq;
 
 	if (keep_dup) {
 		f.qfilter.disable_excl_flags(BAM_FDUP);
