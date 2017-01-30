@@ -13,7 +13,8 @@ hts-fasta:
 clean:
 	rm -f hts-fetch hts-fasta hts-mlat
 
-test: hts-fetch hts-fasta
+test: hts-fetch hts-fasta hts-mlat-filter
 	./test-fasta.sh
 	./test-fetch.sh
+	./test-mlat-filter.sh
 
