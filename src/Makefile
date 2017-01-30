@@ -1,17 +1,19 @@
+HTSLIBS = -lhts -lz -lpthread
+
 hts-mlat:
-	g++ -lhts -lmlat hts-mlat.cpp -o hts-mlat
+	g++ hts-mlat.cpp -o hts-mlat $(HTSLIBS) -lmlat
 
 hts-mlat-filter:
-	g++ -lhts -lmlat hts-mlat-filter.cpp -o hts-mlat-filter
+	g++ hts-mlat-filter.cpp -o hts-mlat-filter $(HTSLIBS) -lmlat
 
 hts-fetch:
-	g++ -lhts hts-fetch.cpp -o hts-fetch
+	g++ hts-fetch.cpp -o hts-fetch $(HTSLIBS)
 
 hts-fasta:
-	g++ -lhts hts-fasta.cpp -o hts-fasta
+	g++ hts-fasta.cpp -o hts-fasta $(HTSLIBS)
 
 clean:
-	rm -f hts-fetch hts-fasta hts-mlat
+	rm -f hts-fetch hts-fasta hts-mlat hts-mlat-filter
 
 check: hts-fetch hts-fasta hts-mlat-filter
 	./test-fasta.sh

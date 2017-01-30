@@ -4,6 +4,9 @@
 #include <cassert>
 using namespace std;
 
+#include <stdint.h>
+#include <string.h>
+
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 

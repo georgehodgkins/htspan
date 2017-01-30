@@ -2,7 +2,9 @@
 #include <queue>
 #include <vector>
 #include <cassert>
+#include <cstdlib>
 using namespace std;
+
 
 #include <htslib/hts.h>
 #include <htslib/sam.h>

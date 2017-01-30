@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstring>
+#include <cstdlib>
 using namespace std;
 
 #include "fetcher.hpp"

@@ -18,7 +18,7 @@ void print_align(const gfAlign& align) {
 }
 
 int main(int argc, char** argv) {
-	char path[] = "../data/KP7-092916.bam"; 
+	char path[] = "../data/test.bam"; 
 
 	fetcher f;
 
