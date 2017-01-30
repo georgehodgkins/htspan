@@ -8,3 +8,4 @@ mkdir -p out/mlat-filter
 echo "Testing diff ...";
 
 diff out/mlat-filter/mlat.tsv test/mlat-filter/mlat.tsv
+echo "out/mlat-filter/mlat.tsv ... $?"
