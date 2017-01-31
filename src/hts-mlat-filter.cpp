@@ -200,7 +200,15 @@ int main(int argc, char** argv) {
 	bool add_chr_prefix, show_coords;
 
 	--argc;
-	if (argc == 7) {
+	if (argc == 4) {
+		snv_path = argv[1];
+		bam_path = argv[2];
+		database = argv[3];
+		out_path = argv[4];
+		db_offset = 0;
+		add_chr_prefix = 0;
+		show_coords = 0;
+	} else if (argc == 7) {
 		snv_path = argv[1];
 		bam_path = argv[2];
 		database = argv[3];
@@ -276,6 +284,8 @@ int main(int argc, char** argv) {
 			} else {
 				target = chrom;
 			}
+		} else {
+			target = chrom;
 		}
 
 		// set target region
