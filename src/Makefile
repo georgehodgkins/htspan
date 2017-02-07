@@ -1,16 +1,18 @@
 HTSLIBS = -lhts -lz -lpthread
 
+CXXFLAGS=-g
+
 hts-mlat:
 	g++ hts-mlat.cpp -o hts-mlat $(HTSLIBS) -lmlat
 
 hts-mlat-filter:
-	g++ hts-mlat-filter.cpp -o hts-mlat-filter $(HTSLIBS) -lmlat
+	g++ $(CXXFLAGS) hts-mlat-filter.cpp -o hts-mlat-filter $(HTSLIBS) -lmlat
 
 hts-fetch:
-	g++ hts-fetch.cpp -o hts-fetch $(HTSLIBS)
+	g++ $(CXXFLAGS) hts-fetch.cpp -o hts-fetch $(HTSLIBS)
 
 hts-fasta:
-	g++ hts-fasta.cpp -o hts-fasta $(HTSLIBS)
+	g++ $(CXXFLAGS) hts-fasta.cpp -o hts-fasta $(HTSLIBS)
 
 clean:
 	rm -f hts-fetch hts-fasta hts-mlat hts-mlat-filter
