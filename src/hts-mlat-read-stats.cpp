@@ -15,11 +15,6 @@ using namespace std;
 #include "fetcher.hpp"
 #include "mlat.hpp"
 
-void print_align(const gfAlign& align) {
-		cout << align.qStart << '\t' << align.qEnd << endl;
-		cout << align.tStart << '\t' << align.tEnd << endl;
-		cout << align.score << '\t' << align.matchCount << '\t' << align.mismatchCount << '\t' << align.repMatchCount << '\t' << align.qInsertCount << '\t' << align.qInsertBaseCount << '\t' << align.tInsertCount << '\t' << align.tInsertBaseCount << endl;
-}
 
 // region [start, end)
 bool region_contains_pos(int32_t tid1, int32_t start, int32_t end, int32_t tid2, int32_t pos)
@@ -294,7 +289,6 @@ int main(int argc, char** argv) {
 		nuc_t nuc = char_to_nuc(nuc_char);
 
 		// fetch all supporting reads at query position with the mate read
-		f.clear();
 		f.fetch(rid, pos, nuc, true);
 
 		/// process each supporting read
@@ -309,6 +303,8 @@ int main(int argc, char** argv) {
 			write_mlat_summary(outf, s, db_offset, show_coords);
 			outf << endl;
 		}
+
+		f.clear();
 
 		++snv_i;
 	}

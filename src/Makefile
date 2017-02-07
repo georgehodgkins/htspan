@@ -23,8 +23,9 @@ hts-fasta:
 clean:
 	rm -f $(targets)
 
-check: hts-fetch hts-fasta hts-mlat-read-stats
+check: hts-fetch hts-fasta hts-mlat-read-stats hts-mlat-filter
 	./test-fasta.sh
 	./test-fetch.sh
 	./test-mlat-read-stats.sh
+	./test-mlat-filter.sh
 
