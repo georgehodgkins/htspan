@@ -250,10 +250,6 @@ int main(int argc, char** argv) {
 					break;
 				}
 			}
-
-			/* outf << snv_i+1 << '\t' << i+1 << '\t'; */
-			/* write_mlat_summary(outf, s, db_offset, show_coords); */
-			/* outf << endl; */
 		}
 
 		if (n_pass > n_pass_cut) {
