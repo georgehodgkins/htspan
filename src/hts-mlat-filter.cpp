@@ -146,7 +146,6 @@ int main(int argc, char** argv) {
 
 	char *snv_path, *bam_path, *database, *out_path;
 	int32_t db_offset;
-	bool add_chr_prefix;
 	double f_pass_cut;
 
 	--argc;
@@ -156,6 +155,7 @@ int main(int argc, char** argv) {
 		database = argv[3];
 		out_path = argv[4];
 		f_pass_cut = atof(argv[5]);
+		db_offset = 0;
 	} else if (argc == 6) {
 		snv_path = argv[1];
 		bam_path = argv[2];
@@ -206,7 +206,7 @@ int main(int argc, char** argv) {
 
 	/// process each input snv
 
-	size_t snv_i = 0;
+	size_t snv_i = 1;
 
 	while (!snvf.eof()) {
 		getline(snvf, line);
@@ -227,6 +227,9 @@ int main(int argc, char** argv) {
 			string chrom2 = "chr";
 			chrom2 += chrom;
 			rid = bam_name2id(f.hdr, chrom2.c_str());
+			if (rid == -1) {
+				cerr << "INFO: snv " << snv_i << ": contig " << chrom << " is not found" << endl;
+			}
 		}
 
 		int32_t pos = atol(pos_str.c_str()) - 1;
@@ -237,18 +240,21 @@ int main(int argc, char** argv) {
 
 		/// process each supporting read
 		
+		// number of passing read-pairs
 		int32_t n_pass = 0;
+		// fraction of passing read-pairs
 		double f_pass = 0;
 		
-		for (size_t n = 0; n < f.pile.queries.size(); ++n) {
-			bam1_t *b1 = f.pile.queries[n];
-			bam1_t *b2 = f.pile.mates[n];
+		for (size_t i = 0; i < f.pile.queries.size(); ++i) {
+			bam1_t *b1 = f.pile.queries[i];
+			bam1_t *b2 = f.pile.mates[i];
 			mlat_summary s;
-			mlat_pair(m, f.pile.queries[n], f.pile.mates[n], f, rid, pos - db_offset, s);
+			mlat_pair(m, f.pile.queries[i], f.pile.mates[i], f, rid, pos - db_offset, s);
 
+			size_t n = i + 1;
 			if (s.pass) {
+				// read pair passed: increment counter
 				++n_pass;
-				f_pass = double(n_pass) / n;
 
 				// determine whether to stop early
 
@@ -262,13 +268,20 @@ int main(int argc, char** argv) {
 				// this interval around the f_pass threshold
 				// Start checking at a sufficiently large n to reduce wasted work
 	
+				f_pass = double(n_pass) / n;
 				if (n >= 20) {
 					double ci = 1.945296 / std::sqrt(n);
 					if (f_pass > f_pass_cut + ci || f_pass < f_pass_cut - ci) {
+						cerr << "INFO: snv " << snv_i << ": early stop " << "(f_pass = " << f_pass
+							<< ", f_pass_cut = " << f_pass_cut << " +/- " << ci << 
+							", n_pass = " << n_pass << ", n = " <<  n << ")" << endl;
 						// f_pass has been determined sufficiently accurately: stop early
 						break;
 					}
 				}
+			} else {
+				// update f_pass since it is also a function of n
+				f_pass = double(n_pass) / n;
 			}
 		}
 
