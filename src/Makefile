@@ -2,7 +2,7 @@ HTSLIBS = -lhts -lz -lpthread
 
 #CXXFLAGS = -g
 
-targets = hts-mlat hts-mlat-filter hts-mlat-read-stats hts-fetch hts-fasta
+targets = hts-mlat hts-mlat-filter hts-mlat-read-stats hts-fetch hts-fasta hts-count
 
 
 hts-mlat:
@@ -19,6 +19,9 @@ hts-fetch:
 
 hts-fasta:
 	g++ $(CXXFLAGS) hts-fasta.cpp -o hts-fasta $(HTSLIBS)
+
+hts-count:
+	g++ $(CXXFLAGS) hts-count.cpp -o hts-count $(HTSLIBS)
 
 clean:
 	rm -f $(targets)
