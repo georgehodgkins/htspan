@@ -3,7 +3,7 @@
 mkdir -p out/mlat-filter
 
 ./hts-mlat-filter test/mlat-read-stats/snvs.tsv ../data/test.bam ../data/TP53_hg38_rc.2bit \
-	out/mlat-filter/pass.vtr 3 7668402
+	out/mlat-filter/pass.vtr 0.5 7668402
 
 echo "Testing diff ...";
 
