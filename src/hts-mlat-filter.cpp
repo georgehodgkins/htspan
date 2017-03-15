@@ -210,7 +210,7 @@ int main(int argc, char** argv) {
 	while (!snvf.eof()) {
 		getline(snvf, line);
 		if (line.empty()) break;
-		if (line[0] == '#') break;
+		if (line[0] == '#') continue;
 
 		istringstream line_stream(line);
 	
@@ -268,6 +268,9 @@ int main(int argc, char** argv) {
 
 		++snv_i;
 	}
+
+	outf.close();
+	snvf.close();
 
 	return 0;
 }
