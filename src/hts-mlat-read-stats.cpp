@@ -213,7 +213,14 @@ int main(int argc, char** argv) {
 		show_coords = (atoi(argv[7]) != 0);
 	} else {
 		cerr << "usage: " << argv[0] <<
-			" <snv.tsv> <reads.bam> <db.fasta|db.2bit> <out.tsv> <db_offset> <add_chr_prefix> <show_coords>" << endl;
+			" <snv3.tsv> <reads.bam> <db.fasta|db.2bit> <out.tsv> <db_offset> <add_chr_prefix> <show_coords>" << endl << endl;
+		cerr << "Format specification of the SNV3 file: " << endl;
+		cerr << "snv3file ::=  header [TAB record]+" << endl;
+		cerr << "header   ::=  'chrom' TAB 'pos' TAB 'alt' CRLF" << endl;
+		cerr << "record   ::=  chrom TAB pos TAB alt CRLF" << endl;
+		cerr << "chrom    ::=  ('chr' | '') ([0-9]+ | 'X' | 'Y' | 'MT')" << endl;
+		cerr << "pos      ::=  [0-9]+" << endl;
+		cerr << "alt      ::=  'A' | 'C' | 'G' | 'T'" << endl;
 		return 1;
 	}
 
