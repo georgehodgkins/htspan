@@ -7,7 +7,7 @@ testdir=test/count
 mkdir -p $outdir
 
 # do not keep duplicate
-./hts-count $testdir/snvs.tsv $bam $outdir/cov.tsv 0 0 0
+./hts-count $testdir/snvs.tsv $bam $outdir/cov.tsv 0 0 0 1
 
 
 echo "Testing diff ..."

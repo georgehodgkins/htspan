@@ -35,77 +35,25 @@ void read_snv_record(const string& line, const fetcher& f, int32_t& rid,
 	alt = char_to_nuc(alt_c);
 }
 
-
-int main(int argc, char** argv) {
-	--argc;
-
-	if (argc != 6) {
-		cerr << "usage: " << argv[0]
-			<< " <snv.tsv> <reads.bam> <cov.tsv> <keep_dup> <min_mapq> <min_baseq>" << endl << endl;
-		cerr << "Format specification of the SNV file: " << endl;
-		cerr << "snvfile ::=  header [TAB record]+" << endl;
-		cerr << "header  ::=  'chrom' TAB 'pos' TAB 'alt' TAB 'ref' CRLF" << endl;
-		cerr << "record  ::=  chrom TAB pos TAB alt TAB ref CRLF" << endl;
-		cerr << "chrom   ::=  ('chr' | '') ([0-9] | 'X' | 'Y' | 'MT')" << endl;
-		cerr << "pos     ::=  [0-9]+" << endl;
-		cerr << "alt     ::=  nucl" << endl;
-		cerr << "ref     ::=  nucl" << endl;
-		cerr << "nucl    ::=  'A' | 'C' | 'G' | 'T'" << endl;
-		return 1;
-	}
-
-	char* snv_path = argv[1];
-	char* bam_path = argv[2];
-	char* out_path = argv[3];
-
-	bool keep_dup = (atoi(argv[4]) != 0);
-	int min_mapq = atoi(argv[5]);
-	int min_baseq = atoi(argv[6]);
-
-
-	/// initialize query
-
-	fetcher f;
-
-	f.qfilter.min_mapq = min_mapq;
-	f.qfilter.min_baseq = min_baseq;
-
-	if (keep_dup) {
-		f.qfilter.disable_excl_flags(BAM_FDUP);
-	}
-	
-	f.open(bam_path);
-
+template<class C, class T>
+int process(basic_istream<C, T>& snvf, basic_ostream<C, T>& outf, fetcher& f, bool echo_snv) {
 
 	/// initialize input file
-	
-	ifstream snvf(snv_path);
-
-	if (!snvf.is_open()) {
-		cerr << "ERROR: coudl not open for read: " << snv_path << endl;
-		return 1;
-	}
 
 	string line;
 	// discard header line
 	getline(snvf, line);
 
-
 	/// initialize output file
-	
-	ofstream outf(out_path);
-
-	if (!outf.is_open()) {
-		cerr << "ERROR: could not open for write: " << out_path << endl;
-		return 1;
-	}
 
 	// write header line
-	outf << "chrom\tpos\tref\talt\tref_count\talt_count" << endl;
-
+	if (echo_snv) {
+		outf << "chrom\tpos\tref\talt\t";
+	}
+	outf << "ref_count\talt_count" << endl;
 
 	/// process each input snv
-	
+
 	size_t snv_i = 0;
 
 	while (!snvf.eof()) {
@@ -193,15 +141,96 @@ int main(int argc, char** argv) {
 		}
 
 		// write output line
-		outf << line << '\t' << ref_count << '\t' << alt_count << endl;
+		if (echo_snv) {
+			outf << line << '\t';
+		}
+		outf << ref_count << '\t' << alt_count << endl;
 
 		f.clear();
 
 		++snv_i;
 	}
 
-	snvf.close();
-	outf.close();
-
 	return 0;
+}
+
+
+int main(int argc, char** argv) {
+	--argc;
+
+	if (argc != 7) {
+		cerr << "usage: " << argv[0]
+			<< " <snv4.tsv> <reads.bam> <cov.tsv> <keep_dup> <min_mapq> <min_baseq> <echo_snv>" << endl << endl;
+		cerr << "Format specification of the SNV4 file: " << endl;
+		cerr << "snv4file ::=  header [TAB record]+" << endl;
+		cerr << "header   ::=  'chrom' TAB 'pos' TAB 'ref' TAB 'alt' CRLF" << endl;
+		cerr << "record   ::=  chrom TAB pos TAB ref TAB alt CRLF" << endl;
+		cerr << "chrom    ::=  ('chr' | '') ([0-9]+ | 'X' | 'Y' | 'MT')" << endl;
+		cerr << "pos      ::=  [0-9]+" << endl;
+		cerr << "alt      ::=  nucl" << endl;
+		cerr << "ref      ::=  nucl" << endl;
+		cerr << "nucl     ::=  'A' | 'C' | 'G' | 'T'" << endl;
+		return 1;
+	}
+
+	char* snv_path = argv[1];
+	char* bam_path = argv[2];
+	char* out_path = argv[3];
+
+	bool keep_dup = (atoi(argv[4]) != 0);
+	int min_mapq = atoi(argv[5]);
+	int min_baseq = atoi(argv[6]);
+	bool echo_snv = (atoi(argv[7]) != 0);
+
+
+	/// initialize query
+
+	fetcher f;
+
+	f.qfilter.min_mapq = min_mapq;
+	f.qfilter.min_baseq = min_baseq;
+
+	if (keep_dup) {
+		f.qfilter.disable_excl_flags(BAM_FDUP);
+	}
+	
+	f.open(bam_path);
+
+	/// main process
+	
+	istream *pfin;
+	ostream *pfout;
+
+	// use stdin or stdout if file name is "-"
+
+	ifstream fin;
+	if (strcmp(snv_path, "-") != 0) {
+		fin.open(snv_path);
+		if (!fin.is_open()) {
+			cerr << "ERROR: could not open input file" << endl;
+			return 1;
+		}
+		pfin = &fin;
+	} else {
+		pfin = &cin;
+	}
+
+	ofstream fout;
+	if (strcmp(out_path, "-") != 0) {
+		fout.open(out_path);
+		if (!fout.is_open()) {
+			cerr << "ERROR: could not open output file" << endl;
+			return 1;
+		}
+		pfout = &fout;
+	} else {
+		pfout = &cout;
+	}
+	
+	int ret = process(*pfin, *pfout, f, echo_snv);
+
+	fin.close();
+	fout.close();
+
+	return ret;
 }

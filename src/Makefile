@@ -4,6 +4,8 @@ HTSLIBS = -lhts -lz -lpthread
 
 targets = hts-mlat hts-mlat-filter hts-mlat-read-stats hts-fetch hts-fasta hts-count
 
+all: $(targets)
+	
 
 hts-mlat:
 	g++ hts-mlat.cpp -o hts-mlat $(HTSLIBS) -lmlat
@@ -20,15 +22,16 @@ hts-fetch:
 hts-fasta:
 	g++ $(CXXFLAGS) hts-fasta.cpp -o hts-fasta $(HTSLIBS)
 
-hts-count:
+hts-count: hts-count.cpp
 	g++ $(CXXFLAGS) hts-count.cpp -o hts-count $(HTSLIBS)
 
 clean:
 	rm -f $(targets)
 
-check: hts-fetch hts-fasta hts-mlat-read-stats hts-mlat-filter
+check: $(targets) 
 	./test-fasta.sh
 	./test-fetch.sh
 	./test-mlat-read-stats.sh
 	./test-mlat-filter.sh
+	./test-count.sh
 
