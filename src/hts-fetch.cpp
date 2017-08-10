@@ -45,7 +45,11 @@ int main(int argc, char** argv) {
 	//int32_t pos = 7674361 - 1;   // dup:   1 A, 2 C, 0 G, 536 T, 202 -, 15 +
 	                               // nodup: 0 A, 0 C, 0 G, 154 T,  40 -,  4 +
 	
-	f.open(path);
+	if (!f.open(path)) {
+		cerr << "ERROR: could not open BAM file for reading: " << path << endl;
+		return 1;
+	}
+
 	int32_t rid = bam_name2id(f.hdr, target);
 	f.fetch(rid, pos);
 

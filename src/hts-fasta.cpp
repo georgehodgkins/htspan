@@ -41,7 +41,11 @@ int main(int argc, char** argv) {
 		f.qfilter.disable_excl_flags(BAM_FDUP);
 	}
 
-	f.open(path);
+	if (!f.open(path)) {
+		cerr << "ERROR: could not open BAM file for reading: " << path << endl;
+		return 1;
+	}
+	
 	int32_t rid = bam_name2id(f.hdr, target);
 	f.fetch(rid, pos, nucleotide, get_mate);
 

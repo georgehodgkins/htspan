@@ -194,7 +194,10 @@ int main(int argc, char** argv) {
 		f.qfilter.disable_excl_flags(BAM_FDUP);
 	}
 	
-	f.open(bam_path);
+	if (!f.open(bam_path)) {
+		cerr << "ERROR: could not open BAM file for reading: " << bam_path << endl;
+		return 1;
+	}
 
 	/// main process
 	

@@ -235,7 +235,10 @@ int main(int argc, char** argv) {
 	f.qfilter.min_mapq = 5;
 	f.qfilter.min_baseq = 20;
 	
-	f.open(bam_path);
+	if (!f.open(bam_path)) {
+		cerr << "ERROR: could not open BAM file for reading: " << bam_path << endl;
+		return 1;
+	}
 
 	/// initialize input file
 

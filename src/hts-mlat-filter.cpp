@@ -180,14 +180,17 @@ int main(int argc, char** argv) {
 	f.qfilter.min_mapq = 5;
 	f.qfilter.min_baseq = 20;
 	
-	f.open(bam_path);
+	if (!f.open(bam_path)) {
+		cerr << "ERROR: could not open BAM file for reading: " << bam_path << endl;
+		return 1;
+	}
 
 	/// initialize input file
 
 	ifstream snvf(snv_path);
 
 	if (!snvf.is_open()) {
-		cerr << "ERROR: could not open for read: " << snv_path << endl;
+		cerr << "ERROR: could not open for reading: " << snv_path << endl;
 		return 1;
 	}
 
@@ -200,7 +203,7 @@ int main(int argc, char** argv) {
 	ofstream outf(out_path);
 
 	if (!outf.is_open()) {
-		cerr << "ERROR: could not open for write: " << out_path << endl;
+		cerr << "ERROR: could not open for writing: " << out_path << endl;
 		return 1;
 	}
 

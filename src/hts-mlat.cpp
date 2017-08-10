@@ -22,7 +22,10 @@ int main(int argc, char** argv) {
 
 	fetcher f;
 
-	f.open(path);
+	if (!f.open(path)) {
+		cerr << "ERROR: could not open BAM file for reading: " << path << endl;
+		return 1;
+	}
 
 	// set target region
 	char target[] = "chr17";
