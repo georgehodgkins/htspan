@@ -1,0 +1,6 @@
+[submodule "src/htslib"]
+	path = src/htslib
+	url = https://github.com/samtools/htslib
+[submodule "src/mlat"]
+	path = src/mlat
+	url = git@github.com:djhshih/mlat
