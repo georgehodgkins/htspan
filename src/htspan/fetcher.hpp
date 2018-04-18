@@ -18,6 +18,9 @@ using namespace std;
 
 typedef uint8_t nuc_t;
 
+/**
+ * Extended nucleotide enum.
+ */
 enum nucleotide {
 	// definitions taken from htslib
 	nuc_A = 1,
@@ -31,6 +34,22 @@ enum nucleotide {
 	nuc_INS = 12
 };
 
+/**
+ * Complement nucleotide.
+ */
+uint8_t nuc_complement(uint8_t x) {
+	switch (x) {
+		case nuc_A: return nuc_T;
+		case nuc_C: return nuc_G;
+		case nuc_G: return nuc_C;
+		case nuc_T: return nuc_A;
+		default: return x;
+	}
+}
+
+/**
+ * Convert from nucleotide enum to ASCII char.
+ */
 char nuc_to_char(uint8_t x) {
 	switch (x) {
 		case nuc_A: return 'A';
@@ -45,16 +64,9 @@ char nuc_to_char(uint8_t x) {
 	}
 }
 
-uint8_t nuc_complement(uint8_t x) {
-	switch (x) {
-		case nuc_A: return nuc_T;
-		case nuc_C: return nuc_G;
-		case nuc_G: return nuc_C;
-		case nuc_T: return nuc_A;
-		default: return x;
-	}
-}
-
+/**
+ * Convert from ASCII char to nucleotide enum.
+ */
 uint8_t char_to_nuc(char x) {
 	switch (x) {
 		case 'A': return nuc_A;
@@ -69,18 +81,29 @@ uint8_t char_to_nuc(char x) {
 	}
 }
 
-// check if nucleotide x and nucleotide y are equal
-// if either nucleotide is N, then they are equal
+/**
+ * Check whether two nucleotides are equal.
+ * 
+ * If either nucleotide is N, then they are equal.
+ */
 bool nuc_equal(uint8_t x, uint8_t y) {
 	if (x == nuc_N || y == nuc_N) return true;
 	if (x == y) return true;
 	return false;
 }
 
-// get the query position that aligns to a specified reference position
-// if query does not align to the query position, return -1
-// if query has a deletion at the specified reference position, return -2
-// if query has an insertion at the specified reference position, return -3
+/**
+ * Get the query position that aligns to a specified reference position.
+ *
+ * Query position is a position within the query read.
+ * If query does not align to the query position, return -1.
+ * If query has a deletion at the specified reference position, return -2.
+ * If query has an insertion at the specified reference position, return -3.
+ * 
+ * @param b        pointer to BAM record
+ * @param ref_pos  reference position
+ * @return query position
+ */
 int32_t query_position(const bam1_t *b, int32_t ref_pos) {
 	// qpos will contain the nucleotide of interest in the read
 	// correct query position for preceeding cigar operations:
@@ -141,7 +164,13 @@ int32_t query_position(const bam1_t *b, int32_t ref_pos) {
 	return qpos;
 }
 
-// get the query nucleotide that aligns to a specified reference position
+/**
+ * Get the query nucleotide that aligns to a specified reference position.
+ *
+ * @param b        pointer to the BAM record
+ * @param ref_pos  reference position
+ * @return nucleotide enum
+ */
 uint8_t query_nucleotide(const bam1_t *b, int32_t ref_pos) {
 
 	int32_t qpos = query_position(b, ref_pos);
@@ -229,17 +258,20 @@ char *bam_seq_cstr(const bam1_t *b) {
 	return bam_seq_cstr(b, false);
 }
 
+/**
+ * Functor for query filtering.
+ */
 struct query_filter_f {
-	// query will be filtered out if any of these flags is set
+	/// query will be filtered out if any of these flags is set
 	int excl_flags;
 
-	// query will be kept only if all of these flags are set
+	/// query will be kept only if all of these flags are set
 	int prereq_flags;
 	
-	// minimum mapping quality score for inclusion
+	/// minimum mapping quality score for inclusion
 	int min_mapq;
 
-	// minimum base quality at query position for inclusion
+	/// minimum base quality at query position for inclusion
 	int min_baseq;
 
 	// by default, exclude reads that are:
@@ -310,18 +342,34 @@ struct mate_t {
 };
 
 /**
- * Query pile.
+ * Piles of query reads.
+ *
+ * Stores the BAM records of paired-end reads.
  */
 struct query_pile {
 
+	/// BAM record of first read
 	vector<bam1_t*> queries;
+
+	/// BAM record of mate/second read
 	vector<bam1_t*> mates;
 
-	// mate queries that are pending addition to `queries`
+	/// mate queries that are pending addition to `queries`
 	queue<mate_t*> mate_queue;
 	
-	// push a query onto the pile
-	// @param mate  whether to queue the mate for addition later
+	/** 
+	 * Push a query onto the pile.
+	 *
+	 * Query read is only pushed if the query nucleotide that aligned to
+	 * the target reference position matches the specified nucleotide.
+	 *
+	 * @param b     pointer to BAM record
+	 * @param pos   reference position
+	 * @param nuc   nucleotide that the query must match at the position within
+	 *              query that aligned to target reference position
+	 * @param mate  whether to queue the mate for addition later
+	 * @return whether operation succeeded
+	 */
 	bool push(const bam1_t *b, int32_t pos, uint8_t nuc, bool mate) {
 		if (nuc != nuc_NULL) {
 			// check if query nucleotide matches
@@ -333,17 +381,23 @@ struct query_pile {
 		queries.push_back(b2);
 
 		if (mate) {
-			// add the mate of the current query to the queue
-			// the mate has the same qname
+			// Add the mate of the current query to the queue
+			// the mate has the same qname.
+			// It is more efficient to access reads that are close together and
+			// avoid IO seeks.
+			// Caller is repsonsible for actually pushing mate onto mates pile.
 			mate_queue.push( new mate_t(b2->core.mtid, b2->core.mpos, bam_get_qname(b2)) );
 		}
 
 		return true;
 	}
 
+	/**
+	 * Dellocate all data.
+	 */
 	void clear() {
-		// queries and mates should be the same size
-		// but we will deallocate with separate loops to be safe
+		// Queries and mates may not be same size, depending on whether caller
+		// pushed reads onto reads; therefore we deallocate using separate loops
 		for (size_t i = 0; i < queries.size(); ++i) {
 			bam_destroy1(queries[i]);
 		}
@@ -368,22 +422,25 @@ struct query_pile {
  * Fetcher of reads from BAM records.
  */
 struct fetcher {
-	// file handle
+	/// main file handle
 	htsFile *hf;
 
-	// bam header
+	/// pointer to BAM header
 	bam_hdr_t *hdr;
 
-	// file iterator
+	/// file iterator
 	hts_itr_t *itr;
 
-	// bam index
+	/// bam index
 	hts_idx_t *idx;
 	
-	// buffer for a single query
+	/// buffer for a single query
 	bam1_t *buf;
 
+	/// query filter
 	query_filter_f qfilter;
+
+	/// pile of query reads
 	query_pile pile;
 
 	fetcher()
@@ -392,8 +449,14 @@ struct fetcher {
 	{
 	}
 
+	/**
+	 * Open BAM file and its index.
+	 *
+	 * @param path  file path to BAM file
+	 * @return whether operation succeeded
+	 */
 	bool open(const char* path) {
-		reset();
+		close();
 
 		hf = hts_open(path, "rb");
 		if (!hf) {
@@ -416,7 +479,14 @@ struct fetcher {
 		return true;
 	}
 
-	// move iterator to target region
+	/**
+	 * Move iterator to target region.
+	 *
+	 * @param tid    target contig ID (e.g. chromosome name of reference)
+	 * @param start  start position of region
+	 * @param end    end position of region
+	 * @return whether operation succeeded
+	 */
 	bool seek(int32_t tid, int32_t start, int32_t end) {
 		itr = sam_itr_queryi(idx, tid, start, end);
 		if (!itr) {
@@ -427,12 +497,21 @@ struct fetcher {
 		return true;
 	}
 
-	// extract next query at current position into buffer
+	/**
+	 * Extract next query at current position into buffer.
+	 *
+	 * @return whether operation succeeded
+	 */
 	bool next() {
 		int ret = sam_itr_next(hf, itr, buf);
 		return (ret < 0) ? false : true;
 	}
 
+	/**
+	 * Fetch the mate reads and push onto pile.
+	 *
+	 * @return whether operation succeeded
+	 */
 	bool fetch_mates() {
 		// retrieve all the mates registered in the queue from the file
 		// and push them onto the mates pile in the same order,
@@ -464,7 +543,16 @@ struct fetcher {
 		return true;
 	}
 
-	// fetch reads and add to pile
+	/**
+	 * Fetch read-pairs at position and push onto pile.
+	 *
+	 * @param tid   target contig ID
+	 * @param pos   target reference position
+	 * @param nuc   nucleotide that the query must match at the position within
+	 *              query that aligned to target reference position
+	 * @param mate  whether to push mate reads too
+	 * @return whether operation succeeded
+	 */
 	bool fetch(int32_t tid, int32_t pos, uint8_t nuc, bool mate) {
 		if (!seek(tid, pos, pos + 1)) return false;
 
@@ -480,20 +568,43 @@ struct fetcher {
 		return true;
 	}
 
+	/**
+	 * Fetch reads at target position.
+	 *
+	 * Mate reads are not fetched.
+	 *
+	 * @param tid  target contig ID
+	 * @param pos  target reference position
+	 * @return whether operation succeeded
+	 */
 	bool fetch(int32_t tid, int32_t pos) {
 		return fetch(tid, pos, nuc_NULL, false);
 	}
 
+	/**
+	 * Fetch reads at target position.
+	 *
+	 * Mate reads are not fetched.
+	 *
+	 * @param target_name  target name (e.g. chromosome name of reference)
+	 * @param pos          target reference position
+	 * @return whether operation succeeded
+	 */
 	bool fetch(const char* target_name, int32_t pos) {
 		return fetch(bam_name2id(hdr, target_name), pos, nuc_NULL, false);
 	}
 
-	// clear pile
+	/**
+	 * Clear read pile.
+	 */
 	void clear() {
 		pile.clear();
 	}
 
-	void reset() {
+	/**
+	 * Close file handers.
+	 */
+	void close() {
 		if (idx) hts_idx_destroy(idx);
 		if (itr) sam_itr_destroy(itr);
 		if (hdr) bam_hdr_destroy(hdr);	
@@ -501,7 +612,7 @@ struct fetcher {
 	}
 
 	~fetcher() {
-		reset();
+		close();
 		bam_destroy1(buf);
 	}
 };
