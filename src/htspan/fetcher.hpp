@@ -1,5 +1,5 @@
-#ifndef _HTSPAN_FETCHER_
-#define _HTSPAN_FETCHER_
+#ifndef _HTSPAN_FETCHER_HPP_
+#define _HTSPAN_FETCHER_HPP_
 
 #include <iostream>
 #include <queue>
@@ -169,38 +169,13 @@ uint8_t query_nucleotide(const bam1_t *b, int32_t ref_pos) {
 	return nuc;
 }
 
-void print_query(const bam1_t *b, int32_t pos) {
-	if (b == NULL) return;
-	cout
-		<< bam_get_qname(b) << '\t'
-		<< b->core.tid << '\t' 
-		<< b->core.pos << '\t' 
-		<< bam_endpos(b) << '\t'
-		<< nuc_to_char(query_nucleotide(b, pos))
-		<< endl;
-}
-
-void print_seq(const bam1_t *b, bool original) {
-	if (b == NULL) return;
-	size_t n = (size_t) b->core.l_qseq;
-	if (original && bam_is_rev(b)) {
-		// query aligned to the reverse strand: the stored sequence is the reverse
-		// complement of the original sequence
-		// thus, reverse complement the stored sequence
-		for (size_t i = 0; i < n; ++i) {
-			cout << nuc_to_char(nuc_complement(bam_seqi(bam_get_seq(b), n - i - 1)));
-		}
-	} else {
-		for (size_t i = 0; i < n; ++i) {
-			cout << nuc_to_char(bam_seqi(bam_get_seq(b), i));
-		}
-	}
-}
-
-void print_seq(const bam1_t *b) {
-	print_seq(b, false);
-}
-
+/**
+ * Get the sequence from a BAM record.
+ *
+ * @param b         pointer to BAM record
+ * @param s         output string
+ * @param original  whether to return the original read sequence
+ */
 void bam_seq_str(const bam1_t *b, string& s, bool original) {
 	if (b == NULL) return;
 	size_t n = (size_t) b->core.l_qseq;
@@ -223,6 +198,13 @@ void bam_seq_str(const bam1_t *b, string& s) {
 	bam_seq_str(b, s, false);
 }
 
+/**
+ * Get the sequence from a BAM record.
+ *
+ * @param b         pointer to BAM record
+ * @param original  whether to return the original read sequence
+ * @return pointer to newly allocated C-string (ownership is moved to caller)
+ */
 char *bam_seq_cstr(const bam1_t *b, bool original) {
 	if (b == NULL) return NULL;
 	size_t n = (size_t) b->core.l_qseq;
@@ -246,43 +228,6 @@ char *bam_seq_cstr(const bam1_t *b, bool original) {
 char *bam_seq_cstr(const bam1_t *b) {
 	return bam_seq_cstr(b, false);
 }
-
-void print_qual(const bam1_t *b, bool original) {
-	if (b == NULL) return;
-	const uint8_t* qual = bam_get_qual(b);
-	if (original && bam_is_rev(b)) {
-		// query aligned to the reverse strand: the stored quality is reversed
-		// thus, reverse the stored quality
-		size_t n = (size_t) b->core.l_qseq;
-		for (size_t i = 0; i < n; ++i) {
-			cout << char(qual[n - i - 1] + 33);
-		}
-	} else {
-		for (size_t i = 0; i < b->core.l_qseq; ++i) {
-			cout << char((*qual) + 33);
-			++qual;
-		}
-	}
-}
-
-void print_qual(const bam1_t *b) {
-	print_qual(b, false);
-}
-
-void print_query_fasta(const bam1_t *b) {
-	if (b == NULL) return;
-	cout << '>' << bam_get_qname(b) << endl;
-	print_seq(b, true); cout << endl;
-}
-
-void print_query_fastq(const bam1_t *b) {
-	if (b == NULL) return;
-	cout << '@' << bam_get_qname(b) << endl;
-	print_seq(b, true); cout << endl;
-	cout << '+' << endl;
-	print_qual(b, true); cout << endl;
-}
-
 
 struct query_filter_f {
 	// query will be filtered out if any of these flags is set
@@ -339,6 +284,9 @@ struct query_filter_f {
 	}
 };
 
+/**
+ * Mate query.
+ */
 struct mate_t {
 	int32_t tid;
 	int32_t pos;
@@ -361,6 +309,9 @@ struct mate_t {
 	}
 };
 
+/**
+ * Query pile.
+ */
 struct query_pile {
 
 	vector<bam1_t*> queries;
@@ -413,6 +364,9 @@ struct query_pile {
 	}
 };
 
+/**
+ * Fetcher of reads from BAM records.
+ */
 struct fetcher {
 	// file handle
 	htsFile *hf;

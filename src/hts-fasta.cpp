@@ -4,6 +4,7 @@
 using namespace std;
 
 #include "htspan/fetcher.hpp"
+#include "htspan/print.hpp"
 using namespace hts;
 
 int main(int argc, char** argv) {
