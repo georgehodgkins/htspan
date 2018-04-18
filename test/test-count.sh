@@ -1,13 +1,14 @@
 #!/bin/bash
 
 bam=../data/test.bam
+bindir=../bin
 outdir=out/count
-testdir=test/count
+testdir=ans/count
 
 mkdir -p $outdir
 
 # do not keep duplicate
-./hts-count $testdir/snvs.tsv $bam $outdir/cov.tsv 0 0 0 1
+$bindir/hts-count $testdir/snvs.tsv $bam $outdir/cov.tsv 0 0 0 1
 
 
 echo "Testing diff ..."
