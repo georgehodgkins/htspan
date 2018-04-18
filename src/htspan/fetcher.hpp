@@ -1,14 +1,20 @@
+#ifndef _HTSPAN_FETCHER_
+#define _HTSPAN_FETCHER_
+
 #include <iostream>
 #include <queue>
 #include <vector>
 #include <cassert>
-using namespace std;
 
 #include <stdint.h>
 #include <string.h>
 
 #include <htslib/hts.h>
 #include <htslib/sam.h>
+
+namespace hts {
+
+using namespace std;
 
 typedef uint8_t nuc_t;
 
@@ -545,4 +551,8 @@ struct fetcher {
 		bam_destroy1(buf);
 	}
 };
+
+}  // namespace hts
+
+#endif  // _HTSPAN_FETCHER_
 

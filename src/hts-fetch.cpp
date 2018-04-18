@@ -5,11 +5,11 @@
 #include <cstdlib>
 using namespace std;
 
-
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include "fetcher.hpp"
+#include "htspan/fetcher.hpp"
+using namespace hts;
 
 int main(int argc, char** argv) {
 	--argc;

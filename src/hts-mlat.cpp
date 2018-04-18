@@ -8,8 +8,11 @@ using namespace std;
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include "fetcher.hpp"
-#include "mlat.hpp"
+#include <mlat.hpp>
+
+#include "htspan/fetcher.hpp"
+using namespace hts;
+
 
 void print_align(const gfAlign& align) {
 		cout << align.qStart << '\t' << align.qEnd << endl;

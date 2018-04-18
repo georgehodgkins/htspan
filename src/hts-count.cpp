@@ -10,7 +10,8 @@ using namespace std;
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include "fetcher.hpp"
+#include "htspan/fetcher.hpp"
+using namespace hts;
 
 
 void read_snv_record(const string& line, const fetcher& f, int32_t& rid, 

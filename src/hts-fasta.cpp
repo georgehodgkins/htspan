@@ -3,7 +3,8 @@
 #include <cstdlib>
 using namespace std;
 
-#include "fetcher.hpp"
+#include "htspan/fetcher.hpp"
+using namespace hts;
 
 int main(int argc, char** argv) {
 	--argc;
