@@ -176,7 +176,7 @@ uint8_t query_nucleotide(const bam1_t *b, int32_t ref_pos) {
 	int32_t qpos = query_position(b, ref_pos);
 
 	uint8_t nuc = nuc_NULL;
-	switch (query_position(b, ref_pos)) {
+	switch (qpos) {
 		case -3:
 			nuc = nuc_INS;
 			break;
