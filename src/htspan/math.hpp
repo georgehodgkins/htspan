@@ -8,6 +8,20 @@ namespace hts {
 using namespace std;
 
 /**
+ * Logit.
+ */
+double logit(double x) {
+	return log(x) - log(1.0 - x);
+}
+
+/**
+ * Logistic.
+ */
+double logistic(double x) {
+	return 1.0 / (1.0 + exp(-x));
+}
+
+/**
  * Phred transformation
  */
 double phred(double x) {
