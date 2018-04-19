@@ -54,12 +54,7 @@ int main(int argc, char** argv) {
 	size_t n = f.pile.queries.size();
 
 	orient_bias_filter_f obfilter(nuc_G, nuc_T, n);
-
-	size_t nA = 0, nC = 0, nG = 0, nT = 0, nN = 0, nNull = 0, nDel = 0, nIns = 0;
-	for (size_t i = 0; i < n; ++i) {
-		bam1_t *b = f.pile.queries[i];
-		obfilter.push(b, pos);
-	}  // for (size_t i = 0; i < n; ++i)
+	obfilter.push(f.pile.queries, pos);
 
 	cout << "# theta_hat = " << obfilter.estimate_theta_given(phi) << endl;
 	cout << "# p = " << obfilter(phi) << endl;

@@ -145,7 +145,27 @@ struct orient_bias_filter_f {
 				break;
 			}
 
+			return true;
+		} else {
+			return false;
 		}  // if (nuc_is_canonical(qnuc))
+	}
+
+	/**
+	 * Push reads to accumulate statistics.
+	 *
+	 * @param bs   pile of reads
+	 * @param pos  target reference position
+	 * @return true if any read is pushed
+	 */
+	bool push(vector<bam1_t*> bs, int32_t pos) {
+		bool success = false;
+		for (size_t r = 0; r < bs.size(); ++r) {
+			if (push(bs[r], pos)) {
+				success = true;
+			}
+		}
+		return success;
 	}
 
 	/**
