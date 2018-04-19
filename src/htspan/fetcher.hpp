@@ -12,6 +12,24 @@
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
+
+/**
+ * Get whether query is read 1.
+ * 
+ * @param b  pointer to a BAM record
+ * @return true if query is read 1
+ */
+#define bam_is_read1(b) (((b)->core.flag & BAM_FREAD1) != 0)
+
+/**
+ * Get whether query is read 2.
+ * 
+ * @param b  pointer to a BAM record
+ * @return true if query is read 1
+ */
+#define bam_is_read2(b) (((b)->core.flag & BAM_FREAD2) != 0)
+
+
 namespace hts {
 
 using namespace std;
@@ -33,6 +51,13 @@ enum nucleotide {
 	nuc_DEL = 13,
 	nuc_INS = 12
 };
+
+/**
+ * Whether nucleotide is A, C, G, or T.
+ */
+bool nuc_is_canonical(nucleotide x) {
+	return x <= nuc_T;
+}
 
 /**
  * Complement nucleotide.
@@ -166,6 +191,10 @@ int32_t query_position(const bam1_t *b, int32_t ref_pos) {
 
 /**
  * Get the query nucleotide that aligns to a specified reference position.
+ *
+ * The nucleotide is reported with respect to the reference forward 
+ * strand, so reads aligned to the reverse strand will have been 
+ * reverse-complemented,
  *
  * @param b        pointer to the BAM record
  * @param ref_pos  reference position
