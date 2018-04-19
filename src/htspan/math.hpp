@@ -8,6 +8,20 @@ namespace hts {
 using namespace std;
 
 /**
+ * Phred transformation
+ */
+double phred(double x) {
+	return -10 * log10(x);
+}
+
+/**
+ * Anti-Phred transformation
+ */
+double anti_phred(double x) {
+	return pow(10, -x/10);
+}
+
+/**
  * Calculate log(sum(exp(xs))) of array xs.
  *
  * @param n   size of array
