@@ -172,7 +172,6 @@ int32_t query_position(const bam1_t *b, int32_t ref_pos) {
  * @return nucleotide enum
  */
 uint8_t query_nucleotide(const bam1_t *b, int32_t ref_pos) {
-
 	int32_t qpos = query_position(b, ref_pos);
 
 	uint8_t nuc = nuc_NULL;
@@ -196,6 +195,21 @@ uint8_t query_nucleotide(const bam1_t *b, int32_t ref_pos) {
 	}
 
 	return nuc;
+}
+
+/**
+ * Get the query quality that aligns to a specified reference position.
+ *
+ * @param b        pointer to the BAM record
+ * @param ref_pos  reference position
+ * @return Phred base quality score
+ */
+uint8_t query_quality(const bam1_t *b, int32_t ref_pos) {
+	int32_t qpos = query_position(b, ref_pos);
+	if (qpos >= 0) {
+		return bam_get_qual(b)[qpos];
+	}
+	return 0;
 }
 
 /**
