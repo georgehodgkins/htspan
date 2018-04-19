@@ -51,11 +51,11 @@ int main(int argc, char** argv) {
 	int32_t rid = bam_name2id(f.hdr, target);
 	f.fetch(rid, pos);
 
-	size_t n = f.pile.queries.size();
-
-	orient_bias_filter_f obfilter(nuc_G, nuc_T, n);
+	// test for oxoG damage (G>T on read 1 or C>A on read 2)
+	orient_bias_filter_f obfilter(nuc_G, nuc_T, f.pile.queries.size());
 	obfilter.push(f.pile.queries, pos);
 
+	cout << "# Variant test adjusted for oxoG damage" << endl;
 	cout << "# theta_hat = " << obfilter.estimate_theta_given(phi) << endl;
 	cout << "# p = " << obfilter(phi) << endl;
 
