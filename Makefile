@@ -14,7 +14,7 @@ endif
 # mlat/blat does not support dynamic linking
 MLATLIB = -l:libmlat.a
 
-targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count
+targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias
 
 all: $(targets)
 		
@@ -35,6 +35,9 @@ $(bin)/hts-fasta: $(src)/hts-fasta.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTSLIB)
 
 $(bin)/hts-count: $(src)/hts-count.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTSLIB)
+
+$(bin)/hts-orient-bias: $(src)/hts-orient-bias.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTSLIB)
 
 clean:
