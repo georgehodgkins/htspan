@@ -40,7 +40,7 @@ struct orient_bias_filter_f {
 	double phi;
 
 	/// reference and alternative nucleotides to consider
-	nuc_t f_ref, f_alt, r_ref, r_alt;
+	nuc_t r1_ref, r1_alt, r2_ref, r2_alt;
 
 	/// observed nucleotide of the read
 	vector<char> cnucs;
@@ -52,10 +52,10 @@ struct orient_bias_filter_f {
 	vector<int> members;
 
 	orient_bias_filter_f(nuc_t _ref, nuc_t _alt, size_t n)
-	: f_ref(_ref),
-		f_alt(_alt),
-		r_ref(nuc_complement(_ref)),
-		r_alt(nuc_complement(_alt)),
+	: r1_ref(_ref),
+		r1_alt(_alt),
+		r2_ref(nuc_complement(_ref)),
+		r2_alt(nuc_complement(_alt)),
 		phi(0)
 	{
 		bases.reserve(n);
@@ -74,39 +74,81 @@ struct orient_bias_filter_f {
 		nuc_t qnuc = query_nucleotide(b, pos);
 		// only analyze nucleotides A, C, G, T (no indels)
 		if (nuc_is_canonical(qnuc)) {
+			bool rev = bam_is_rev(b);
 			// get the original nucleotide of the read
-			if (bam_is_rev(b)) {
+			if (rev) {
 				qnuc = nuc_complement(qnuc);
 			}
 			if (bam_is_read1(b)) {
-				if (qnuc == f_ref) {
-					// e.g. G>G on read 1
-					bases.push_back(0);
-					orients.push_back(false);
-				} else if (qnuc == f_alt) {
-					// e.g. G>T on read 1
-					bases.push_back(1);
-					orients.push_back(true);
+				if (!rev) {
+					// read1 mapping to forward strand
+					if (qnuc == r1_ref) {
+						// e.g. G>G on read 1
+						bases.push_back(0);
+						orients.push_back(true);
+					} else if (qnuc == r1_alt) {
+						// e.g. G>T on read 1
+						bases.push_back(1);
+						orients.push_back(true);
+					} else {
+						// e.g. G>A on read 1
+						// query nucleotide is a non-ref, non-alt nucleotide
+						bases.push_back(2);
+						orients.push_back(false);
+					}
 				} else {
-					// e.g. G>A on read 1
-					// query nucleotide is a non-ref, non-alt nucleotide
-					bases.push_back(2);
-					orients.push_back(false);
+					// read 1 mapping to reverse strand
+					// nuc_complement(r1_ref) == r2_ref  but LHS is clearer
+					if (qnuc == nuc_complement(r1_ref)) {
+						// e.g. C>C on read 1
+						bases.push_back(0);
+						orients.push_back(false);
+					// nuc_complement(r1_alt) == r2_alt  but LHS is clearer
+					} else if (qnuc == nuc_complement(r1_alt)) {
+						// e.g. C>A on read 1
+						bases.push_back(1);
+						orients.push_back(false);
+					} else {
+						// e.g. G>A on read 1
+						// query nucleotide is a non-ref, non-alt nucleotide
+						bases.push_back(2);
+						orients.push_back(false);
+					}
 				}
 			// double-check that the read is second read, in case the flag is malformed
 			} else if (bam_is_read2(b)) {
-				if (qnuc == r_ref) {
-					// e.g. C>C on read 2
-					bases.push_back(0);
-					orients.push_back(false);
-				} else if (qnuc == r_alt) {
-					// e.g. C>A on read 2
-					bases.push_back(1);
-					orients.push_back(true);
+				if (!rev) {
+					// read 2 mapping to forward strand
+					if (qnuc == r2_ref) {
+						// e.g. C>C on read 2
+						bases.push_back(0);
+						orients.push_back(true);
+					} else if (qnuc == r2_alt) {
+						// e.g. C>A on read 2
+						bases.push_back(1);
+						orients.push_back(true);
+					} else {
+						// e.g. C>G or C>T on read 2
+						bases.push_back(2);
+						orients.push_back(false);
+					}
 				} else {
-					// e.g. C>G or C>T on read 2
-					bases.push_back(2);
-					orients.push_back(false);
+					// read 2 mapping to reverse strand
+					// nuc_complement(r2_ref) == r1_ref  but LHS is clearer
+					if (qnuc == nuc_complement(r2_ref)) {
+						// e.g. G>G on read 2
+						bases.push_back(0);
+						orients.push_back(false);
+					// nuc_complement(r2_alt) == r1_alt  but LHS is clearer
+					} else if (qnuc == nuc_complement(r2_alt)) {
+						// e.g. G>T on read 2
+						bases.push_back(1);
+						orients.push_back(false);
+					} else {
+						// e.g. G>A or G>C on read 2
+						bases.push_back(2);
+						orients.push_back(false);
+					}
 				}
 			}  // if (bam_is_read1(b))
 
