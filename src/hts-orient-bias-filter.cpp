@@ -70,7 +70,17 @@ int main(int argc, char** argv) {
 
 			// fetch reads at target position
 			int32_t rid = bam_name_to_id(f.hdr, rec.chrom);
-			f.fetch(rid, rec.pos);
+			if (rid == -1) {
+				cerr << "Warning: could not find " << rec.chrom << endl;
+				continue;
+			}
+
+			if (!f.fetch(rid, rec.pos)) {
+				cerr << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << endl;
+				continue;
+			}
+
+			cerr << "Info: fetched " << f.pile.queries.size() << " reads" << endl;
 
 			// run filter
 			orient_bias_filter_f obfilter(nuc_G, nuc_T, f.pile.queries.size());
@@ -78,6 +88,8 @@ int main(int argc, char** argv) {
 
 			cout << obfilter(phi) << '\t'
 				<< obfilter.estimate_theta_given(phi) << endl;
+
+			f.clear();
 		} else {
 			cout << "NA\tNA" << endl;
 		}
