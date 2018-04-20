@@ -55,14 +55,14 @@ enum nucleotide {
 /**
  * Whether nucleotide is A, C, G, or T.
  */
-bool nuc_is_canonical(nucleotide x) {
+bool nuc_is_canonical(nuc_t x) {
 	return x <= nuc_T;
 }
 
 /**
  * Complement nucleotide.
  */
-uint8_t nuc_complement(uint8_t x) {
+nuc_t nuc_complement(nuc_t x) {
 	switch (x) {
 		case nuc_A: return nuc_T;
 		case nuc_C: return nuc_G;
@@ -75,7 +75,7 @@ uint8_t nuc_complement(uint8_t x) {
 /**
  * Convert from nucleotide enum to ASCII char.
  */
-char nuc_to_char(uint8_t x) {
+char nuc_to_char(nuc_t x) {
 	switch (x) {
 		case nuc_A: return 'A';
 		case nuc_C: return 'C';
@@ -92,7 +92,7 @@ char nuc_to_char(uint8_t x) {
 /**
  * Convert from ASCII char to nucleotide enum.
  */
-uint8_t char_to_nuc(char x) {
+nuc_t char_to_nuc(char x) {
 	switch (x) {
 		case 'A': return nuc_A;
 		case 'C': return nuc_C;
@@ -111,7 +111,7 @@ uint8_t char_to_nuc(char x) {
  * 
  * If either nucleotide is N, then they are equal.
  */
-bool nuc_equal(uint8_t x, uint8_t y) {
+bool nuc_equal(nuc_t x, nuc_t y) {
 	if (x == nuc_N || y == nuc_N) return true;
 	if (x == y) return true;
 	return false;
@@ -200,7 +200,7 @@ int32_t query_position(const bam1_t *b, int32_t ref_pos) {
  * @param ref_pos  reference position
  * @return nucleotide enum
  */
-uint8_t query_nucleotide(const bam1_t *b, int32_t ref_pos) {
+nuc_t query_nucleotide(const bam1_t *b, int32_t ref_pos) {
 	int32_t qpos = query_position(b, ref_pos);
 
 	uint8_t nuc = nuc_NULL;
@@ -413,7 +413,7 @@ struct query_pile {
 	 * @param mate  whether to queue the mate for addition later
 	 * @return whether operation succeeded
 	 */
-	bool push(const bam1_t *b, int32_t pos, uint8_t nuc, bool mate) {
+	bool push(const bam1_t *b, int32_t pos, nuc_t nuc, bool mate) {
 		if (nuc != nuc_NULL) {
 			// check if query nucleotide matches
 			if (!nuc_equal(nuc, query_nucleotide(b, pos))) return false;
@@ -596,7 +596,7 @@ struct fetcher {
 	 * @param mate  whether to push mate reads too
 	 * @return whether operation succeeded
 	 */
-	bool fetch(int32_t tid, int32_t pos, uint8_t nuc, bool mate) {
+	bool fetch(int32_t tid, int32_t pos, nuc_t nuc, bool mate) {
 		if (!seek(tid, pos, pos + 1)) return false;
 
 		while (next()) {

@@ -40,7 +40,7 @@ struct orient_bias_filter_f {
 	double phi;
 
 	/// reference and alternative nucleotides to consider
-	nucleotide f_ref, f_alt, r_ref, r_alt;
+	nuc_t f_ref, f_alt, r_ref, r_alt;
 
 	/// observed nucleotide of the read
 	vector<char> cnucs;
@@ -51,11 +51,11 @@ struct orient_bias_filter_f {
 	/// first read or second read of a pair
 	vector<int> members;
 
-	orient_bias_filter_f(nucleotide _ref, nucleotide _alt, size_t n)
+	orient_bias_filter_f(nuc_t _ref, nuc_t _alt, size_t n)
 	: f_ref(_ref),
 		f_alt(_alt),
-		r_ref((nucleotide)nuc_complement(_ref)),
-		r_alt((nucleotide)nuc_complement(_alt)),
+		r_ref(nuc_complement(_ref)),
+		r_alt(nuc_complement(_alt)),
 		phi(0)
 	{
 		bases.reserve(n);
@@ -71,12 +71,12 @@ struct orient_bias_filter_f {
 	 * Push a read to accumulate statistics.
 	 */
 	bool push(bam1_t* b, int32_t pos) {
-		nucleotide qnuc = (nucleotide) query_nucleotide(b, pos);
+		nuc_t qnuc = query_nucleotide(b, pos);
 		// only analyze nucleotides A, C, G, T (no indels)
 		if (nuc_is_canonical(qnuc)) {
 			// get the original nucleotide of the read
 			if (bam_is_rev(b)) {
-				qnuc = (nucleotide) nuc_complement(qnuc);
+				qnuc = nuc_complement(qnuc);
 			}
 			if (bam_is_read1(b)) {
 				if (qnuc == f_ref) {

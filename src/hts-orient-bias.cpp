@@ -12,6 +12,19 @@ using namespace std;
 #include "htspan/orient_bias_filter.hpp"
 using namespace hts;
 
+void print_orient_bias_filter(const orient_bias_filter_f& obfilter) {
+	cout << "base\torient\terror\tcnuc\tmember\tstrand\tqual" << endl;
+	for (size_t i = 0; i < obfilter.size(); ++i) {
+		cout
+			<< (int) obfilter.bases[i] << '\t'
+			<< obfilter.orients[i] << '\t'
+			<< obfilter.errors[i] << '\t'
+			<< obfilter.cnucs[i] << '\t'
+			<< obfilter.members[i] << '\t'
+			<< obfilter.strands[i] << '\t'
+			<< obfilter.quals[i] << endl;
+	}
+}
 
 int main(int argc, char** argv) {
 	--argc;
@@ -59,17 +72,7 @@ int main(int argc, char** argv) {
 	cout << "# theta_hat = " << obfilter.estimate_theta_given(phi) << endl;
 	cout << "# p = " << obfilter(phi) << endl;
 
-	cout << "base\torient\terror\tcnuc\tmember\tstrand\tqual" << endl;
-	for (size_t i = 0; i < obfilter.size(); ++i) {
-		cout
-			<< (int) obfilter.bases[i] << '\t'
-			<< obfilter.orients[i] << '\t'
-			<< obfilter.errors[i] << '\t'
-			<< obfilter.cnucs[i] << '\t'
-			<< obfilter.members[i] << '\t'
-			<< obfilter.strands[i] << '\t'
-			<< obfilter.quals[i] << endl;
-	}
+	print_orient_bias_filter(obfilter);
 
 	return 0;
 }
