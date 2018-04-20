@@ -3,7 +3,7 @@ src = src
 test = test
 
 CXX = g++
-CXXFLAGS = -O2 -L$(src)/htslib -I$(src)/htslib -L$(src)/mlat/lib -I$(src)/mlat/include
+CXXFLAGS = -O2 -L$(src)/htslib -I$(src)/htslib -L$(src)/mlat/lib -I$(src)/mlat/include -Isrc
 
 ifdef DYNAMIC
 	HTS = -lhts -lz -lpthread -llzma -lbz2
@@ -16,7 +16,7 @@ MLAT = -l:libmlat.a
 
 GSL = -lgsl -lcblas
 
-targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias
+targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter
 
 all: $(targets)
 		
@@ -40,6 +40,9 @@ $(bin)/hts-count: $(src)/hts-count.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS)
 
 $(bin)/hts-orient-bias: $(src)/hts-orient-bias.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
+
+$(bin)/hts-orient-bias-filter: $(src)/hts-orient-bias-filter.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
 
 clean:
