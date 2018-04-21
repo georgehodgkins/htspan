@@ -69,88 +69,51 @@ struct orient_bias_filter_f {
 
 	/**
 	 * Push a read to accumulate statistics.
+	 *
+	 * @param b       BAM record of a read
+	 * @param pos     reference position
+	 * @param nt_ref  reference nucleotide
+	 * @param nt_alt  alternative nucleotide
 	 */
-	bool push(bam1_t* b, int32_t pos) {
+	bool push(bam1_t* b, int32_t pos, nuc_t nt_ref, nuc_t nt_alt) {
 		nuc_t qnuc = query_nucleotide(b, pos);
 		// only analyze nucleotides A, C, G, T (no indels)
 		if (nuc_is_canonical(qnuc)) {
-			bool rev = bam_is_rev(b);
-			// get the original nucleotide of the read
-			if (rev) {
-				qnuc = nuc_complement(qnuc);
+			// determine if query nucleotide matches reference or alternative
+			// NB  query aligning against the reverse strand is reverse-complemented
+			//     s.t. its sequence is in the same direction as the reference;
+			//     the same is true for the reported nt_ref and nt_alt
+			if (qnuc == nt_ref) {
+				bases.push_back(0);
+			} else if (qnuc == nt_alt) {
+				bases.push_back(1);
+			} else {
+				bases.push_back(2);
+			}
+
+			// call orientation (damage-consistency) based on the original nucleotide of the read
+			nuc_t onuc;
+			if (bam_is_rev(b)) {
+				onuc = nuc_complement(qnuc);
+			} else {
+				onuc = qnuc;
 			}
 			if (bam_is_read1(b)) {
-				if (!rev) {
-					// read1 mapping to forward strand
-					if (qnuc == r1_ref) {
-						// e.g. G>G on read 1
-						bases.push_back(0);
-						orients.push_back(true);
-					} else if (qnuc == r1_alt) {
-						// e.g. G>T on read 1
-						bases.push_back(1);
-						orients.push_back(true);
-					} else {
-						// e.g. G>A on read 1
-						// query nucleotide is a non-ref, non-alt nucleotide
-						bases.push_back(2);
-						orients.push_back(false);
-					}
+				if (onuc == r1_ref || r1_alt) {
+					// e.g. G or T on read 1
+					orients.push_back(true);
 				} else {
-					// read 1 mapping to reverse strand
-					// nuc_complement(r1_ref) == r2_ref  but LHS is clearer
-					if (qnuc == nuc_complement(r1_ref)) {
-						// e.g. C>C on read 1
-						bases.push_back(0);
-						orients.push_back(false);
-					// nuc_complement(r1_alt) == r2_alt  but LHS is clearer
-					} else if (qnuc == nuc_complement(r1_alt)) {
-						// e.g. C>A on read 1
-						bases.push_back(1);
-						orients.push_back(false);
-					} else {
-						// e.g. G>A on read 1
-						// query nucleotide is a non-ref, non-alt nucleotide
-						bases.push_back(2);
-						orients.push_back(false);
-					}
+					orients.push_back(false);
 				}
 			// double-check that the read is second read, in case the flag is malformed
 			} else if (bam_is_read2(b)) {
-				if (!rev) {
-					// read 2 mapping to forward strand
-					if (qnuc == r2_ref) {
-						// e.g. C>C on read 2
-						bases.push_back(0);
-						orients.push_back(true);
-					} else if (qnuc == r2_alt) {
-						// e.g. C>A on read 2
-						bases.push_back(1);
-						orients.push_back(true);
-					} else {
-						// e.g. C>G or C>T on read 2
-						bases.push_back(2);
-						orients.push_back(false);
-					}
+				if (onuc == r2_ref || onuc == r2_alt) {
+					// e.g. C or A on read 2
+					orients.push_back(true);
 				} else {
-					// read 2 mapping to reverse strand
-					// nuc_complement(r2_ref) == r1_ref  but LHS is clearer
-					if (qnuc == nuc_complement(r2_ref)) {
-						// e.g. G>G on read 2
-						bases.push_back(0);
-						orients.push_back(false);
-					// nuc_complement(r2_alt) == r1_alt  but LHS is clearer
-					} else if (qnuc == nuc_complement(r2_alt)) {
-						// e.g. G>T on read 2
-						bases.push_back(1);
-						orients.push_back(false);
-					} else {
-						// e.g. G>A or G>C on read 2
-						bases.push_back(2);
-						orients.push_back(false);
-					}
+					orients.push_back(false);
 				}
-			}  // if (bam_is_read1(b))
+			}
 
 			errors.push_back(anti_phred((double)query_quality(b, pos)));
 
@@ -198,12 +161,14 @@ struct orient_bias_filter_f {
 	 *
 	 * @param bs   pile of reads
 	 * @param pos  target reference position
+	 * @param nt_ref  reference nucleotide
+	 * @param nt_alt  alternative nucleotide
 	 * @return true if any read is pushed
 	 */
-	bool push(vector<bam1_t*> bs, int32_t pos) {
+	bool push(vector<bam1_t*> bs, int32_t pos, nuc_t nt_ref, nuc_t nt_alt) {
 		bool success = false;
 		for (size_t r = 0; r < bs.size(); ++r) {
-			if (push(bs[r], pos)) {
+			if (push(bs[r], pos, nt_ref, nt_alt)) {
 				success = true;
 			}
 		}

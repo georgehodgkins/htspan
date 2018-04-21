@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
 
 			// run filter
 			orient_bias_filter_f obfilter(nuc_G, nuc_T, f.pile.queries.size());
-			obfilter.push(f.pile.queries, rec.pos);
+			obfilter.push(f.pile.queries, rec.pos, rec.nt_ref, rec.nt_alt);
 
 			cout << obfilter(phi) << '\t'
 				<< obfilter.estimate_theta_given(phi) << endl;
