@@ -15,7 +15,7 @@ endif
 MLAT = -l:libmlat.a
 
 ifdef ATLAS
-	GSL = -lgsl -lcblas -atlas
+	GSL = -lgsl -lcblas -latlas
 else
 	GSL = -lgsl -lgslcblas
 endif
