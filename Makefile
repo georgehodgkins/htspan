@@ -14,7 +14,7 @@ endif
 # mlat/blat does not support dynamic linking
 MLAT = -l:libmlat.a
 
-GSL = -lgsl -lcblas -latlas
+GSL = -lgsl -lgslcblas
 
 targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter
 
