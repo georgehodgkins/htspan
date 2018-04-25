@@ -20,10 +20,18 @@ else
 	GSL = -lgsl -lgslcblas
 endif
 
+deps = $(src)/htslib/libhts.a $(src)/mlat/lib/libmlat.a
+
 targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter
 
-all: $(targets)
+all: $(deps) $(targets)
 		
+
+$(src)/htslib/libhts.a:
+	cd $(src)/htslib && make
+
+$(src)/mlat/lib/libmlat.a:
+	cd $(src)/mlat && make
 
 $(bin)/hts-mlat: $(src)/hts-mlat.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(MLAT)

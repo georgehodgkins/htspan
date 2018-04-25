@@ -13,6 +13,8 @@
 ## Install
 
 ```{bash}
+git clone https://github.com/djhshih/htspan
+git submodule update --init --recursive
 make
 ```
 
