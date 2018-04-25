@@ -11,10 +11,9 @@ poss=( 7674420 7674360 7674361 )
 mkdir -p $outdir
 
 for pos in ${poss[@]}; do
-	$bindir/hts-orient-bias $bam $target $pos 0 0 0 0.01 > ${outdir}/out_${target}-${pos}-nodup.txt
-	$bindir//hts-orient-bias $bam $target $pos 1 0 0 0.01 > ${outdir}/out_${target}-${pos}-dup.txt
+	$bindir/hts-orient-bias $bam $target $pos G T 0.01 0 0 0 > ${outdir}/out_${target}-${pos}-nodup.txt
+	$bindir//hts-orient-bias $bam $target $pos G T 0.01 1 0 0 > ${outdir}/out_${target}-${pos}-dup.txt
 done
-
 
 echo "Testing diff ..."
 
