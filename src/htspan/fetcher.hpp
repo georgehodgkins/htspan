@@ -492,6 +492,8 @@ struct fetcher {
 	/**
 	 * Fetch read-pairs at position and push onto pile.
 	 *
+	 * Pile is cleared before fetching.
+	 *
 	 * @param tid   target contig ID
 	 * @param pos   target reference position
 	 * @param nuc   nucleotide that the query must match at the position within
@@ -500,6 +502,7 @@ struct fetcher {
 	 * @return whether operation succeeded
 	 */
 	bool fetch(int32_t tid, int32_t pos, nuc_t nuc, bool mate) {
+		clear();
 		if (!seek(tid, pos, pos + 1)) return false;
 
 		while (next()) {
