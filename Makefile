@@ -22,7 +22,7 @@ endif
 
 deps = $(src)/htslib/libhts.a $(src)/mlat/lib/libmlat.a
 
-targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter
+targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter $(bin)/hts-pileup
 
 all: $(deps) $(targets)
 		
@@ -43,6 +43,9 @@ $(bin)/hts-mlat-read-stats: $(src)/hts-mlat-read-stats.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(MLAT)
 
 $(bin)/hts-fetch: $(src)/hts-fetch.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS)
+
+$(bin)/hts-pileup: $(src)/hts-pileup.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS)
 
 $(bin)/hts-fasta: $(src)/hts-fasta.cpp
