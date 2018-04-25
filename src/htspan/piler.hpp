@@ -149,7 +149,12 @@ struct piler {
 
 inline int pileup_func(void* data, bam1_t* b) {
 	piler* p = (piler*) data;
-	return sam_read1(p->hf, p->hdr, b);
+	int ret;
+	// read next the next passing read
+	do {
+		ret = sam_read1(p->hf, p->hdr, b);
+	} while (ret >= 0 && !p->qfilter(b, p->pos));
+	return ret;	
 }
 
 }  // namespace hts
