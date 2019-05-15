@@ -99,7 +99,7 @@ struct orient_bias_filter_f {
 				onuc = qnuc;
 			}
 			if (bam_is_read1(b)) {
-				if (onuc == r1_ref || r1_alt) {
+				if (onuc == r1_ref || onuc == r1_alt) {
 					// e.g. G or T on read 1
 					orients.push_back(true);
 				} else {
