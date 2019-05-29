@@ -1,36 +1,64 @@
+#! Compiler
+
+CXX = g++
+CXXFLAGS = -O2 -Isrc
+
+
+#! Directories
+
 bin = bin
 src = src
 test = test
 
-CXX = g++
-CXXFLAGS = -O2 -L$(src)/htslib -I$(src)/htslib -L$(src)/mlat/lib -I$(src)/mlat/include -Isrc
+
+#! Libraries
 
 ifdef DYNAMIC
-	HTS = -lhts -lz -lpthread -llzma -lbz2
+	HTSLIBS = -lhts -lz -lpthread -llzma -lbz2
 else
-	HTS = -l:libhts.a -lz -lpthread -llzma -lbz2
+	HTSLIBS = $(src)/htslib/libhts.a -lz -lpthread -llzma -lbz2
+endif
+
+ifdef ATLAS
+	GSLLIBS = -lgsl -lcblas -latlas
+else
+	GSLLIBS = -lgsl -lgslcblas
 endif
 
 # mlat/blat does not support dynamic linking
-MLAT = -l:libmlat.a
+MLATLIBS = -lmlat
 
-ifdef ATLAS
-	GSL = -lgsl -lcblas -latlas
-else
-	GSL = -lgsl -lgslcblas
-endif
 
-deps = $(src)/htslib/libhts.a $(src)/mlat/lib/libmlat.a
+#! Library compilation flags
 
-targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter $(bin)/hts-pileup
+HTS = -L$(src)/htslib -I$(src)/htslib $(HTSLIBS)
+GSL = $(GSLLIBS)
+MLAT = -L$(src)/mlat/lib -I$(src)/mlat/include $(MTSLIBS)
+
+
+#! Targets
+
+deps = $(src)/htslib/libhts.a
+
+targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter $(bin)/hts-pileup
+
+mlat_deps = $(src)/mlat/lib/libmlat.a
+
+mlat_targets = $(bin)/hts-mlat $(bin)/hts-mlat-filter $(bin)/hts-mlat-read-stats
+
+
+#! Compilation
 
 all: $(deps) $(targets)
-		
+	
 
-$(src)/htslib/libhts.a:
+mlat: $(mlat_deps) $(mlat_targets)
+	
+
+$(src)/htslib/libhts.a: $(src)/htslib
 	cd $(src)/htslib && make
 
-$(src)/mlat/lib/libmlat.a:
+$(src)/mlat/lib/libmlat.a: $(src)/mlat
 	cd $(src)/mlat && make
 
 $(bin)/hts-mlat: $(src)/hts-mlat.cpp
