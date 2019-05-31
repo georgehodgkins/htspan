@@ -70,19 +70,18 @@ int main(int argc, char** argv) {
 			   << p.tid << ", pos = " << p.pos << endl;
 
 		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
-		cerr << "read " << faidx.size() << " nucleotides" << endl;
 		if (seq == NULL) {
 			cerr << "WARNING: reference sequence could not be retrieved for contig " << p.tid
 				<< " at position " << p.pos << endl;
 			continue;
 		}
 	
-		cerr << "nuc = " << seq[0]  << endl;
 		
 		// Check here whether reference nucleotide at position is
 		//     G or C (oxoG: G>T, C>A)
 		//     C or G (FFPE: C>T, G>A)
-		char ref = seq[0];
+		char ref = char_to_nuc(seq[0]);
+		cerr << "ref = " << nuc_to_char(ref) << endl;
 		if (ref == nuc_G || ref == nuc_C) {
 			// accumulate statistics
 			n_reads += obquant.push(pile, n, p.pos);
@@ -94,6 +93,9 @@ int main(int argc, char** argv) {
 	// estimate of global damage
 	double phi = obquant();
 
+	cerr << "xi = " << obquant.xi << ", ni = " << obquant.ni << endl;
+	cerr << "xc = " << obquant.xc << ", nc = " << obquant.nc << endl;
+	
 	cout << "phi = " << phi << endl;
 
 	return 0;

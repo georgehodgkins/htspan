@@ -46,7 +46,8 @@ struct orient_bias_quant_f {
 	: r1_ref(_ref),
 		r1_alt(_alt),
 		r2_ref(nuc_complement(_ref)),
-		r2_alt(nuc_complement(_alt))
+		r2_alt(nuc_complement(_alt)),
+		xi(0), xc(0), ni(0), nc(0)
 	{
 	}
 
@@ -103,6 +104,8 @@ struct orient_bias_quant_f {
 			}
 			// other nucleotides are ignored
 		} else {
+			// read is neither read1 or read2
+			// BAM file is likely not from paired end sequencing
 			return false;
 		}
 
@@ -136,7 +139,11 @@ struct orient_bias_quant_f {
 	 */
 	double operator()() {
 		double theta_hat = double(xi)/ni;
-		return (double(xi)/nc - theta_hat) / (1 - theta_hat);
+		double phi = (double(xc)/nc - theta_hat) / (1 - theta_hat);
+		if (phi < 0.0) {
+			return 0.0;
+		}
+		return phi;
 	}
 
 };

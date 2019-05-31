@@ -55,7 +55,8 @@ struct piler {
 	piler()
 		: hf(NULL), hdr(NULL),
 		//itr(NULL), idx(NULL),
-		plp_itr(bam_plp_init(pileup_func, this))
+		plp_itr(bam_plp_init(pileup_func, this)),
+		tid(0), pos(0), n(0)
 	{
 	}
 
@@ -96,6 +97,9 @@ struct piler {
 	}
 
 	size_t size() const {
+		if (n < 0) {
+			return 0;
+		}
 		return (size_t) n;
 	}
 
