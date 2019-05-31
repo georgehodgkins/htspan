@@ -10,8 +10,8 @@
 #include <string.h>
 
 #include <htslib/hts.h>
-#include <htslib/sam.h>
 
+#include "bam.hpp"
 #include "math.hpp"
 
 namespace hts {
@@ -76,14 +76,14 @@ struct orient_bias_quant_f {
 
 		// accmulate statistics based on read1 vs. read2 and original nucleotide
 		if (bam_is_read1(b)) {
-			if (onuc == r1_ref)
+			if (onuc == r1_ref) {
 				++nc;
-			} else (onuc == r1_alt) {
+			} else if (onuc == r1_alt) {
 				++nc;
 				++xc;
-			} else (onuc == r2_ref) {
+			} else if (onuc == r2_ref) {
 				++ni;
-			} else (onuc == r2_alt) {
+			} else if (onuc == r2_alt) {
 				++ni;
 				++xi;
 			}
@@ -117,7 +117,7 @@ struct orient_bias_quant_f {
 	 * @param pos  target reference position
 	 * @return number of successfully processed reads
 	 */
-	size_t push(const bam_pileup_t* pile, size_t n, int32_t pos) {
+	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
 		size_t success = 0;
 		for (size_t i = 0; i < n; ++i) {
 			if (push(pile[i].b, pos)) {
