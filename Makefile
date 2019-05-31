@@ -40,7 +40,7 @@ MLAT = -L$(src)/mlat/lib -I$(src)/mlat/include $(MTSLIBS)
 
 deps = $(src)/htslib/libhts.a
 
-targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter $(bin)/hts-pileup
+targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter $(bin)/hts-orient-bias-quant $(bin)/hts-pileup
 
 mlat_deps = $(src)/mlat/lib/libmlat.a
 
@@ -86,6 +86,9 @@ $(bin)/hts-orient-bias: $(src)/hts-orient-bias.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
 
 $(bin)/hts-orient-bias-filter: $(src)/hts-orient-bias-filter.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
+
+$(bin)/hts-orient-bias-quant: $(src)/hts-orient-bias-quant.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
 
 clean:
