@@ -76,84 +76,103 @@ struct orient_bias_filter_f {
 	 * @param nt_alt  alternative nucleotide
 	 */
 	bool push(bam1_t* b, int32_t pos, nuc_t nt_ref, nuc_t nt_alt) {
-		nuc_t qnuc = query_nucleotide(b, pos);
 		// only analyze nucleotides A, C, G, T (no indels)
-		if (nuc_is_canonical(qnuc)) {
-			// determine if query nucleotide matches reference or alternative
-			// NB  query aligning against the reverse strand is reverse-complemented
-			//     s.t. its sequence is in the same direction as the reference;
-			//     the same is true for the reported nt_ref and nt_alt
-			if (qnuc == nt_ref) {
-				bases.push_back(0);
-			} else if (qnuc == nt_alt) {
-				bases.push_back(1);
-			} else {
-				bases.push_back(2);
-			}
+		nuc_t qnuc = query_nucleotide(b, pos);
+		if (!nuc_is_canonical(qnuc)) return false;
 
-			// call orientation (damage-consistency) based on the original nucleotide of the read
-			nuc_t onuc;
-			if (bam_is_rev(b)) {
-				onuc = nuc_complement(qnuc);
-			} else {
-				onuc = qnuc;
-			}
-			if (bam_is_read1(b)) {
-				if (onuc == r1_ref || onuc == r1_alt) {
-					// e.g. G or T on read 1
-					orients.push_back(true);
-				} else {
-					orients.push_back(false);
-				}
-			// double-check that the read is second read, in case the flag is malformed
-			} else if (bam_is_read2(b)) {
-				if (onuc == r2_ref || onuc == r2_alt) {
-					// e.g. C or A on read 2
-					orients.push_back(true);
-				} else {
-					orients.push_back(false);
-				}
-			}
+		bool success = true;
 
-			errors.push_back(anti_phred((double)query_quality(b, pos)));
-
-			// populate informational fields
-			
-			quals.push_back(query_quality(b, pos));
-
-			if (bam_is_rev(b)) {
-				strands.push_back('-');
-			} else {
-				strands.push_back('+');
-			}
-
-			if (bam_is_read1(b)) {
-				members.push_back(1);
-			} else if (bam_is_read2(b)) {
-				members.push_back(2);
-			} else {
-				members.push_back(0);
-			}
-
-			switch (qnuc) {
-			case nuc_A:
-				cnucs.push_back('A');
-				break;
-			case nuc_C:
-				cnucs.push_back('C');
-				break;
-			case nuc_G:
-				cnucs.push_back('G');
-				break;
-			case nuc_T:
-				cnucs.push_back('T');
-				break;
-			}
-
-			return true;
+		// determine if query nucleotide matches reference or alternative
+		// NB  query aligning against the reverse strand is reverse-complemented
+		//     s.t. its sequence is in the same direction as the reference;
+		//     the same is true for the reported nt_ref and nt_alt
+		if (qnuc == nt_ref) {
+			bases.push_back(0);
+		} else if (qnuc == nt_alt) {
+			bases.push_back(1);
 		} else {
-			return false;
-		}  // if (nuc_is_canonical(qnuc))
+			bases.push_back(2);
+		}
+
+		// call orientation (damage-consistency) based on the original nucleotide of the read
+		nuc_t onuc;
+		if (bam_is_rev(b)) {
+			onuc = nuc_complement(qnuc);
+		} else {
+			onuc = qnuc;
+		}
+		if (bam_is_read1(b)) {
+			if (onuc == r1_ref || onuc == r1_alt) {
+				// e.g. G or T on read 1
+				orients.push_back(true);
+			} else {
+				orients.push_back(false);
+			}
+		// double-check that the read is second read, in case the flag is malformed
+		} else if (bam_is_read2(b)) {
+			if (onuc == r2_ref || onuc == r2_alt) {
+				// e.g. C or A on read 2
+				orients.push_back(true);
+			} else {
+				orients.push_back(false);
+			}
+		} else {
+			// flag is malformed
+			orients.push_back(false);
+			success = false;
+		}
+
+		errors.push_back(anti_phred((double)query_quality(b, pos)));
+
+		// populate informational fields
+		
+		quals.push_back(query_quality(b, pos));
+
+		if (bam_is_rev(b)) {
+			strands.push_back('-');
+		} else {
+			strands.push_back('+');
+		}
+
+		if (bam_is_read1(b)) {
+			members.push_back(1);
+		} else if (bam_is_read2(b)) {
+			members.push_back(2);
+		} else {
+			members.push_back(0);
+		}
+
+		switch (qnuc) {
+		case nuc_A:
+			cnucs.push_back('A');
+			break;
+		case nuc_C:
+			cnucs.push_back('C');
+			break;
+		case nuc_G:
+			cnucs.push_back('G');
+			break;
+		case nuc_T:
+			cnucs.push_back('T');
+			break;
+		default:
+			// this should never happen
+			cnucs.push_back('N');
+			break;
+		}
+
+		if (!success) {
+			// rollback everything
+			bases.pop_back();
+			errors.pop_back();
+			orients.pop_back();
+			cnucs.pop_back();
+			quals.pop_back();
+			strands.pop_back();
+			members.pop_back();
+		}
+
+		return success;
 	}
 
 	/**
