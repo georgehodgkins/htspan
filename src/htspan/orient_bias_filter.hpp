@@ -182,13 +182,13 @@ struct orient_bias_filter_f {
 	 * @param pos  target reference position
 	 * @param nt_ref  reference nucleotide
 	 * @param nt_alt  alternative nucleotide
-	 * @return true if any read is pushed
+	 * @return number of successfully processed reads
 	 */
-	bool push(vector<bam1_t*> bs, int32_t pos, nuc_t nt_ref, nuc_t nt_alt) {
-		bool success = false;
-		for (size_t r = 0; r < bs.size(); ++r) {
-			if (push(bs[r], pos, nt_ref, nt_alt)) {
-				success = true;
+	size_t push(vector<bam1_t*> bs, int32_t pos, nuc_t nt_ref, nuc_t nt_alt) {
+		size_t success = 0;
+		for (size_t i = 0; i < bs.size(); ++i) {
+			if (push(bs[i], pos, nt_ref, nt_alt)) {
+				++success;
 			}
 		}
 		return success;

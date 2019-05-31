@@ -87,6 +87,7 @@ struct orient_bias_quant_f {
 				++ni;
 				++xi;
 			}
+			// other nucleotides are ignored
 		// double-check that the read is second read, in case the flag is malformed
 		} else if (bam_is_read2(b)) {
 			if (onuc == r2_ref) {
@@ -100,6 +101,7 @@ struct orient_bias_quant_f {
 				++ni;
 				++xi;
 			}
+			// other nucleotides are ignored
 		} else {
 			return false;
 		}
@@ -113,13 +115,13 @@ struct orient_bias_quant_f {
 	 * @param pile bam pileup object
 	 * @param n    number of reads in pileup object
 	 * @param pos  target reference position
-	 * @return true if any read is pushed
+	 * @return number of successfully processed reads
 	 */
-	bool push(const bam_pileup_t* pile, size_t n, int32_t pos) {
-		bool success = false;
+	size_t push(const bam_pileup_t* pile, size_t n, int32_t pos) {
+		size_t success = 0;
 		for (size_t i = 0; i < n; ++i) {
 			if (push(pile[i].b, pos)) {
-				success = true;
+				++success;
 			}
 		}
 		return success;
