@@ -3,4 +3,4 @@
 	url = https://github.com/samtools/htslib
 [submodule "src/mlat"]
 	path = src/mlat
-	url = https://github.com/mlat
+	url = https://github.com/djhshih/mlat
