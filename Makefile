@@ -1,22 +1,27 @@
 #! Compiler
 
 CXX = g++
-CXXFLAGS = -O2 -Isrc
 
+ifndef DEBUG
+	CXXFLAGS = -O2 -std=c++98 -Isrc
+	bin = bin
+else
+	CXXFLAGS = -O0 -ggdb3 -Wall -std=c++98 -Isrc
+	bin = debug
+endif
 
 #! Directories
 
-bin = bin
 src = src
 test = test
-
+utest = unit-test
 
 #! Libraries
 
 ifdef DYNAMIC
-	HTSLIBS = -lhts -lz -lpthread -llzma -lbz2
+	HTSLIBS = -lhts -lz -lpthread -llzma -lbz2 -lcurl
 else
-	HTSLIBS = $(src)/htslib/libhts.a -lz -lpthread -llzma -lbz2
+	HTSLIBS = $(src)/htslib/libhts.a -lz -lpthread -llzma -lbz2 -lcurl
 endif
 
 ifdef ATLAS
@@ -28,19 +33,21 @@ endif
 # mlat/blat does not support dynamic linking
 MLATLIBS = -lmlat
 
-
 #! Library compilation flags
 
 HTS = -L$(src)/htslib -I$(src)/htslib $(HTSLIBS)
 GSL = $(GSLLIBS)
 MLAT = -L$(src)/mlat/lib -I$(src)/mlat/include $(MTSLIBS)
+BOOST_TEST = -lboost_unit_test_framework
 
 
 #! Targets
 
 deps = $(src)/htslib/libhts.a
 
-targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-orient-bias-filter $(bin)/hts-orient-bias-quant $(bin)/hts-pileup
+targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-pileup $(bin)/hts-orient-bias-stats
+
+utest_targets = $(utest)/bin/test-orient-bias-filter $(utest)/bin/test-orient-bias-quant
 
 mlat_deps = $(src)/mlat/lib/libmlat.a
 
@@ -82,21 +89,30 @@ $(bin)/hts-fasta: $(src)/hts-fasta.cpp
 $(bin)/hts-count: $(src)/hts-count.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS)
 
+$(bin)/hts-orient-bias-stats: $(src)/hts-orient-bias-stats.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
+
 $(bin)/hts-orient-bias: $(src)/hts-orient-bias.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
 
-$(bin)/hts-orient-bias-filter: $(src)/hts-orient-bias-filter.cpp
-	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
+#! Unit test targets
 
-$(bin)/hts-orient-bias-quant: $(src)/hts-orient-bias-quant.cpp
-	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
+$(utest)/bin/test-orient-bias-filter: $(utest)/test-orient-bias-filter.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
+
+$(utest)/bin/test-orient-bias-quant: $(utest)/test-orient-bias-quant.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
 
 clean:
-	rm -f $(targets)
+	rm -f $(targets) $(utest_targets) $(mlat_targets)
+
+utest: $(utest_targets)
+	
 
 test: check
 	
 
-check: $(targets) 
+check: $(utest_targets)
 	cd $(test) && ./test.sh
+	cd $(utest)/bin && ./test.sh
 
