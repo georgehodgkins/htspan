@@ -14,7 +14,8 @@
 
 #include "bam.hpp"
 #include "nucleotide.hpp"
-
+#include "io/snv.hpp"
+#include "io/simul_writer.hpp"
 
 namespace hts {
 
@@ -544,6 +545,21 @@ struct fetcher {
 	}
 
 	/**
+	* Fetch reads corresponding to the next record in the
+	* input SNV reader.
+	*
+	* Mate reads are not fetched.
+	* @param snvr SNV reader to get record from
+	* @param ref Reference nuclotide SNV must match (or complement-match)
+	* @param alt Alternative nucleotide SNV must match (or complement-match)
+	* @return whether operation succeeded
+	*/
+	bool fetch_next_snv(snv::reader& snvr, nuc_t ref, nuc_t alt, snv::record& rec) {
+		
+		return true;
+	}	
+
+	/**
 	 * Clear read pile.
 	 */
 	void clear() {
@@ -551,7 +567,7 @@ struct fetcher {
 	}
 
 	/**
-	 * Close file handers.
+	 * Close file handlers.
 	 */
 	void close() {
 		if (idx) hts_idx_destroy(idx);

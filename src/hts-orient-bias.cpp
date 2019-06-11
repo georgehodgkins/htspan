@@ -1,80 +1,316 @@
 #include <iostream>
-#include <queue>
-#include <vector>
-#include <cassert>
-#include <cstdlib>
-using namespace std;
+#include <fstream>
+#include <string>
+#include <cstring>
 
-#include <htslib/hts.h>
-#include <htslib/sam.h>
+#include "frontend/options.hpp"
+#include "frontend/print-help.hpp"
+#include "frontend/hts-orient-bias-filter.hpp"
+#include "frontend/hts-orient-bias-quant.hpp"
+#include "frontend/optionparser.hpp"
 
+#include "htspan/nucleotide.hpp"
 #include "htspan/fetcher.hpp"
+#include "htspan/piler.hpp"
+#include "htspan/print.hpp"
+#include "htspan/orient_bias_quant.hpp"
 #include "htspan/orient_bias_filter.hpp"
-using namespace hts;
 
-void print_orient_bias_filter(const orient_bias_filter_f& obfilter) {
-	cout << "base\torient\terror\tcnuc\tmember\tstrand\tqual" << endl;
-	for (size_t i = 0; i < obfilter.size(); ++i) {
-		cout
-			<< (int) obfilter.bases[i] << '\t'
-			<< obfilter.orients[i] << '\t'
-			<< obfilter.errors[i] << '\t'
-			<< obfilter.cnucs[i] << '\t'
-			<< obfilter.members[i] << '\t'
-			<< obfilter.strands[i] << '\t'
-			<< obfilter.quals[i] << endl;
-	}
-}
 
-int main(int argc, char** argv) {
-	--argc;
+#include "htspan/io/faidx_reader.hpp"
+#include "htspan/io/snv.hpp"
+#include "htspan/io/simul_writer.hpp"
 
-	if (argc != 9) {
-		cerr << "usage: " << argv[0]
-			<< " <bam_path> <target> <pos> <ref> <alt> <phi> <keep_dup> <min_mapq> <min_baseq>" << endl;
+using namespace hts::frontend;
+
+// TODO Update classes to use proper logging and verbosity
+// TODO Eliminate string/cstr juggling
+
+int main (int argc, char** argv) {
+	std::cerr << '\n' << std::endl;
+	if (argc <= 1) { // i.e. no arguments given
+		print_help(NULL);
 		return 1;
 	}
-
-	char* path = argv[1];
-	char* target = argv[2];
-	int32_t pos = atol(argv[3]) - 1;
-	nuc_t nt_ref = char_to_nuc(argv[4][0]);
-	nuc_t nt_alt = char_to_nuc(argv[5][0]);
-	double phi = atof(argv[6]);
-	bool keep_dup = (atoi(argv[7]) != 0);
-	int min_mapq = atoi(argv[8]);
-	int min_baseq = atoi(argv[9]);
-
-	gsl_set_error_handler_off();
-
-	fetcher f;
-
-	// disable quality filters
-	f.qfilter.min_mapq = min_mapq;
-	f.qfilter.min_baseq = min_baseq;
-
-	if (keep_dup) {
-		f.qfilter.disable_excl_flags(BAM_FDUP);
+	argv++; // ignore executable name
+	argc--;
+	const char* command = argv[0];
+	// get command
+	bool quantifying = false;
+	bool identifying = false;
+	if (strcmp(command, "quantify") == 0) {
+		quantifying = true;
+		// skip command
+		argv++;
+		argc--;
+	} else if (strcmp(command, "identify") == 0) {
+		identifying = true;
+		// skip command
+		argv++;
+		argc--;
 	}
-	
-	if (!f.open(path)) {
-		cerr << "ERROR: could not open BAM file for reading: " << path << endl;
+	// parse options according to definitions in options.hpp
+	option::Stats stats(usage, argc, argv);
+	option::Option options[stats.options_max], buffer[stats.buffer_max];
+	option::Parser parse(usage, argc, argv, options, buffer);
+	if (parse.error()) {
+		std::cerr << "Error encountered in parsing.\n";
+		print_help(NULL);
 		return 1;
 	}
+	// print the requested help message and quit if the help flag is passed
+	if (options[HELP]) {
+		print_help(options[HELP].arg);
+		return 0;
+	} else if (!quantifying && !identifying) {
+		std::cerr << "\'" << command << "\' is not a recognized command.\n\n";
+	}
+	// Convert options to runtime vars
+	// Note that all arg checking is handled by the parser,
+	// so any args here are assumed valid
 
-	// fetch reads at target position
-	int32_t rid = bam_name2id(f.hdr, target);
-	f.fetch(rid, pos);
+	//
+	// Argument parsing block
+	// 
+	bool success = true;
 
-	// test for oxoG damage (G>T on read 1 or C>A on read 2)
-	orient_bias_filter_f obfilter(nuc_G, nuc_T, f.pile.queries.size());
-	obfilter.push(f.pile.queries, pos, nt_ref, nt_alt);
+	// Set up logging and result output
+	// TODO: update so '-' redirects to stdout
+	bool use_stdout = true;
+	if (options[STDOUT]) {
+		use_stdout = options[STDOUT].last()->type() == t_ON;
+	}
+	int verbosity = 1;
+	if (options[VERBOSITY]) {
+		verbosity = atoi(options[VERBOSITY].arg);
+	}
+	bool log_to_file = (bool) options[LOGFILE];
+	std::string log_fname;
+	if (log_to_file) {
+		log_fname = options[LOGFILE].arg;
+	}
+	bool results_to_file = (bool) options[RESFILE];
+	std::string result_fname;
+	if (results_to_file) {
+		result_fname = options[RESFILE].arg;
+	}
 
-	cout << "# Variant test adjusted for oxoG damage" << endl;
-	cout << "# theta_hat = " << obfilter.estimate_theta_given(phi) << endl;
-	cout << "# p = " << obfilter(phi) << endl;
+	// Direct file and result output appropriately
+	// Note that fatal errors will go to stdout regardless either by
+	// cerr in the frontend or thrown exceptions in the backend
+	if (log_to_file) {
+		global_log.add_file(log_fname);
+	}
+	global_log.use_cerr(use_stdout);
+	// Verbosity levels: 0=silent, 1=warnings only 2=some runtime info 3=too much runtime info
+	global_log.set_verbosity(verbosity);
+	if (results_to_file) {
+		global_out.add_file(result_fname);
+	}
+	global_out.use_cout(use_stdout);
+	// disable verbosity on result output
+	global_out.set_verbosity(-1);
+	if (!use_stdout && !results_to_file) {
+		global_log <<
+		"Warning: There is no set output method for the results; results will not be accessible.\n";
+	}
 
-	print_orient_bias_filter(obfilter);
+	// Set reference and alternative nucleotides and check that they differ
+	nuc_t ref = nuc_N;
+	nuc_t alt = nuc_N;
+	if (options[DAMAGE_TYPE]) {
+		if (strcmp(options[DAMAGE_TYPE].arg, "ffpe") == 0) {
+			ref = nuc_C;
+			alt = nuc_T;
+		} else if (strcmp(options[DAMAGE_TYPE].arg, "oxog") == 0) {
+			ref = nuc_G;
+			alt = nuc_T;
+		}
+	} else if (options[REF] && options[ALT]) {
+		ref = char_to_nuc(options[REF].arg[0]);
+		alt = char_to_nuc(options[ALT].arg[0]);
+		if (nuc_equal (alt, ref)) {
+			std::cerr <<
+				"Error: The reference and alternative nucleotides cannot be the same.\n";
+			success = false;
+		}
+	} else {
+		std::cerr <<
+			"A variant type must be specified either with the -t/--damage-type flag or using the -R and -A flags.\n";
+			success = false;
+	}
+	// Simulation and operation flags
+	bool internal_sim = (bool) options[INT_SIM];
+	bool external_sim = (bool) options[EXT_SIM];
+	std::string ext_sim_fname;
+	if (external_sim) {
+		ext_sim_fname = options[EXT_SIM].arg;
+	}
 
-	return 0;
-}
+	// Input file flags
+	std::string align_fname;
+	if (!options[BAMFILE]) {
+		std::cerr << 
+			"Error: alignment file argument (-b, --alignment-file) is required.\n";
+		success = false;
+	} else {
+		align_fname = options[BAMFILE].arg;
+	}
+	std::string ref_fname;
+	if (options[REFFILE]) {
+		ref_fname = options[REFFILE].arg;
+	}
+	std::string snv_fname;
+	if (options[SNVFILE]) {
+		snv_fname = options[SNVFILE].arg;
+	}
+
+	// argument checks for specific commands
+	if (quantifying) {
+		if (ref_fname.empty()) {
+			std::cerr <<
+				"Error: reference sequence argument (-f, --reference-file) is mandatory for damage quantification.\n";
+			success = false;
+		}
+		// Warn about ignored arguments
+		// Array and counter defined in options.hpp
+		for (size_t n = 0; n < ident_arg_count; ++n) {
+			if (options[ident_only_args[n]]) {
+				global_log.v(1) << "Warning: option [-/--]" << options[ident_only_args[n]].name << " only applies to damage identification. Ignored.\n";
+			}
+		}
+	} else if (identifying) {
+		if (snv_fname.empty()) {
+			std::cerr <<
+				"Error: SNV file argument (-V, --snv-file) is mandatory for damage identification.\n";
+			success = false;
+		}
+		// Warn about ignored arguments
+		// Array and counter defined in options.hpp
+		for (size_t n = 0; n < quant_arg_count; ++n) {
+			if (options[quant_only_args[n]]) {
+				global_log.v(1) << "Warning: option [-/--]" << options[quant_only_args[n]].name << " only applies to damage quantification. Ignored.\n";
+			}
+		}
+	}
+
+	// Numeric parameter flags
+	double phi = 0.01;
+	if (options[PHI]) {
+		phi = strtod(options[PHI].arg, NULL);
+	} else {
+		global_log.v(1) <<
+			"Warning: no estimate of phi was supplied. Default value of .01 will be used.\n";
+	}
+	int min_mapq = 5;
+	if (options[MIN_MAPQ]) {
+		min_mapq = atoi(options[MIN_MAPQ].arg);
+	}
+	int min_baseq = 20;
+	if (options[MIN_BASEQ]) {
+		min_baseq = atoi(options[MIN_MAPQ].arg);
+	}
+	long int max_qreads = 5e7;
+	if (options[MAX_QREADS]) {
+		max_qreads = atol(options[MAX_QREADS].arg);
+	}
+	int minz_bound = 15;
+	if (options[MINZ_BOUND]) {
+		minz_bound = atoi(options[MINZ_BOUND].arg);
+	}
+	double minz_eps = 1e-6;
+	if (options[MINZ_BOUND]) {
+		minz_eps = strtod(options[MINZ_EPS].arg, NULL);
+	}
+	int minz_iter = 100;
+	if (options[MINZ_ITER]) {
+		minz_iter = atoi(options[MINZ_ITER].arg);
+	}
+
+	// simulation-only flags
+	double theta_sim = 0.1;
+	double phi_sim = 0.1;
+	double err_mean_sim = 30.0;
+	double err_sd_sim = 2.0;
+	if (internal_sim) {
+		if (external_sim) {
+			global_log.v(1) << "Warning: the -S/--internal-sim flag overrides -s/--external-sim.\n";
+		}
+		if (!options[THETA_SIM] || !options[PHI_SIM]
+			|| !options[ERR_MEAN_SIM] || !options[ERR_SD_SIM]) {
+			std::cerr <<
+				"Error: All --*-sim parameters are required for internal simulation. Use --help for usage.\n";
+			success = false;
+		} else {
+			theta_sim = strtod(options[THETA_SIM].arg, NULL);
+			phi_sim = strtod(options[PHI_SIM].arg, NULL);
+			err_mean_sim = strtod(options[ERR_MEAN_SIM].arg, NULL);
+			err_sd_sim = strtod(options[ERR_SD_SIM].arg, NULL);
+		}
+	} else {
+		for (size_t n = 0; n < sim_arg_count; ++n) {
+			if (options[intsim_only_args[n]]) {
+				global_log.v(1) << "Warning: option [-/--]" << options[intsim_only_args[n]].name << " only applies to internal simulation. Ignored.\n";
+			}
+		}
+	}
+
+	// misc flags
+	bool keep_dup = false;
+	if (options[KEEP_DUP]) {
+		keep_dup = options[KEEP_DUP].last()->type() == t_ON;
+	}
+
+	//Exit if a fatal error was encountered, after providing some help
+	if (!success) {
+		if (quantifying) {
+			print_help("quantify");
+		} else if (identifying) {
+			print_help("identify");
+		}
+		return 1;
+	}
+	//
+	// Direct the program according to parsed options
+	//
+	using namespace hts;
+	//
+	// Damage quantification block
+	//
+	if (quantifying) {
+		if (internal_sim) {
+			global_log.v(1) << "Warning: Quantification internal sim code does not exist yet.\n";
+			return 0;
+		} else if (external_sim) {
+			global_log.v(1) << "Warning: Quantification eternal sim code does not exist yet.\n"; 
+			return 0;
+		} else {
+			global_log.v(1) << "Starting quantification...\n";
+			success = orient_bias_quantify(ref, alt, align_fname.c_str(), ref_fname.c_str(), min_mapq, min_baseq, keep_dup, max_qreads);
+			if (!success) {
+				global_log.v(1) << "Quantification process failed.\n";
+				return 1;
+			}
+		}
+	} // Quantification block
+	//
+	// Damage identification block
+	// 
+	if (identifying) {
+		if (internal_sim) { // TODO: output for simulation
+			orient_bias_filter_f obfilter(alt, ref, 0);
+			obfilter.simulate(theta_sim, phi_sim, err_mean_sim, err_sd_sim);
+		} else if (external_sim) {
+			orient_bias_filter_f obfilter(alt, ref, 0,
+				-1*minz_bound, minz_bound, minz_eps, minz_iter);// change count param when param options are added
+			obfilter.read(ext_sim_fname.c_str());
+		} else {
+			global_log.v(1) << "Starting identification...\n";
+			success = orient_bias_filter(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
+			if (!success) {
+				global_log.v(1) << "Identification process failed.";
+				return 1;
+			}
+		}
+	} // identification block
+}// main

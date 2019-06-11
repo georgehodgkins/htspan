@@ -10,9 +10,12 @@
 #include <string.h>
 
 #include <htslib/hts.h>
+#include <htslib/faidx.h>
 
 #include "bam.hpp"
 #include "math.hpp"
+#include "piler.hpp"
+#include "io/faidx_reader.hpp"
 
 namespace hts {
 
@@ -20,6 +23,9 @@ using namespace std;
 
 
 struct orient_bias_quant_f {
+
+	/// reference and alternative nucleotides to consider
+	nuc_t r1_ref, r1_alt, r2_ref, r2_alt;
 
 	// oxoG-consistent alt count
 	long int xc;
@@ -34,9 +40,6 @@ struct orient_bias_quant_f {
 	long int ni;
 	
 
-	/// reference and alternative nucleotides to consider
-	nuc_t r1_ref, r1_alt, r2_ref, r2_alt;
-
 	/**
 	 * Initialize class.
 	 *
@@ -47,7 +50,7 @@ struct orient_bias_quant_f {
 		r1_alt(_alt),
 		r2_ref(nuc_complement(_ref)),
 		r2_alt(nuc_complement(_alt)),
-		xi(0), xc(0), ni(0), nc(0)
+		xc(0), xi(0), nc(0), ni(0)
 	{
 	}
 
@@ -65,7 +68,6 @@ struct orient_bias_quant_f {
 		// only analyze nucleotides A, C, G, T (no indels)
 		nuc_t qnuc = query_nucleotide(b, pos);
 		if (!nuc_is_canonical(qnuc)) return false;
-
 		// query aligning against the reverse strand is reverse-complemented,
 		// so we need to reverse-complement again to get the original nucleotide
 		nuc_t onuc;
@@ -145,6 +147,8 @@ struct orient_bias_quant_f {
 		}
 		return phi;
 	}
+	
+	//TODO: add simulation options for testing
 
 };
 

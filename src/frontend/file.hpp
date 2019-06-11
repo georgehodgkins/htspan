@@ -1,5 +1,5 @@
-#ifndef _RGSAM_FILE_HPP_
-#define _RGSAM_FILE_HPP_
+#ifndef _HTSPAN_FILE_HPP_
+#define _HTSPAN_FILE_HPP_
 
 #include <fstream>
 #include <string>
@@ -43,4 +43,4 @@ void get_file_ext(const std::string& fname, std::string& ext) {
 	ext = fname.substr(start + 1);
 }
 
-#endif  // _RGSAM_FILE_HPP_
+#endif  // _HTSPAN_FILE_HPP_

@@ -11,7 +11,7 @@
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include "nucleotide.hpp"
+#include "../nucleotide.hpp"
 
 
 namespace hts {

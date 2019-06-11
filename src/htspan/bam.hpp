@@ -21,14 +21,15 @@
 #include <string>
 
 namespace hts {
+using namespace std;
 
-int32_t bam_name_to_id(bam_hdr_t* hdr, const string& chrom) {
+int32_t bam_name_to_id(bam_hdr_t* hdr, const string& chrom, bool first_pass = true) {
 	int32_t rid = bam_name2id(hdr, chrom.c_str());
-	if (rid == -1) {
+	if (rid == -1 && first_pass) {
 		// reference name not found: try adding chr prefix
 		string chrom2 = "chr";
 		chrom2 += chrom;
-		rid = bam_name_to_id(hdr, chrom2.c_str());
+		rid = bam_name_to_id(hdr, chrom2.c_str(), false);
 	}
 	return rid;
 }

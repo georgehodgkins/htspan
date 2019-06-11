@@ -108,7 +108,7 @@ struct piler {
 	 *
 	 * @return whether operation succeeded
 	 */
-	const bam_pileup1_t*  next() {
+	const bam_pileup1_t* next() {
 		// get next pileup and update target id, position, and read depth
 		const bam_pileup1_t* inner = bam_plp_auto(plp_itr, &tid, &pos, &n);
 		if (n == -1) {
@@ -123,6 +123,30 @@ struct piler {
 	 */
 	void clear() {
 		bam_plp_reset(plp_itr);
+	}
+
+	/**
+	* Return number of reads in the active pileup.
+	* 0 if none loaded or -1 if last load failed.
+	*/
+	int curr_plp_size() const {
+		return n;
+	}
+
+	/**
+	* Return tid of the active pileup.
+	* 0 if none loaded, unspecified if last load failed.
+	*/
+	int curr_plp_tid() const {
+		return tid;
+	}
+
+	/**
+	* Return reference position of the active pileup.
+	* 0 if none loaded, unspecified if last load failed.
+	*/
+	int curr_plp_pos() const {
+		return pos;
 	}
 
 	/**

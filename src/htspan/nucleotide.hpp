@@ -1,3 +1,4 @@
+#include <stdint.h>
 #ifndef _HTSPAN_NUCLEOTIDE_HPP_
 #define _HTSPAN_NUCLEOTIDE_HPP_
 
