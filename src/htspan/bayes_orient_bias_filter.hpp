@@ -6,7 +6,6 @@
 #include "orient_bias_filter.hpp"
 #include "nucleotide.hpp"
 
-// UNDER CONSTRUCTION
 
 namespace hts {
 
@@ -74,7 +73,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	* vector of points which define the rectangles to use.
 	*
 	* @param grid Vector of points which define grid.size()-1 rectangles to use for integration
-	* @param f Pointer to function to numerically integrate, which takes a void pointer to a parameter struct and returns double
+	* @param f Pointer to function to numerically integrate, which takes a double and returns double
 	*/
 	double midpoint_integration (std::vector<double> grid, double (*f) (double)) {
 		// calculate midpoints and grid widths
@@ -97,11 +96,12 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	/**
 	* Log probability of observed bases given phi
 	* and an externally set theta_t,
-	* plus the pdf of the prior beta distribution
-	* of phi, with externally set alpha and beta parameters.
+	* plus the pdf of the prior beta distribution of phi
+	* at the given value of phi, using externally set 
+	* alpha and beta parameters.
 	*/
 	double phi_integrand (double phi) {
-		// alpha_phi, beta_phi, and theta_t are class members
+		// alpha_phi, beta_phi, and theta_t are class members set externally
 		return exp( lp_bases_given(theta_t, phi) +
 			log(gsl_ran_beta_pdf(phi, alpha_phi, beta_phi)));
 	}
@@ -111,7 +111,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	* an externally genrated and set grid_phi.
 	*/
 	double theta_integrand (double theta) {
-		// theta_t and grid_phi are class members
+		// theta_t and grid_phi are class members set externally
 		theta_t = theta;
 		return midpoint_integration(grid_phi, phi_integrand);
 	}
