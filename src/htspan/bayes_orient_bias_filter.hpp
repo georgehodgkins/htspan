@@ -57,4 +57,28 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		return grid;
 	}
 
+	/**
+	* Custom midpoint integration method which takes a
+	* vector of points which define the rectangles to use.
+	*
+	* @param grid Vector of points which define grid.size()-1 rectangles to use for integration
+	* @param f Pointer to function to numerically integrate, which takes double and returns double
+	*/
+	double midpoint_integration (std::vector<double> grid, double (*f) (double)) {
+		// calculate midpoints and grid widths
+		std::vector<double> midpoints (grid.size() - 1);
+		std::vector<double> widths (grid.size() - 1);
+		for (size_t i = 0; i < grid.size() - 1; ++i) {
+			widths[i] = grid[i+1] - grid[i];
+			midpoints[i] = grid[i] + widths[i]/2;
+		}
+		// evaluate function at each midpoint, multiply by width, and add to previous total
+		double result = 0;
+		for (size_t i = 0; i < midpoints.size(); ++i) {
+			double evl = f(midpoints[i]);
+			double area = evl * widths[i];
+			result += area;
+		}
+		return result;
+	}
 	
