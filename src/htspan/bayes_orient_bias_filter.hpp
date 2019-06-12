@@ -1,6 +1,8 @@
 #include <vector>
 #include <cmath>
 
+#include <gsl/gsl_cdf.h>
+
 #include "orient_bias_filter.hpp"
 #include "nucleotide.hpp"
 
@@ -8,11 +10,21 @@
 
 namespace hts {
 
+using namespace std;
+
 struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
+
+	// parameters for the beta distribution
+	double alpha_phi, beta_phi;
+
+	// grid to integrate phi on (stored here to simplify parameter passing)
+	vector<double> grid_phi;
 
 // TODO: make a base class which the Bayesian and non-Bayesian both inherit from
 	bayes_orient_bias_filter_f (nuc_t _ref, nuc_t _alt, size_t n)
-		: orient_bias_filter_f (_ref, _alt, n) {}
+		: orient_bias_filter_f (_ref, _alt, n),
+		alpha_phi(0.0), beta_phi(0.0),
+		grid_phi(0) {}
 
 	/**
 	* Generate a vector of exponentially spaced points between zero and one
@@ -30,7 +42,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	* @param base Base of the exponential term in step generation (see above)
 	* @return A std::vector containing the grid points
 	*/
-	std::vector<double> generate_grid (double center, double eps = 1e-6, double step = .005, double base = 1.4) {
+	std::vector<double> generate_cgrid (double center, double eps = 1e-6, double step = .005, double base = 1.4) {
 		// calculate number of grid points to allocate
 		// log_b is log base b
 		// c+s*b^k < 1 - eps ---> k < log_b ((1-eps-c)/2) 
@@ -62,7 +74,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	* vector of points which define the rectangles to use.
 	*
 	* @param grid Vector of points which define grid.size()-1 rectangles to use for integration
-	* @param f Pointer to function to numerically integrate, which takes double and returns double
+	* @param f Pointer to function to numerically integrate, which takes a void pointer to a parameter struct and returns double
 	*/
 	double midpoint_integration (std::vector<double> grid, double (*f) (double)) {
 		// calculate midpoints and grid widths
@@ -81,4 +93,75 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		}
 		return result;
 	}
+
+	/**
+	* Log probability of observed bases given phi
+	* and an externally set theta_t,
+	* plus the pdf of the prior beta distribution
+	* of phi, with externally set alpha and beta parameters.
+	*/
+	double phi_integrand (double phi) {
+		// alpha_phi, beta_phi, and theta_t are class members
+		return exp( lp_bases_given(theta_t, phi) +
+			log(gsl_ran_beta_pdf(phi, alpha_phi, beta_phi)));
+	}
+
+	/**
+	* Numerical integration of phi_integrand using
+	* an externally genrated and set grid_phi.
+	*/
+	double theta_integrand (double theta) {
+		// theta_t and grid_phi are class members
+		theta_t = theta;
+		return midpoint_integration(grid_phi, phi_integrand);
+	}
+
+	/**
+	* Bayesian model for orientation bias identification.
+	* 
+	* Computes the posterior probability of the alternative model
+	* (theta > 0) against that of the null model (theta = 0).
+	*
+	* Reads should already have been tallied using push().
+	*
+	* @param alt_prior Prior probability of the alternative model
+	* @param alpha Value of alpha for the prior beta distribution of phi
+	* @param beta Value of beta for the prior beta distribution of phi
+	* @return Posterior probability of the alternative model
+	*/
+	double operator () (double alt_prior, double alpha, double beta) {
+		// these class members are accessed by the model function 
+		alpha_phi = alpha;
+		beta_phi = beta;
+		// generate centered grids to integrate on
+		double phi_0 = estimate_phi_given(0, 0.5); // change fixed params?
+		// note that grid_phi is a class member
+		grid_phi = generate_cgrid(phi_0);// using default params
+		double theta_0 = estimate_theta_given(phi_0, 0.5);
+		vector<double> grid_theta = generate_cgrid(theta_0);
+		// evaluate null model evidence (theta = 0)
+		double null_model = theta_integrand(0);
+		// evaluate alternate model evidence (integrating across possible values of theta)
+		double alt_model = midpoint_integration(grid_theta, theta_integrand);
+		// evaluate the log posterior probability of the alternate model
+		double lev_null = log(null_model);
+		double lev_alt = log(alt_model);
+
+		double lprior_null = log(1-alt_prior);
+		double lprior_alt = log(alt_prior);
+
+		double lxs[] = {
+			lev_null + lprior_null,
+			lev_alt + lprior_alt
+		};
+		double lse = log_sum_exp(2, lxs);
+		double lposterior = lev_alt + lprior_alt - lse;
+		return lposterior;
+	}
+
+}; // functor struct
+
+} // namespace hts
+
+
 	
