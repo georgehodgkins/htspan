@@ -44,9 +44,9 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	std::vector<double> generate_cgrid (double center, double eps = 1e-6, double step = .005, double base = 1.4) {
 		// calculate number of grid points to allocate
 		// log_b is log base b
-		// c+s*b^k < 1 - eps ---> k < log_b ((1-eps-c)/2) 
+		// c+s*b^k < 1 - eps ---> k < log_b ((1-eps-c)/2), k is integer
 		size_t right_points = (size_t) floor(log((1-eps-center)/step)/log(base));
-		// c-s*b^k > eps ---> k < log_b((c-eps)/s)
+		// c-s*b^k > eps ---> k < log_b((c-eps)/s), " "
 		size_t left_points = (size_t) floor(log((center - eps)/step)/log(base));
 		// three extra points: center and two endpoints
 		size_t v_cap = right_points + left_points + 3;
@@ -58,11 +58,11 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		// first point is eps, so last generated point on left is at index left_points
 		grid[left_points + 1] = center;
 		// generate left points
-		for (size_t k = 0; k <= left_points; ++k) {
+		for (size_t k = 0; k < left_points; ++k) {
 			grid[left_points - k] = step * pow(base, k);
 		}
 		// generate right points
-		for (size_t k = 0; k <= right_points; ++k) {
+		for (size_t k = 0; k < right_points; ++k) {
 			grid[left_points + 2 + k] = step * pow(base, k);
 		}
 		return grid;
@@ -117,20 +117,15 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	}
 
 	/**
-	* Bayesian model for orientation bias identification.
-	* 
-	* Computes the posterior probability of the alternative model
-	* (theta > 0) against that of the null model (theta = 0).
+	* Calculate evidence for the null (theta=0) and alternative
+	* (theta > 0) models for orientation bias test.
 	*
-	* Reads should already have been tallied using push().
-	*
-	* @param alt_prior Prior probability of the alternative model
 	* @param alpha Value of alpha for the prior beta distribution of phi
 	* @param beta Value of beta for the prior beta distribution of phi
-	* @return Posterior probability of the alternative model
+	* @return Struct containing evidence values for null and alt models
 	*/
-	double operator () (double alt_prior, double alpha, double beta) {
-		// these class members are accessed by the model function 
+	evidence_rtn model_evidence(double alpha, double beta) {
+		// these class members are accessed by the phi_integrand function
 		alpha_phi = alpha;
 		beta_phi = beta;
 		// generate centered grids to integrate on
@@ -140,15 +135,35 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		double theta_0 = estimate_theta_given(phi_0, 0.5);
 		vector<double> grid_theta = generate_cgrid(theta_0);
 		// evaluate null model evidence (theta = 0)
-		double null_model = theta_integrand(0);
+		// a single midpoint integration of phi_integrand at theta=0
+		double ev_null = theta_integrand(0);
 		// evaluate alternate model evidence (integrating across possible values of theta)
-		double alt_model = midpoint_integration(grid_theta, theta_integrand);
-		// evaluate the log posterior probability of the alternate model
-		double lev_null = log(null_model);
-		double lev_alt = log(alt_model);
+		double ev_alt = midpoint_integration(grid_theta, theta_integrand);
+		evidence_rtn rtn {ev_null, ev_alt};
+		return rtn;
+	}
 
-		double lprior_null = log(1-alt_prior);
-		double lprior_alt = log(alt_prior);
+	/**
+	* Bayesian model for orientation bias identification.
+	* 
+	* Computes the posterior probability of the alternative model
+	* (theta > 0) against that of the null model (theta = 0).
+	*
+	* Reads should already have been tallied using push().
+	*
+	* @param prior_alt Prior probability of the alternative model
+	* @param alpha Value of alpha for the prior beta distribution of phi
+	* @param beta Value of beta for the prior beta distribution of phi
+	* @return Posterior probability of the alternative model
+	*/
+	double operator () (double prior_alt, double alpha, double beta) {
+		evidence_rtn ev = model_evidence(alpha, beta);
+		// evaluate the log posterior probability of the alternate model
+		double lev_null = log(ev.null);
+		double lev_alt = log(ev.alt);
+
+		double lprior_null = log(1-prior_alt);
+		double lprior_alt = log(prior_alt);
 
 		double lxs[] = {
 			lev_null + lprior_null,
@@ -160,6 +175,16 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	}
 
 }; // functor struct
+
+/**
+* Return struct for the model_evidence method in bayes_orient_bias_filter_f,
+* containing evidence for null and alternative models.
+*/
+struct evidence_rtn {
+	double null;
+	double alt;
+};
+
 
 } // namespace hts
 
