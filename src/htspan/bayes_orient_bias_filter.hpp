@@ -59,9 +59,14 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		// calculate number of grid points to allocate
 		// log_b is log base b
 		// c+s*b^k < 1 - eps ---> k < log_b ((1-eps-c)/2), k is integer
-		size_t right_points = (size_t) floor(log((1-eps-center)/step)/log(base));
+		size_t right_points = (size_t) ceil(log((1-eps-center)/step)/log(base));
 		// c-s*b^k > eps ---> k < log_b((c-eps)/s), " "
-		size_t left_points = (size_t) floor(log((center - eps)/step)/log(base));
+		size_t left_points = (size_t) ceil(log((center - eps)/step)/log(base));
+		if (center < eps) {
+			left_points = 0;
+		} else if (center > 1 - eps) {
+			right_points = 0;
+		}
 		// three extra points: center and two endpoints
 		size_t v_cap = right_points + left_points + 3;
 		// allocate vector
@@ -73,11 +78,11 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		grid[left_points + 1] = center;
 		// generate left points
 		for (size_t k = 0; k < left_points; ++k) {
-			grid[left_points - k] = step * pow(base, k);
+			grid[left_points - k] = center - step * pow(base, k);
 		}
 		// generate right points
 		for (size_t k = 0; k < right_points; ++k) {
-			grid[left_points + 2 + k] = step * pow(base, k);
+			grid[left_points + 2 + k] = center + step * pow(base, k);
 		}
 		return grid;
 	}
