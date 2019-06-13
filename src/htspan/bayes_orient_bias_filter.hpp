@@ -1,7 +1,9 @@
 #include <vector>
 #include <cmath>
+#include <stdexcept>
 
 #include <gsl/gsl_cdf.h>
+#include <gsl/gsl_math.h>
 
 #include "orient_bias_filter.hpp"
 #include "nucleotide.hpp"
@@ -19,7 +21,7 @@ static double theta_integrand (double theta, void *v);
 * Return struct for the model_evidence method in bayes_orient_bias_filter_f,
 * containing evidence for null and alternative models.
 */
-struct evidence_rtn {
+struct evidences {
 	double null;
 	double alt;
 };
@@ -87,9 +89,8 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		return grid;
 	}
 
-
 	/**
-	* Custom one-dimensional midpoint integration method which takes a
+	* One-dimensional midpoint integration method which takes a
 	* vector of points which define the rectangles to use.
 	*
 	* Note that any other parameters required for evaluation  of f besides the x-value
@@ -128,22 +129,22 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	* @param beta Value of beta for the prior beta distribution of phi
 	* @return Struct containing evidence values for null and alt models
 	*/
-	evidence_rtn model_evidence(double alpha, double beta) {
+	evidences model_evidence(double alpha, double beta) {
 		// these class members are accessed by the phi_integrand function
 		alpha_phi = alpha;
 		beta_phi = beta;
 		// generate centered grids to integrate on
-		double phi_0 = estimate_phi_given(0, 0.5); // change fixed params?
+		double phi_hat = estimate_phi_given(0, 0.5); // change fixed params?
 		// note that grid_phi is a class member
-		grid_phi = generate_cgrid(phi_0);// using default params
-		double theta_0 = estimate_theta_given(phi_0, 0.5);
-		vector<double> grid_theta = generate_cgrid(theta_0);
+		grid_phi = generate_cgrid(phi_hat);// using default params
+		double theta_hat = estimate_theta_given(phi_hat, 0.5);
+		vector<double> grid_theta = generate_cgrid(theta_hat);
 		// evaluate null model evidence (theta = 0)
 		// a single midpoint integration of phi_integrand at theta=0
 		double ev_null = theta_integrand(0, (void*) this);
 		// evaluate alternate model evidence (integrating across possible values of theta)
 		double ev_alt = midpoint_integration(grid_theta, theta_integrand, (void*) this);
-		evidence_rtn rtn;
+		evidences rtn;
 		rtn.null = ev_null;
 		rtn.alt = ev_alt;
 		return rtn;

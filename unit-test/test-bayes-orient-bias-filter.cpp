@@ -55,7 +55,7 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 	BOOST_CHECK_MESSAGE(abs(theta_int - THETA_INT_STD) < TEST_EPS,
 		"Theta integrand: got: " << theta_int << ", expected: " << THETA_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating evidence");
-	hts::evidence_rtn ev = bobfilter.model_evidence(ALPHA_PHI, BETA_PHI);
+	hts::evidences ev = bobfilter.model_evidence(ALPHA_PHI, BETA_PHI);
 	BOOST_CHECK_MESSAGE(abs(ev.null - EV_NULL_STD) < TEST_EPS,
 		"Evidence for null model: got: " << ev.null << ", expected: " << EV_NULL_STD);
 	BOOST_CHECK_MESSAGE(abs(ev.alt - EV_ALT_STD) < TEST_EPS,
