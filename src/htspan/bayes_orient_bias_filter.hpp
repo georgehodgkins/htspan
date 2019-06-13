@@ -87,6 +87,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		return grid;
 	}
 
+
 	/**
 	* Custom one-dimensional midpoint integration method which takes a
 	* vector of points which define the rectangles to use.
@@ -95,7 +96,8 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	* will have to be set externally (here, typically as class members)
 	*
 	* @param grid Vector of x-values which define grid.size()-1 rectangles to use for integration
-	* @param f Pointer to function to numerically integrate, which takes a double and returns double
+	* @param f Pointer to integrand, which takes a double x-value and a void pointer to a param object, and returns double
+	* @param v Void pointer to object containing additional parameters to pass to the integrand
 	*/
 	double midpoint_integration (std::vector<double> grid, double (*f) (double, void*), void *v) {
 		// calculate midpoints and grid widths
@@ -180,12 +182,14 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 
 }; // functor struct
 
+// Static integrand functions which take a double x-value and a void pointer to an object containing other parameters
+// As used here, the object will be the above class itself
+
 /**
 * Log probability of observed bases given phi
 * and an externally set theta_t,
 * plus the pdf of the prior beta distribution of phi
-* at the given value of phi, using externally set 
-* alpha and beta parameters.
+* at the given value of phi.
 */
 static double phi_integrand (double phi, void *v) {
 	bayes_orient_bias_filter_f *p = (bayes_orient_bias_filter_f*) v;
@@ -195,8 +199,7 @@ static double phi_integrand (double phi, void *v) {
 }
 
 /**
-* Numerical integration of phi_integrand using
-* an externally genrated and set grid_phi.
+* Numerical integration of phi_integrand across a given phi space.
 */
 static double theta_integrand (double theta, void *v) {
 	bayes_orient_bias_filter_f *p = (bayes_orient_bias_filter_f*) v;
