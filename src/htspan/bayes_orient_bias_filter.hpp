@@ -11,6 +11,19 @@ namespace hts {
 
 using namespace std;
 
+// forward declarations of static integrand functions
+static double phi_integrand (double phi, void *v);
+static double theta_integrand (double theta, void *v);
+
+/**
+* Return struct for the model_evidence method in bayes_orient_bias_filter_f,
+* containing evidence for null and alternative models.
+*/
+struct evidence_rtn {
+	double null;
+	double alt;
+};
+
 struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 
 	// parameters for the beta distribution
@@ -19,7 +32,8 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	// grid to integrate phi on (stored here to simplify parameter passing)
 	vector<double> grid_phi;
 
-// TODO: make a base class which the Bayesian and non-Bayesian both inherit from
+// TODO: make a base class which the Bayesian and non-Bayesian classes both inherit from
+
 	bayes_orient_bias_filter_f (nuc_t _ref, nuc_t _alt, size_t n)
 		: orient_bias_filter_f (_ref, _alt, n),
 		alpha_phi(0.0), beta_phi(0.0),
@@ -69,13 +83,16 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	}
 
 	/**
-	* Custom midpoint integration method which takes a
+	* Custom one-dimensional midpoint integration method which takes a
 	* vector of points which define the rectangles to use.
 	*
-	* @param grid Vector of points which define grid.size()-1 rectangles to use for integration
+	* Note that any other parameters required for evaluation  of f besides the x-value
+	* will have to be set externally (here, typically as class members)
+	*
+	* @param grid Vector of x-values which define grid.size()-1 rectangles to use for integration
 	* @param f Pointer to function to numerically integrate, which takes a double and returns double
 	*/
-	double midpoint_integration (std::vector<double> grid, double (*f) (double)) {
+	double midpoint_integration (std::vector<double> grid, double (*f) (double, void*), void *v) {
 		// calculate midpoints and grid widths
 		std::vector<double> midpoints (grid.size() - 1);
 		std::vector<double> widths (grid.size() - 1);
@@ -86,7 +103,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		// evaluate function at each midpoint, multiply by width, and add to previous total
 		double result = 0;
 		for (size_t i = 0; i < midpoints.size(); ++i) {
-			double evl = f(midpoints[i]);
+			double evl = f(midpoints[i], v);
 			double area = evl * widths[i];
 			result += area;
 		}
@@ -94,31 +111,11 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	}
 
 	/**
-	* Log probability of observed bases given phi
-	* and an externally set theta_t,
-	* plus the pdf of the prior beta distribution of phi
-	* at the given value of phi, using externally set 
-	* alpha and beta parameters.
-	*/
-	double phi_integrand (double phi) {
-		// alpha_phi, beta_phi, and theta_t are class members set externally
-		return exp( lp_bases_given(theta_t, phi) +
-			log(gsl_ran_beta_pdf(phi, alpha_phi, beta_phi)));
-	}
-
-	/**
-	* Numerical integration of phi_integrand using
-	* an externally genrated and set grid_phi.
-	*/
-	double theta_integrand (double theta) {
-		// theta_t and grid_phi are class members set externally
-		theta_t = theta;
-		return midpoint_integration(grid_phi, phi_integrand);
-	}
-
-	/**
 	* Calculate evidence for the null (theta=0) and alternative
 	* (theta > 0) models for orientation bias test.
+	*
+	* Note that the return type for this method is
+	* defined above the main class in this file.
 	*
 	* @param alpha Value of alpha for the prior beta distribution of phi
 	* @param beta Value of beta for the prior beta distribution of phi
@@ -136,10 +133,12 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		vector<double> grid_theta = generate_cgrid(theta_0);
 		// evaluate null model evidence (theta = 0)
 		// a single midpoint integration of phi_integrand at theta=0
-		double ev_null = theta_integrand(0);
+		double ev_null = theta_integrand(0, (void*) this);
 		// evaluate alternate model evidence (integrating across possible values of theta)
-		double ev_alt = midpoint_integration(grid_theta, theta_integrand);
-		evidence_rtn rtn {ev_null, ev_alt};
+		double ev_alt = midpoint_integration(grid_theta, theta_integrand, (void*) this);
+		evidence_rtn rtn;
+		rtn.null = ev_null;
+		rtn.alt = ev_alt;
 		return rtn;
 	}
 
@@ -177,13 +176,29 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 }; // functor struct
 
 /**
-* Return struct for the model_evidence method in bayes_orient_bias_filter_f,
-* containing evidence for null and alternative models.
+* Log probability of observed bases given phi
+* and an externally set theta_t,
+* plus the pdf of the prior beta distribution of phi
+* at the given value of phi, using externally set 
+* alpha and beta parameters.
 */
-struct evidence_rtn {
-	double null;
-	double alt;
-};
+static double phi_integrand (double phi, void *v) {
+	bayes_orient_bias_filter_f *p = (bayes_orient_bias_filter_f*) v;
+	// alpha_phi, beta_phi, and theta_t are class members set externally
+	return exp( p->lp_bases_given(p->theta_t, phi) +
+		log(gsl_ran_beta_pdf(phi, p->alpha_phi, p->beta_phi)));
+}
+
+/**
+* Numerical integration of phi_integrand using
+* an externally genrated and set grid_phi.
+*/
+static double theta_integrand (double theta, void *v) {
+	bayes_orient_bias_filter_f *p = (bayes_orient_bias_filter_f*) v;
+	// grid_phi is a class member set externally
+	p->theta_t = theta;
+	return p->midpoint_integration(p->grid_phi, phi_integrand, v);
+}
 
 
 } // namespace hts

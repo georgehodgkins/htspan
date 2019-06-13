@@ -26,8 +26,8 @@ void common_cgrid_test(hts::bayes_orient_bias_filter_f& bobfilter, const double 
 		"Grid size: got: " << test_grid.size() << ", expected: " << GRID_SIZE_STD);
 	BOOST_CHECK_MESSAGE(abs(test_grid[3] - GRID_4F_STD) < TEST_EPS, 
 		"Grid[3] (4th member): got: " << test_grid[3] << ", expected: " << GRID_4F_STD);
-	BOOST_CHECK_MESSAGE(abs(test_grid[grid.size() - 4] - GRID_4L_STD) < TEST_EPS,
-		"Grid[-4] (4th from last member): got: " << test_grid[grid.size() - 4] << ", expected:" << GRID_4L_STD);
+	BOOST_CHECK_MESSAGE(abs(test_grid[test_grid.size() - 4] - GRID_4L_STD) < TEST_EPS,
+		"Grid[-4] (4th from last member): got: " << test_grid[test_grid.size() - 4] << ", expected:" << GRID_4L_STD);
 }
 
 void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const double BETA_PHI,
@@ -35,7 +35,7 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 		const double EV_NULL_STD, const double EV_ALT_STD, const double LPOSTERIOR_STD) {
 	BOOST_TEST_MESSAGE("Running model test for dataset " << TSVNAME << ":");
 	BOOST_TEST_CHECKPOINT("Initializing filter and reading in data");
-	hts::bayes_orient_bias_filter bobfilter(nuc_G, nuc_T, 200);
+	hts::bayes_orient_bias_filter_f bobfilter(nuc_G, nuc_T, 200);
 	bobfilter.read(TSVNAME);
 	BOOST_TEST_CHECKPOINT("Evaluating phi integrand");
 	bobfilter.alpha_phi = ALPHA_PHI;
@@ -44,12 +44,12 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 	double phi_hat = bobfilter.estimate_phi_given(0, 0.5); // fixed params same in model_evidence method
 	double theta_hat = bobfilter.estimate_theta_given(phi_hat, 0.5); // ^^^
 	bobfilter.theta_t = theta_hat;
-	bobfilter.phi_grid = generate_cgrid(phi_hat); // needed by theta integrand
-	double phi_int = bobfilter.phi_integrand(phi_hat);
+	bobfilter.grid_phi = bobfilter.generate_cgrid(phi_hat); // needed by theta integrand
+	double phi_int = hts::phi_integrand(phi_hat, (void*) &bobfilter);
 	BOOST_CHECK_MESSAGE(abs(phi_int - PHI_INT_STD) < TEST_EPS,
 		"Phi integrand: got: " << phi_int << ", expected: " << PHI_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating theta integrand");
-	double theta_int = bobfilter.theta_integrand(theta_hat);
+	double theta_int = hts::theta_integrand(theta_hat, (void*) &bobfilter);
 	BOOST_CHECK_MESSAGE(abs(theta_int - THETA_INT_STD) < TEST_EPS,
 		"Theta integrand: got: " << theta_int << ", expected: " << THETA_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating evidence");
