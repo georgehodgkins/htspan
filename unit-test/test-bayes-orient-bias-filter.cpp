@@ -7,8 +7,10 @@
 #include <cmath>
 
 #include <vector>
+#include <iostream>
 
 #include "htspan/bayes_orient_bias_filter.hpp"
+#include "htspan/nucleotide.hpp"
 
 using namespace std;
 
@@ -65,6 +67,20 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 } 
 
 BOOST_AUTO_TEST_SUITE(orient_bias_filter_fastbayes)
+
+BOOST_AUTO_TEST_CASE(grid_test) {
+	hts::bayes_orient_bias_filter_f bobfilter (nuc_G, nuc_T, 0);
+	const size_t TEST_COUNT = 5;
+	const double GRID_PARAM[] = {.01, .05, .1, .5, .9};
+	const double GRID_EPS = 1e-6;
+	const double GRID_4F_STD[] = {0.005, 0.030792, 0.06235232,  0.2975217, 0.5031426};
+	const double GRID_4L_STD[] = {0.4068574, 0.4468574, 0.4968574, 0.7024783, 0.9376477};
+	const size_t GRID_SIZE_STD[] = {22, 26, 28, 31, 28};
+	for (size_t n = 0; n < TEST_COUNT; ++n) {
+		common_cgrid_test(bobfilter, GRID_PARAM[n], GRID_EPS, GRID_4F_STD[n], GRID_4L_STD[n], GRID_SIZE_STD[n]);
+	}
+}
+
 
 BOOST_AUTO_TEST_CASE(hs_hd) {
 	const char TSVNAME[] = "../sim-data/obrs_high-signal_high-damage_data.tsv";
