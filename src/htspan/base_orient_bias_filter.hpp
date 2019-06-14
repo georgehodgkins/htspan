@@ -1,5 +1,5 @@
-#ifndef _HTSPAN_ORIENT_BIAS_HPP_
-#define _HTSPAN_ORIENT_BIAS_HPP_
+#ifndef _HTSPAN_BASE_ORIENT_BIAS_HPP_
+#define _HTSPAN_BASE_ORIENT_BIAS_HPP_
 
 
 //TODO: cleanup (remove redundant headers, non specific math fcns)
@@ -29,7 +29,7 @@ struct theta_and_phi {
 	double phi;
 };
 
-struct orient_bias_filter_f {
+struct base_orient_bias_filter_f {
 	//reference to externally initialized data object
 	const orient_bias_data& data;
 
@@ -257,42 +257,11 @@ struct orient_bias_filter_f {
 		return rtn;
 	}
 
-	/**
-	 * Calculate deviance of fitted and null models.
-	 *
-	 * model_1: theta = theta.hat
-	 * model_0: theta = 0
-	 */
-	double deviance_theta(double theta_hat, double phi) {
-		return 2 * (lp_bases_given(theta_hat, phi) - lp_bases_given(0.0, phi));
-	}
+	// All children of this class must implement an operator()
+	// (i.e. must be functors) and this class cannot itself be implemented
+	virtual void operator() = 0;
 
-	/**
-	 * Variant test with adjustment for orientation bias.
-	 *
-	 * Test whether variant allele frequence > 0,
-	 * with consideration for orietation bias, as specified
-	 * by the estimated global damage rate causing  orientation bias.
-	 *
-	 * Relevant reads should have been tallied using push() already.
-	 *
-	 * @param phi estimated global damage rate
-	 * @param known_phi consider phi known/fixed (true) or variable (false)
-	 * @return p-value
-	 */
-	double operator()(double phi, bool known_phi=true) {
-		volatile double theta_0 = estimate_initial_theta();
-		volatile double theta_hat;
-		if (known_phi) {
-			theta_hat = estimate_theta_given(phi, theta_0);
-		} else {
-			theta_and_phi theta_phi = estimate_theta_phi(theta_0, phi);
-			theta_hat = theta_phi.theta;
-			phi = theta_phi.phi;
-		}
-		volatile double dev = deviance_theta(theta_hat, phi);
-		return 1 - gsl_cdf_chisq_P(dev, 1);
-	}
+};
 
 
 // theta_real is in unconstrained, real-number space
@@ -310,4 +279,4 @@ inline double _nlp_bases_given_phi(double phi_real, void* p) {
 
 }  // namespace hts
 
-#endif  // _HTSPAN_ORIENT_BIAS_HPP_
+#endif  // _HTSPAN_BASE_ORIENT_BIAS_HPP_
