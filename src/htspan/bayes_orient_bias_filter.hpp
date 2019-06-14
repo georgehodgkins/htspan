@@ -77,20 +77,17 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	* @return Struct containing evidence values for null and alt models
 	*/
 	evidences model_evidence(double alpha, double beta) {
-		// these class members are accessed by the phi_integrand function
-		alpha_phi = alpha;
-		beta_phi = beta;
 		// generate centered grids to integrate on
 		double phi_hat = estimate_phi_given(0, 0.5);
-		// note that grid_phi is a class member
-		grid_phi = generate_cgrid(phi_hat);// using default params
+		vector<double> grid_phi = generate_cgrid(phi_hat);
 		double theta_hat = estimate_theta_given(phi_hat, 0.5);
 		vector<double> grid_theta = generate_cgrid(theta_hat);
 		// evaluate null model evidence (theta = 0)
-		// a single midpoint integration of phi_integrand at theta=0
-		double ev_null = theta_integrand(0, (void*) this);
+		phi_integrand_f p_f (this, alpha, beta, 0);
+		double ev_null = midpoint_integration(grid_phi, p_f);
 		// evaluate alternate model evidence (integrating across possible values of theta)
-		double ev_alt = midpoint_integration(grid_theta, theta_integrand, (void*) this);
+		theta_integrand_f t_f (grid_phi, this, alpha, beta);
+		double ev_alt = midpoint_integration(grid_theta, t_f);
 		evidences rtn;
 		rtn.null = ev_null;
 		rtn.alt = ev_alt;
@@ -130,32 +127,55 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 
 }; // bayes_orient_bias_filter_f struct
 
-// Static integrand functions which take a double x-value and a void pointer to an object containing other parameters
-// As used here, the object will be the above class itself
+// Integrand functors which take a double x-value and have hyperparameters set at instantiation
+// Base class defined in numeric_integration.hpp (just an empty virtual operator())
 
 /**
-* Log probability of observed bases given phi
-* and an externally set theta_t,
-* plus the pdf of the prior beta distribution of phi
-* at the given value of phi.
+* Log probability of observed bases given phi and the set theta,
+* plus(+) the log(pdf) of the beta distribution defined by 
+* the set alpha and beta, at the given phi.
 */
-static double phi_integrand (double phi, void *v) {
-	cgrid_orient_bias_filter_f *p = (cgrid_orient_bias_filter_f*) v;
-	// alpha_phi, beta_phi, and theta_t are class members set externally
-	return exp( p->lp_bases_given(p->theta_t, phi) +
-		log(gsl_ran_beta_pdf(phi, p->alpha_phi, p->beta_phi)));
-}
+struct phi_integrand_f : public base_integrand_f {
+	// pointer to class containing the lp_bases_given fcn
+	bayes_orient_bias_filter_f *pt;
+	// alpha for the beta distribution
+	double alpha;
+	// beta for the beta distribution
+	double beta;
+	// theta for the log probability of variant function
+	double theta;
+	// constructor which sets hyperparameters
+	phi_integrand_f (bayes_orient_bias_filter_f *p, double a, double b, double t) :
+		pt(p), alpha(a), beta(b), theta(t) {}
+	//implementation of the function to be integrated
+	double operator() (double phi) {
+		return exp(pt->lp_bases_given(theta, phi) +
+			log(gsl_ran_beta_pdf(phi, alpha, beta)));
+	}
+};
+
 
 /**
 * Numerical integration of phi_integrand across a given phi space.
 */
-static double theta_integrand (double theta, void *v) {
-	cgrid_orient_bias_filter_f *p = (cgrid_orient_bias_filter_f*) v;
-	// grid_phi is a class member set externally
-	p->theta_t = theta;
-	return p->midpoint_integration(p->grid_phi, phi_integrand, v);
-}
-
+struct theta_integrand_f : public base_integrand_f {
+	// grid of points which define rectangles for midpoint quadrature
+	vector<int> grid_phi;
+	// pointer to class containing the lp_bases_given fcn
+	bayes_orient_bias_filter_f *pt;
+	// alpha for the beta distribution
+	double alpha;
+	// beta for the beta distribution
+	double beta;
+	// constructor which sets hyperparameters
+	theta_integrand_f (vector<int> g, bayes_orient_bias_filter_f *p, double a, double b) :
+		grid_phi(g), pt(p), alpha(a), beta(b) {}
+	// implementation of function to be integrated (in this case, integral of another function)
+	double operator() (double theta) {
+		phi_integrand_f f (pt, a, b, theta);
+		return midpoint_integration(grid_phi, f);
+	}
+};
 
 } // namespace hts
 

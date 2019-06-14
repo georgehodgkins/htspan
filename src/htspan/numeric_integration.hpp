@@ -1,11 +1,24 @@
 #ifndef _HTSPAN_NUMERIC_INTEGRATION_HPP_
 #define _HTSPAN_NUMERIC_INTEGRATION_HPP_
 
-// This header file defines functors and methods for numeric integration
+// This header file defines various functors and methods for numeric integration
 
 namespace hts {
 
 using namespace std;
+
+/**
+* This struct acts as a base interface for integrands
+* passed to integration methods, which must implement
+* an operator() method which takes double and returns double.
+* The only other method in derived classes should be a constructor
+* which sets integrand hyperparameters.
+*
+* Compatible with Boost quadrature methods.
+*/
+struct base_integrand_f {
+	virtual double operator() (double x) {}
+}
 
 /**
 * Generate a vector of exponentially spaced points between zero and one
@@ -63,10 +76,9 @@ vector<double> generate_cgrid (double center, double eps = 1e-6, double step = .
 * will have to be set externally (here, typically as class members)
 *
 * @param grid Vector of x-values which define grid.size()-1 rectangles to use for integration
-* @param f Pointer to integrand, which takes a double x-value and a void pointer to a param object, and returns double
-* @param v Void pointer to object containing additional parameters to pass to the integrand
+* @param f Integrand object, which has an operator() method that takes and returns double.
 */
-double midpoint_integration (vector<double> grid, double (*f) (double, void*), void *v) {
+double midpoint_integration (vector<double> grid, base_integrand_f &f) {
 	// calculate midpoints and grid widths
 	vector<double> midpoints (grid.size() - 1);
 	vector<double> widths (grid.size() - 1);
@@ -77,7 +89,7 @@ double midpoint_integration (vector<double> grid, double (*f) (double, void*), v
 	// evaluate function at each midpoint, multiply by width, and add to previous total
 	double result = 0;
 	for (size_t i = 0; i < midpoints.size(); ++i) {
-		double evl = f(midpoints[i], v);
+		double evl = f(midpoints[i]);
 		double area = evl * widths[i];
 		result += area;
 	}
