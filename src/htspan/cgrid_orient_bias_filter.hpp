@@ -27,7 +27,14 @@ struct evidences {
 	double alt;
 };
 
-struct cgrid_orient_bias_filter_f : public base_orient_bias_filter_f {
+/**
+* This class implements a Bayesian model for variant identification.
+*
+* Its operator() returns the log posterior probability of a genuine variant
+* given the prior variant probability and alpha and beta values for the beta distribution.
+*/
+
+struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	//TODO: streamline math methods to use the same calling paradigm
 
 	// parameters for the beta distribution

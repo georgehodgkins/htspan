@@ -12,6 +12,14 @@ namespace hts {
 
 using namespace std;
 
+/**
+* This class implements a frequentist model for variant identification.
+*
+* Its operator() returns a p-value for the genuine variant, given an estimate
+* for global damage and a specification of whether phi is fixed or should also
+* be estimated.
+*/
+
 struct freq_orient_bias_filter_f : public base_orient_bias_filter_f {
 
 	freq_orient_bias_filter_f (orient_bias_data &dref)

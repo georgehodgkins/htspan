@@ -2,10 +2,6 @@
 #define _HTSPAN_BASE_ORIENT_BIAS_HPP_
 
 
-//TODO: cleanup (remove redundant headers, non specific math fcns)
-#include <iostream>
-#include <queue>
-#include <vector>
 #include <cassert>
 #include <stdexcept>
 
@@ -16,6 +12,7 @@
 #include <gsl/gsl_cdf.h>
 
 #include "math.hpp"
+#include "orient_bias_data.hpp"
 
 namespace hts {
 
@@ -28,6 +25,18 @@ struct theta_and_phi {
 	double theta;
 	double phi;
 };
+
+/**
+* This class is the base for the functors which
+* implement various damage identification methods.
+* It cannot be implemented directly.
+*
+* This class contains a reference to an underlying data object
+* which should be populated before derived classes are instantiated.
+* It also contains the methods which implement the damage-adjusted
+* variant identfication model, and methods which provide initial 
+* estimates for the theta and phi parameters to its children.
+*/
 
 struct base_orient_bias_filter_f {
 	//reference to externally initialized data object
@@ -133,7 +142,7 @@ struct base_orient_bias_filter_f {
 			double phi_r = data.orients[r] ? phi : 0;
 			if (data.bases[r] == 0) {
 				lp += lp_ref_base_given(theta, phi_r, data.errors[r]);
-			} else if (bases[r] == 1) {
+			} else if (data.bases[r] == 1) {
 				lp += lp_alt_base_given(theta, phi_r, data.errors[r]);
 			} else {
 				lp += lp_other_base_given(theta, phi_r, data.errors[r]);
@@ -266,14 +275,14 @@ struct base_orient_bias_filter_f {
 
 // theta_real is in unconstrained, real-number space
 inline double _nlp_bases_given_theta(double theta_real, void* p) {
-	orient_bias_filter_f* x = (orient_bias_filter_f*) p;
+	base_orient_bias_filter_f* x = (base_orient_bias_filter_f*) p;
 	return - x->lp_bases_given(logistic(theta_real), x->phi_t);
 }
 
 
 // phi_real is in unconstrained, real-number space
 inline double _nlp_bases_given_phi(double phi_real, void* p) {
-	orient_bias_filter_f* x = (orient_bias_filter_f*) p;
+	base_orient_bias_filter_f* x = (base_orient_bias_filter_f*) p;
 	return - x->lp_bases_given(x->theta_t, logistic(phi_real));
 }
 

@@ -15,6 +15,25 @@
 
 namespace hts {
 
+using namespace std;
+
+/**
+* This class contains the data used to perform damage identification.
+* An object of this class is instantiated and populated as the
+* first step of identification, and then a reference to that object
+* is passed to the functors which implement different damage
+* identification models.
+*
+* This class contains vectors recording the base, error probability, and 
+* orientation (damage-consistency) of processed reads, as well as other 
+* informational fields.
+* It also contains methods to read in a sequence from a single BAM record
+* and a vector of BAM records, as well as methods to generate artificial
+* reads with normally-distributed error and uniformly-distributed
+* bases and orients, and to read in previously generated artificial
+* reads from a TSV file.
+*/
+
 struct orient_bias_data {
 
 	/// reference base (0), alternative base (1), or other base (2)
@@ -185,7 +204,6 @@ struct orient_bias_data {
 		size_t count = bases.capacity();//set in constructor
 		clear();
 		reserve(count);//in case clearing resets allocation, which is implementation dependent
-		//NB: R docs are unclear about what RNG is used for random sampling, so this may be a point of divergence
 		gsl_rng *rng = gsl_rng_alloc (gsl_rng_mt19937);
 		//generate normally distributed error values with the input parameters
 		for (size_t n = 0; n < count; ++n) {
