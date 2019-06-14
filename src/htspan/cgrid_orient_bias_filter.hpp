@@ -26,7 +26,8 @@ struct evidences {
 	double alt;
 };
 
-struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
+struct cgrid_orient_bias_filter_f : public base_orient_bias_filter_f {
+	//TODO: streamline math methods to use the same calling paradigm
 
 	// parameters for the beta distribution
 	double alpha_phi, beta_phi;
@@ -34,12 +35,11 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	// grid to integrate phi on (stored here to simplify parameter passing)
 	vector<double> grid_phi;
 
-// TODO: make a base class which the Bayesian and non-Bayesian classes both inherit from
-
 	bayes_orient_bias_filter_f (nuc_t _ref, nuc_t _alt, size_t n)
 		: orient_bias_filter_f (_ref, _alt, n),
 		alpha_phi(0.0), beta_phi(0.0),
-		grid_phi(0) {}
+		grid_phi(0)
+		{}
 
 	/**
 	* Generate a vector of exponentially spaced points between zero and one
@@ -134,7 +134,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		alpha_phi = alpha;
 		beta_phi = beta;
 		// generate centered grids to integrate on
-		double phi_hat = estimate_phi_given(0, 0.5); // change fixed params?
+		double phi_hat = estimate_phi_given(0, 0.5);
 		// note that grid_phi is a class member
 		grid_phi = generate_cgrid(phi_hat);// using default params
 		double theta_hat = estimate_theta_given(phi_hat, 0.5);
@@ -181,7 +181,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 		return lposterior;
 	}
 
-}; // functor struct
+}; // cgrid_orient_bias_filter_f struct
 
 // Static integrand functions which take a double x-value and a void pointer to an object containing other parameters
 // As used here, the object will be the above class itself
@@ -193,7 +193,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 * at the given value of phi.
 */
 static double phi_integrand (double phi, void *v) {
-	bayes_orient_bias_filter_f *p = (bayes_orient_bias_filter_f*) v;
+	cgrid_orient_bias_filter_f *p = (cgrid_orient_bias_filter_f*) v;
 	// alpha_phi, beta_phi, and theta_t are class members set externally
 	return exp( p->lp_bases_given(p->theta_t, phi) +
 		log(gsl_ran_beta_pdf(phi, p->alpha_phi, p->beta_phi)));
@@ -203,7 +203,7 @@ static double phi_integrand (double phi, void *v) {
 * Numerical integration of phi_integrand across a given phi space.
 */
 static double theta_integrand (double theta, void *v) {
-	bayes_orient_bias_filter_f *p = (bayes_orient_bias_filter_f*) v;
+	cgrid_orient_bias_filter_f *p = (cgrid_orient_bias_filter_f*) v;
 	// grid_phi is a class member set externally
 	p->theta_t = theta;
 	return p->midpoint_integration(p->grid_phi, phi_integrand, v);
