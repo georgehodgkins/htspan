@@ -1,3 +1,6 @@
+#ifndef _HTSPAN_OPTCHK_HPP_
+#define _HTSPAN_OPTCHK_HPP_
+
 #include <fstream>
 #include <cstring>
 #include <cstdlib>
@@ -13,9 +16,6 @@
 #include "../htspan/piler.hpp"
 #include "file.hpp"
 #include "cstring.hpp"
-
-#ifndef _HTSPAN_OPTCHK_HPP_
-#define _HTSPAN_OPTCHK_HPP_
 
 // UNDER CONSTRUCTION
 // This file contains argument checks for the option parser.
