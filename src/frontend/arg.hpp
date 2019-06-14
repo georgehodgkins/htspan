@@ -36,7 +36,7 @@ struct Arg: public option::Arg {
 	* @paran n_xtns Number of members in xtns
 	* @return ARG_OK if filename passes and ARG_ILLEGAL if it does not
 	*/
-	static ArgStatus InputFile (const Option& opt, bool msg, const char* xtns[], const size_t n_xtns = 0) {
+	static ArgStatus InputFile (const Option& opt, bool msg, const char* xtns[] = NULL, const size_t n_xtns = 0) {
 		if (opt.arg == NULL || strlen(opt.arg) == 0) {
 			if (msg) {
 				std::cerr << "Option " << opt.name << " requires an argument. Try --help.\n";
@@ -49,7 +49,7 @@ struct Arg: public option::Arg {
 			}
 			return ARG_ILLEGAL;
 		}
-		if (n_xtns > 0) {
+		if (xtns != NULL && n_xtns > 0) {
 			const char* dot = strrchr(opt.arg, '.') + 1;
 			for(size_t i = 0; i < n_xtns; ++i) {
 				if (strcmpi(dot, xtns[i]) == 0) {
@@ -212,32 +212,46 @@ struct Arg: public option::Arg {
 	}
 
 
-	static ArgStatus AlignmentFile (const Option& opt, bool msg, hts::piler& p) {
+	static ArgStatus AlignmentFile (const Option& opt, bool msg, bool try_open = true) {
 		// normal file and extension checks
 		const char* xtns[] = {"bam"};
 		ArgStatus rtn = InputFile(opt, msg, xtns, 1);
 		if (rtn != ARG_OK) {
 			return rtn;
 		}
+
 		// check if the file is a valid BAM file with header and index
+		if (try_open) {
+			hts::piler p;
+			if (!p.open(opt.arg)) {
+				if (msg) {
+					std::cerr << "Could not open \'" << opt.arg << "\' as an alignment file.";
+				}
+				return ARG_ILLEGAL;
+			}
+		}
+		return ARG_OK;
+	}
+
+	static ArgStatus PairedEndAlignmentFile (const Option& opt, bool msg) {
+		// number of reads to check
+		const int n_checks = 10;
+
+		// this function will open the file in the piler if it can be opened
+		ArgStatus rtn = AlignmentFile (opt, msg, false);
+		if (rtn != ARG_OK) {
+			return rtn;
+		}
+
+		// open the file
+		hts::piler p;
 		if (!p.open(opt.arg)) {
 			if (msg) {
 				std::cerr << "Could not open \'" << opt.arg << "\' as an alignment file.";
 			}
 			return ARG_ILLEGAL;
 		}
-		return ARG_OK;
-	}
 
-	static ArgStatus PairedEndAlignmentFile (const Option& opt, bool msg) {
-		// this function will open the file in the piler if it can be opened
-		ArgStatus rtn = AlignmentFile (opt, msg, p);
-		if (rtn != ARG_OK) {
-			return rtn;
-		}
-
-		// read the first pile from the file
-		hts::piler p;
 		const bam_pileup1_t *pile = p.next();
 		if (pile == NULL) {
 			if (msg) {
@@ -248,7 +262,7 @@ struct Arg: public option::Arg {
 
 		// check up to 10 reads
 		int total = 0;
-		while (total < 10) {
+		while (total < n_checks) {
 			// if any read in the pile has a read1/read2 flag, consider it paired-end
 			for (size_t r = 0; r < p.size(); ++r) {
 				if (bam_is_read1 (pile[r].b) || bam_is_read2 (pile[r].b)) {
