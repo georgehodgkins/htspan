@@ -1,3 +1,10 @@
+#include <gsl/gsl_cdf.h>
+
+#include "math.hpp"
+#include "base_orient_bias_filter.hpp"
+#include "orient_bias_data.hpp"
+
+
 #ifndef _HTSPAN_FREQ_ORIENT_BIAS_HPP_
 #define _HTSPAN_FREQ_ORIENT_BIAS_HPP_
 
@@ -6,6 +13,18 @@ namespace hts {
 using namespace std;
 
 struct freq_orient_bias_filter_f : public base_orient_bias_filter_f {
+
+	freq_orient_bias_filter_f (orient_bias_data &dref)
+		: base_orient_bias_filter_f (dref)
+	{
+	}
+
+	// pass through extra parameters to the base class
+	freq_orient_bias_filter_f (orient_bias_data &dref, 
+		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
+		: base_orient_bias_filter_f(dref, lb, ub, eps, max_iter),
+	{
+	}
 
 	/**
 	 * Calculate deviance of fitted and null models.
@@ -31,8 +50,8 @@ struct freq_orient_bias_filter_f : public base_orient_bias_filter_f {
 	 * @return p-value
 	 */
 	double operator()(double phi, bool known_phi=true) {
-		volatile double theta_0 = estimate_initial_theta();
-		volatile double theta_hat;
+		double theta_0 = estimate_initial_theta();
+		double theta_hat;
 		if (known_phi) {
 			theta_hat = estimate_theta_given(phi, theta_0);
 		} else {
@@ -40,7 +59,7 @@ struct freq_orient_bias_filter_f : public base_orient_bias_filter_f {
 			theta_hat = theta_phi.theta;
 			phi = theta_phi.phi;
 		}
-		volatile double dev = deviance_theta(theta_hat, phi);
+		double dev = deviance_theta(theta_hat, phi);
 		return 1 - gsl_cdf_chisq_P(dev, 1);
 	}
 

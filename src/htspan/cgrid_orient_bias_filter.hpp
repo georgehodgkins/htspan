@@ -5,7 +5,8 @@
 #include <gsl/gsl_cdf.h>
 #include <gsl/gsl_math.h>
 
-#include "orient_bias_filter.hpp"
+#include "base_orient_bias_filter.hpp"
+#include "orient_bias_data.hpp"
 #include "nucleotide.hpp"
 
 
@@ -35,11 +36,23 @@ struct cgrid_orient_bias_filter_f : public base_orient_bias_filter_f {
 	// grid to integrate phi on (stored here to simplify parameter passing)
 	vector<double> grid_phi;
 
-	bayes_orient_bias_filter_f (nuc_t _ref, nuc_t _alt, size_t n)
-		: orient_bias_filter_f (_ref, _alt, n),
-		alpha_phi(0.0), beta_phi(0.0),
-		grid_phi(0)
-		{}
+	cgrid_orient_bias_filter_f (orient_bias_data &dref)
+		: base_orient_bias_filter_f (dref),
+			alpha_phi(0.0),
+			beta_phi(0.0),
+			grid_phi(0)
+	{
+	}
+
+	// pass through extra parameters to the base class
+	cgrid_orient_bias_filter_f (orient_bias_data &dref, 
+		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
+		: base_orient_bias_filter_f(dref, lb, ub, eps, max_iter),
+			alpha_phi(0.0),
+			beta_phi(0.0),
+			grid_phi(0)
+	{
+	}
 
 	/**
 	* Generate a vector of exponentially spaced points between zero and one
