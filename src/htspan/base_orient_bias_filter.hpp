@@ -7,10 +7,6 @@
 
 #include <string.h>
 
-#include <gsl/gsl_errno.h>
-#include <gsl/gsl_min.h>
-#include <gsl/gsl_cdf.h>
-
 #include "math.hpp"
 #include "orient_bias_data.hpp"
 
@@ -18,8 +14,8 @@ namespace hts {
 
 using namespace std;
 
-inline double _nlp_bases_given_theta(double theta_real, void* p);
-inline double _nlp_bases_given_phi(double phi_real, void* p);
+struct nlp_bases_given_theta : public numeric_functor;
+struct nlp_bases_given_phi : public numeric_functor;
 
 struct theta_and_phi {
 	double theta;
@@ -41,12 +37,6 @@ struct theta_and_phi {
 struct base_orient_bias_filter_f {
 	//reference to externally initialized data object
 	const orient_bias_data& data;
-
-	// global damage probability
-	double phi_t;
-	
-	// alternate allele frequency (temporary)
-	double theta_t;
 
 	//upper and lower bounds for estimation
 	const double minimizer_lb;//default -15.0
@@ -156,87 +146,20 @@ struct base_orient_bias_filter_f {
 	 * given a value of phi.
 	 */
 	double estimate_theta_given(double phi, double theta_0) {
-		// define objective function to minimize
-		phi_t = phi;
-		gsl_function f;
-		f.function = &_nlp_bases_given_theta;
-		f.params = this;
+		nlp_bases_given_theta f (*this, phi);
 		//call common minimization code
-		return minimize_log_function(&f, theta_0);
+		return minimize_log_function(f, theta_0);
 	}
 	
 	/**
 	*  Find value of phi that maximizes the log probability of observed bases,
 	* given a value of theta.
-	*/ 
-	double estimate_phi_given(double theta, double phi_0) {
-		// define objective function to minimize
-		theta_t = theta;
-		gsl_function f;
-		f.function = &_nlp_bases_given_phi;
-		f.params = this;
-		//call common minimization code
-		return minimize_log_function(&f, phi_0);
-	}
-
-	/**
-	* Minimization code common to the phi and theta estimation functions, using Brent method.
-	*
-	* If the function value at x_0 is not less than the values at the endpoints,
-	* the function will return the smaller of the endpoints and will not perform a minimization.
-	*
-	* epsabs, minimizer_ub, minimizer_lb, and max_minimizer_iter
-	* are const class members set in constructor
-	* 
-	* @param f_ptr Pointer to a gsl_function struct initialized by the caller
-	* @param x_0 An initial guess for the minimizer
-	* @return Minimum from the GSL minimizer, if possible (see above)
 	*/
-
-	double minimize_log_function (gsl_function *f_ptr, double x_0) {
-		double lx_0 = logit(x_0); // transform the guess into unconstrained space
-		// if the function has already been minimized to an endpoint or
-		// starts outside the bounds simply return the guess
-		// generally lx_0 will only be OOB if it's -inf (x_0 == 0)
-		if (lx_0 <= minimizer_lb || lx_0 >= minimizer_ub) {
-			return x_0;
-		}
-		// if the function at the initial guess is not lower than
-		// the value at both endpoints, minimizer will not work
-		double f_x0 = f_ptr->function(lx_0, this);
-		double f_lb = f_ptr->function(minimizer_lb, this);
-		double f_ub = f_ptr->function(minimizer_ub, this);
-		if (f_x0 > f_lb || f_x0 > f_ub) {
-			return (f_lb < f_ub) ? logistic(minimizer_lb) : logistic(minimizer_ub);
-		}
-		// initialize minimizer
-		gsl_min_fminimizer* s = gsl_min_fminimizer_alloc(gsl_min_fminimizer_brent);
-		gsl_min_fminimizer_set(s, f_ptr, lx_0, minimizer_lb, minimizer_ub);
-		// iterate on the minimizer
-		int status = GSL_CONTINUE;
-		for (size_t iter = 0; iter < max_minimizer_iter; ++iter) {
-			status = gsl_min_fminimizer_iterate(s);
-			if (status == GSL_FAILURE || status == GSL_EBADFUNC) break;
-			// test for success
-			double a = gsl_min_fminimizer_x_lower(s);
-			double b = gsl_min_fminimizer_x_upper(s);
-			status = gsl_min_test_interval(a, b, epsabs, 0.0);
-			if (status == GSL_SUCCESS) break;
-		}
-		// store minimizer result and then deallocate
-		double xmin = logistic(gsl_min_fminimizer_x_minimum(s));
-		gsl_min_fminimizer_free(s);
-		switch (status) {
-			case GSL_SUCCESS:
-				return xmin;
-			case GSL_FAILURE:
-			case GSL_EBADFUNC:
-				throw runtime_error("Unknown error in minimizer");
-			default:
-				throw runtime_error("Minimizer did not converge");
-		}
-		//this point should never be reached but this makes the compiler happy
-		return GSL_NAN;
+	double estimate_phi_given(double theta, double phi_0) {
+		// instantiate functor of objective function to minimize
+		nlp_bases_given_phi f (*this, theta);
+		// call common minimization code
+		return minimize_log_function(f, phi_0);
 	}
 
 	/**
@@ -269,21 +192,36 @@ struct base_orient_bias_filter_f {
 	// All children of this class must implement an operator()
 	// (i.e. must be functors) and this class cannot itself be implemented
 	virtual void operator() = 0;
-
+ 
 };
 
 
-// theta_real is in unconstrained, real-number space
-inline double _nlp_bases_given_theta(double theta_real, void* p) {
-	base_orient_bias_filter_f* x = (base_orient_bias_filter_f*) p;
-	return - x->lp_bases_given(logistic(theta_real), x->phi_t);
+struct nlp_bases_given_theta : public numeric_functor {
+	// reference to class containing lp_bases_given
+	base_orient_bias_filter_f &filter;
+	// fixed phi for theta estimation
+	double phi;
+	// constructor to set hyperparameters
+	_nlp_bases_given_theta (base_orient_bias_filter_f &fi, double p) :
+		filter(fi), phi(p) {}
+	// negative log probability of bases given theta
+	double operator() (double theta_real) {
+		 return - filter.lp_bases_given(logistic(theta_real), phi);
+	}
 }
 
-
-// phi_real is in unconstrained, real-number space
-inline double _nlp_bases_given_phi(double phi_real, void* p) {
-	base_orient_bias_filter_f* x = (base_orient_bias_filter_f*) p;
-	return - x->lp_bases_given(x->theta_t, logistic(phi_real));
+struct nlp_bases_given_phi : public numeric_functor {
+	// reference to class containing lp_bases_given
+	base_orient_bias_filter_f &filter;
+	// fixed theta for phi estimation
+	double theta;
+	// constructor to set hyperparameters
+	_nlp_bases_given_theta (base_orient_bias_filter_f &fi, double t) :
+		filter(fi), theta(t) {}
+	// negative log probability of bases given phi
+	double operator() (double phi_real) {
+		return - filter.lp_bases_given(logistic(phi_real), theta);
+	}
 }
 
 }  // namespace hts

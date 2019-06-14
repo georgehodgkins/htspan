@@ -8,19 +8,6 @@ namespace hts {
 using namespace std;
 
 /**
-* This struct acts as a base interface for integrands
-* passed to integration methods, which must implement
-* an operator() method which takes double and returns double.
-* The only other method in derived classes should be a constructor
-* which sets integrand hyperparameters.
-*
-* Compatible with Boost quadrature methods.
-*/
-struct base_integrand_f {
-	virtual double operator() (double x) {}
-}
-
-/**
 * Generate a vector of exponentially spaced points between zero and one
 * to numerically integrate using the midpoint method. Points will be
 * distributed, from the center, in steps of step*base^k, where k starts

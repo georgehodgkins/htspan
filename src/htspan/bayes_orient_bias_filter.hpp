@@ -135,9 +135,9 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 * plus(+) the log(pdf) of the beta distribution defined by 
 * the set alpha and beta, at the given phi.
 */
-struct phi_integrand_f : public base_integrand_f {
+struct lp_bases_theta_ : public base_integrand_f {
 	// pointer to class containing the lp_bases_given fcn
-	bayes_orient_bias_filter_f *pt;
+	bayes_orient_bias_filter_f &filter;
 	// alpha for the beta distribution
 	double alpha;
 	// beta for the beta distribution
@@ -147,7 +147,7 @@ struct phi_integrand_f : public base_integrand_f {
 	// constructor which sets hyperparameters
 	phi_integrand_f (bayes_orient_bias_filter_f *p, double a, double b, double t) :
 		pt(p), alpha(a), beta(b), theta(t) {}
-	//implementation of the function to be integrated
+	// evaluates the function to be integrated
 	double operator() (double phi) {
 		return exp(pt->lp_bases_given(theta, phi) +
 			log(gsl_ran_beta_pdf(phi, alpha, beta)));
@@ -170,7 +170,7 @@ struct theta_integrand_f : public base_integrand_f {
 	// constructor which sets hyperparameters
 	theta_integrand_f (vector<int> g, bayes_orient_bias_filter_f *p, double a, double b) :
 		grid_phi(g), pt(p), alpha(a), beta(b) {}
-	// implementation of function to be integrated (in this case, integral of another function)
+	// evaluates the function to be integrated (in this case, integral of another function)
 	double operator() (double theta) {
 		phi_integrand_f f (pt, a, b, theta);
 		return midpoint_integration(grid_phi, f);
