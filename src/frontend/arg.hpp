@@ -12,6 +12,7 @@
 #include "../htspan/nucleotide.hpp"
 #include "../htspan/piler.hpp"
 #include "file.hpp"
+#include "cstring.hpp"
 
 #ifndef _HTSPAN_OPTCHK_HPP_
 #define _HTSPAN_OPTCHK_HPP_
@@ -22,23 +23,6 @@
 namespace hts {
 	
 namespace frontend {
-
-
-/**
-* Case insensitive strcmp, returns bool instead of the traditional int
-*/
-int strcmpi (const char* s1, const char* s2) {
-	while (tolower(*s1) == tolower(*s2)) {
-		++s1;
-		++s2;
-		if (*s1 == 0x0) break;
-	}
-	if (*s1 == *s2) {//they should both be null so no need for tolower
-		return 0;
-	} else {
-		return *s1 - *s2;
-	}
-}
 
 using namespace option;
 
