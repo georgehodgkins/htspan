@@ -1,12 +1,11 @@
+#ifndef _HTSPAN_FREQ_ORIENT_BIAS_HPP_
+#define _HTSPAN_FREQ_ORIENT_BIAS_HPP_
+
 #include <gsl/gsl_cdf.h>
 
 #include "math.hpp"
 #include "base_orient_bias_filter.hpp"
 #include "orient_bias_data.hpp"
-
-
-#ifndef _HTSPAN_FREQ_ORIENT_BIAS_HPP_
-#define _HTSPAN_FREQ_ORIENT_BIAS_HPP_
 
 namespace hts {
 
