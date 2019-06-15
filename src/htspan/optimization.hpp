@@ -5,7 +5,7 @@
 #include <gsl/gsl_min.h>
 #include <gsl/gsl_cdf.h>
 
-#include "numeric_integration.hpp" 
+#include "functor.hpp"
 
 namespace hts {
 
@@ -23,7 +23,10 @@ namespace hts {
 * @return Minimum from the GSL minimizer, if possible (see above)
 */
 
-double minimize_log_function (numeric_functor &func, double x_0) {
+// TODO: Move log transforms to calling code
+
+double minimize_log_function (numeric_functor &func, double x_0,
+		const double minimizer_lb, const double minimizer_ub, const double max_minimizer_iter, const double epsabs) {
 	// create function object to pass to minimizer
 	gsl_function f;
 	f.function = &evaluate_numeric_functor;

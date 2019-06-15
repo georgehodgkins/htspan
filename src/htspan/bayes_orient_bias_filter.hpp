@@ -11,6 +11,7 @@
 #include "base_orient_bias_filter.hpp"
 #include "orient_bias_data.hpp"
 #include "nucleotide.hpp"
+#include "functor.hpp"
 #include "numeric_integration.hpp"
 
 
@@ -18,9 +19,9 @@ namespace hts {
 
 using namespace std;
 
-// forward declarations of static integrand functions
-static double phi_integrand (double phi, void *v);
-static double theta_integrand (double theta, void *v);
+// forward declaration of functors defined at end of file
+struct lp_bases_theta_phi_f : public numeric_functor;
+struct lp_bases_theta_f : public numeric_functor;
 
 /**
 * Return struct for the model_evidence method in bayes_orient_bias_filter_f,
@@ -83,10 +84,10 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		double theta_hat = estimate_theta_given(phi_hat, 0.5);
 		vector<double> grid_theta = generate_cgrid(theta_hat);
 		// evaluate null model evidence (theta = 0)
-		phi_integrand_f p_f (this, alpha, beta, 0);
+		lp_bases_theta_phi_f p_f (this, alpha, beta, 0);
 		double ev_null = midpoint_integration(grid_phi, p_f);
 		// evaluate alternate model evidence (integrating across possible values of theta)
-		theta_integrand_f t_f (grid_phi, this, alpha, beta);
+		lp_bases_theta_f t_f (grid_phi, this, alpha, beta);
 		double ev_alt = midpoint_integration(grid_theta, t_f);
 		evidences rtn;
 		rtn.null = ev_null;
@@ -128,14 +129,14 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 }; // bayes_orient_bias_filter_f struct
 
 // Integrand functors which take a double x-value and have hyperparameters set at instantiation
-// Base class defined in numeric_integration.hpp (just an empty virtual operator())
+// Base class defined in functor.hpp (just an empty virtual operator())
 
 /**
 * Log probability of observed bases given phi and the set theta,
 * plus(+) the log(pdf) of the beta distribution defined by 
 * the set alpha and beta, at the given phi.
 */
-struct lp_bases_theta_ : public base_integrand_f {
+struct lp_bases_theta_phi_f : public numeric_functor {
 	// pointer to class containing the lp_bases_given fcn
 	bayes_orient_bias_filter_f &filter;
 	// alpha for the beta distribution
@@ -145,7 +146,7 @@ struct lp_bases_theta_ : public base_integrand_f {
 	// theta for the log probability of variant function
 	double theta;
 	// constructor which sets hyperparameters
-	phi_integrand_f (bayes_orient_bias_filter_f *p, double a, double b, double t) :
+	lp_bases_theta_phi_f (bayes_orient_bias_filter_f *p, double a, double b, double t) :
 		pt(p), alpha(a), beta(b), theta(t) {}
 	// evaluates the function to be integrated
 	double operator() (double phi) {
@@ -158,7 +159,7 @@ struct lp_bases_theta_ : public base_integrand_f {
 /**
 * Numerical integration of phi_integrand across a given phi space.
 */
-struct theta_integrand_f : public base_integrand_f {
+struct lp_bases_theta_f : public numeric_functor {
 	// grid of points which define rectangles for midpoint quadrature
 	vector<int> grid_phi;
 	// pointer to class containing the lp_bases_given fcn
@@ -168,7 +169,7 @@ struct theta_integrand_f : public base_integrand_f {
 	// beta for the beta distribution
 	double beta;
 	// constructor which sets hyperparameters
-	theta_integrand_f (vector<int> g, bayes_orient_bias_filter_f *p, double a, double b) :
+	tlp_bases_theta_f (vector<int> g, bayes_orient_bias_filter_f *p, double a, double b) :
 		grid_phi(g), pt(p), alpha(a), beta(b) {}
 	// evaluates the function to be integrated (in this case, integral of another function)
 	double operator() (double theta) {

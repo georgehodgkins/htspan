@@ -9,6 +9,8 @@
 
 #include "math.hpp"
 #include "orient_bias_data.hpp"
+#include "functor.hpp"
+#include "optimization.hpp"
 
 namespace hts {
 
@@ -48,9 +50,7 @@ struct base_orient_bias_filter_f {
 
 	orient_bias_filter_f(const orient_bias_data &dref,
 		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
-	: data(dref),
-		phi_t(0.0),
-		theta_t(0.0),	
+	: data(dref)	
 		minimizer_lb(lb),
 		minimizer_ub(ub),
 		epsabs(eps),
@@ -146,9 +146,9 @@ struct base_orient_bias_filter_f {
 	 * given a value of phi.
 	 */
 	double estimate_theta_given(double phi, double theta_0) {
-		nlp_bases_given_theta f (*this, phi);
+		nlp_bases_given_theta_f f (*this, phi);
 		//call common minimization code
-		return minimize_log_function(f, theta_0);
+		return minimize_log_function(f, theta_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 	}
 	
 	/**
@@ -157,9 +157,9 @@ struct base_orient_bias_filter_f {
 	*/
 	double estimate_phi_given(double theta, double phi_0) {
 		// instantiate functor of objective function to minimize
-		nlp_bases_given_phi f (*this, theta);
+		nlp_bases_given_phi_f f (*this, theta);
 		// call common minimization code
-		return minimize_log_function(f, phi_0);
+		return minimize_log_function(f, phi_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 	}
 
 	/**
@@ -196,13 +196,13 @@ struct base_orient_bias_filter_f {
 };
 
 
-struct nlp_bases_given_theta : public numeric_functor {
+struct nlp_bases_given_theta_f : public numeric_functor {
 	// reference to class containing lp_bases_given
 	base_orient_bias_filter_f &filter;
 	// fixed phi for theta estimation
 	double phi;
 	// constructor to set hyperparameters
-	_nlp_bases_given_theta (base_orient_bias_filter_f &fi, double p) :
+	nlp_bases_given_theta_f (base_orient_bias_filter_f &fi, double p) :
 		filter(fi), phi(p) {}
 	// negative log probability of bases given theta
 	double operator() (double theta_real) {
@@ -210,13 +210,13 @@ struct nlp_bases_given_theta : public numeric_functor {
 	}
 }
 
-struct nlp_bases_given_phi : public numeric_functor {
+struct nlp_bases_given_phi_f : public numeric_functor {
 	// reference to class containing lp_bases_given
 	base_orient_bias_filter_f &filter;
 	// fixed theta for phi estimation
 	double theta;
 	// constructor to set hyperparameters
-	_nlp_bases_given_theta (base_orient_bias_filter_f &fi, double t) :
+	nlp_bases_given_phi_f (base_orient_bias_filter_f &fi, double t) :
 		filter(fi), theta(t) {}
 	// negative log probability of bases given phi
 	double operator() (double phi_real) {

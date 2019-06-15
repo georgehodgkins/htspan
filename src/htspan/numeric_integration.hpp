@@ -65,7 +65,7 @@ vector<double> generate_cgrid (double center, double eps = 1e-6, double step = .
 * @param grid Vector of x-values which define grid.size()-1 rectangles to use for integration
 * @param f Integrand object, which has an operator() method that takes and returns double.
 */
-double midpoint_integration (vector<double> grid, base_integrand_f &f) {
+double midpoint_integration (vector<double> grid, numeric_functor &f) {
 	// calculate midpoints and grid widths
 	vector<double> midpoints (grid.size() - 1);
 	vector<double> widths (grid.size() - 1);
