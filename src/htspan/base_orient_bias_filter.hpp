@@ -17,8 +17,8 @@ namespace hts {
 using namespace std;
 
 // Forward declaration of functors used in estimation routines
-struct nlp_bases_given_theta_f : public numeric_functor<double>;
-struct nlp_bases_given_phi_f : public numeric_functor<double>;
+//struct nlp_bases_given_theta_f : public numeric_functor;
+//struct nlp_bases_given_phi_f : public numeric_functor;
 
 // return struct for coordinate ascent estimation
 struct theta_and_phi {
@@ -50,9 +50,9 @@ struct base_orient_bias_filter_f {
 	//maximum number of iterations for estimation
 	const size_t max_minimizer_iter;//default 100
 
-	orient_bias_filter_f(const orient_bias_data &dref,
+	base_orient_bias_filter_f(const orient_bias_data &dref,
 		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
-	: data(dref)	
+	: data(dref),	
 		minimizer_lb(lb),
 		minimizer_ub(ub),
 		epsabs(eps),
@@ -61,7 +61,7 @@ struct base_orient_bias_filter_f {
 	}
 
 	size_t size() const {
-		return bases.size();
+		return data.size();
 	}
 
 	/**
@@ -193,40 +193,36 @@ struct base_orient_bias_filter_f {
 		return rtn;
 	}
 
-	// All children of this class must implement an operator()
-	// (i.e. must be functors) and this class cannot itself be implemented
-	virtual void operator() = 0;
+	struct nlp_bases_given_theta_f : public numeric_functor<double> {
+		// reference to class containing lp_bases_given
+		base_orient_bias_filter_f &filter;
+		// fixed phi for theta estimation
+		double phi;
+		// constructor to set hyperparameters
+		nlp_bases_given_theta_f (base_orient_bias_filter_f &fi, double p) :
+			filter(fi), phi(p) {}
+		// negative log probability of bases given theta
+		double operator() (double theta_real) {
+			 return - filter.lp_bases_given(logistic(theta_real), phi);
+		}
+	};
+
+	struct nlp_bases_given_phi_f : public numeric_functor<double> {
+		// reference to class containing lp_bases_given
+		base_orient_bias_filter_f &filter;
+		// fixed theta for phi estimation
+		double theta;
+		// constructor to set hyperparameters
+		nlp_bases_given_phi_f (base_orient_bias_filter_f &fi, double t) :
+			filter(fi), theta(t) {}
+		// negative log probability of bases given phi
+		double operator() (double phi_real) {
+			return - filter.lp_bases_given(logistic(phi_real), theta);
+		}
+	};
  
 };
 
-
-struct nlp_bases_given_theta_f : public numeric_functor<double> {
-	// reference to class containing lp_bases_given
-	base_orient_bias_filter_f &filter;
-	// fixed phi for theta estimation
-	double phi;
-	// constructor to set hyperparameters
-	nlp_bases_given_theta_f (base_orient_bias_filter_f &fi, double p) :
-		filter(fi), phi(p) {}
-	// negative log probability of bases given theta
-	double operator() (double theta_real) {
-		 return - filter.lp_bases_given(logistic(theta_real), phi);
-	}
-}
-
-struct nlp_bases_given_phi_f : public numeric_functor<double> {
-	// reference to class containing lp_bases_given
-	base_orient_bias_filter_f &filter;
-	// fixed theta for phi estimation
-	double theta;
-	// constructor to set hyperparameters
-	nlp_bases_given_phi_f (base_orient_bias_filter_f &fi, double t) :
-		filter(fi), theta(t) {}
-	// negative log probability of bases given phi
-	double operator() (double phi_real) {
-		return - filter.lp_bases_given(logistic(phi_real), theta);
-	}
-}
 
 }  // namespace hts
 

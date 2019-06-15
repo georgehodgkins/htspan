@@ -21,15 +21,10 @@ using namespace std;
 
 struct freq_orient_bias_filter_f : public base_orient_bias_filter_f {
 
-	freq_orient_bias_filter_f (orient_bias_data &dref)
-		: base_orient_bias_filter_f (dref)
-	{
-	}
-
 	// pass through extra parameters to the base class
 	freq_orient_bias_filter_f (orient_bias_data &dref, 
 		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
-		: base_orient_bias_filter_f(dref, lb, ub, eps, max_iter),
+		: base_orient_bias_filter_f(dref, lb, ub, eps, max_iter)
 	{
 	}
 

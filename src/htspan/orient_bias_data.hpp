@@ -168,6 +168,10 @@ struct orient_bias_data {
 		return success;
 	}
 
+	size_t size() const {
+		return bases.size();
+	}
+
 	/**
 	 * Push reads to accumulate statistics.
 	 *

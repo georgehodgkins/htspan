@@ -4,7 +4,7 @@
 // This header file defines various functors and methods for numeric integration
 
 #include <vector>
-#include <numeric_limits>
+#include <limits>
 
 #include "functor.hpp"
 
@@ -12,8 +12,8 @@ namespace hts {
 
 using namespace std;
 
-template <typename Real>
-struct midpoint<Real> {
+template<typename Real>
+struct midpoint {
 
 	/**
 	* Generate a vector of exponentially spaced points between zero and one
@@ -74,7 +74,7 @@ struct midpoint<Real> {
 	* @param grid Vector of x-values which define grid.size()-1 rectangles to use for integration
 	* @param f numeric_functor object, which has an operator() method that takes and returns template type Real.
 	*/
-	static Real midpoint_integration (vector<Real> grid, numeric_functor<Real> &f) {
+	static Real midpoint_integration (vector<Real> grid, const numeric_functor<Real> &f) {
 		// calculate midpoints and grid widths
 		vector<Real> midpoints (grid.size() - 1);
 		vector<Real> widths (grid.size() - 1);
@@ -107,16 +107,17 @@ struct midpoint<Real> {
 	* @return The estimate of the definite integral of F from a to b
 	*/
 	template <typename F>
-	Real integrate (const F f, Real a, Real b, Real step) {
+	Real integrate (const F f, Real a, Real b, Real step = .005) {
 		// passing in the midpoint as a guess is not a good way to do this,
 		// since it'll probably kick out the endpoint half the time
 		// adding Bayesian optimization would be much better
 		Real center = argmax<Real>(f, (a-b)/2, a, b, 50, numeric_limits<Real>::epsilon);
 		// generate grid to integrate on
-		vector<Real> cgrid = generate_cgrid<Real>(center, numeric_limits<Real>::epsilon, step, 1.4, a, b);
+		vector<Real> cgrid = generate_cgrid(center, numeric_limits<Real>::epsilon, step, 1.4, a, b);
 		// do the integration
 		return midpoint_integration(cgrid, f);
 	}
+};
 
 }// namespace hts
 
