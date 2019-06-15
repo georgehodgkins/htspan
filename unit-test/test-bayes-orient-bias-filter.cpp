@@ -10,16 +10,17 @@
 #include <iostream>
 
 #include "htspan/bayes_orient_bias_filter.hpp"
+#include "htspan/numeric_integration.hpp"
 #include "htspan/nucleotide.hpp"
 
 using namespace std;
 
 // UNDER CONSTRUCTION
 
-void common_cgrid_test(hts::bayes_orient_bias_filter_f& bobfilter, const double GRID_PARAM, const double GRID_EPS,
+void common_cgrid_test(const double GRID_PARAM, const double GRID_EPS,
 		const double GRID_4F_STD, const double GRID_4L_STD, const size_t GRID_SIZE_STD) {
 	BOOST_TEST_MESSAGE("Running centered grid test with parameter " << GRID_PARAM << ":");
-	vector<double> test_grid = bobfilter.generate_cgrid(GRID_PARAM, GRID_EPS);
+	vector<double> test_grid = hts::midpoint<double>::generate_cgrid(GRID_PARAM, GRID_EPS);
 	BOOST_CHECK_MESSAGE(test_grid.front() == GRID_EPS,
 		"First member is not equal to set eps (got: " << test_grid.front() << ")");
 	BOOST_CHECK_MESSAGE(test_grid.back() == (1 - GRID_EPS),
@@ -37,31 +38,30 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 		const double EV_NULL_STD, const double EV_ALT_STD, const double LPOSTERIOR_STD) {
 	BOOST_TEST_MESSAGE("Running model test for dataset " << TSVNAME << ":");
 	BOOST_TEST_CHECKPOINT("Initializing filter and reading in data");
-	hts::bayes_orient_bias_filter_f bobfilter(nuc_G, nuc_T, 200);
-	bobfilter.read(TSVNAME);
+	hts::orient_bias_data data(nuc_G, nuc_T, 200);
+	data.read(TSVNAME);
 	BOOST_TEST_CHECKPOINT("Evaluating phi integrand");
-	bobfilter.alpha_phi = ALPHA_PHI;
-	bobfilter.beta_phi = BETA_PHI;
-	// generate necessary intermediate data
+	hts::bayes_orient_bias_filter_f bobfilter (data);
 	double phi_hat = bobfilter.estimate_phi_given(0, 0.5); // fixed params same in model_evidence method
 	double theta_hat = bobfilter.estimate_theta_given(phi_hat, 0.5); // ^^^
-	bobfilter.theta_t = theta_hat;
-	bobfilter.grid_phi = bobfilter.generate_cgrid(phi_hat); // needed by theta integrand
-	double phi_int = hts::phi_integrand(phi_hat, (void*) &bobfilter);
+	hts::bayes_orient_bias_filter_f::lp_bases_theta_phi_f p_f (bobfilter, ALPHA_PHI, BETA_PHI, theta_hat);
+	double phi_int = p_f(phi_hat);
 	BOOST_CHECK_MESSAGE(abs(phi_int - PHI_INT_STD) < TEST_EPS,
 		"Phi integrand: got: " << phi_int << ", expected: " << PHI_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating theta integrand");
-	double theta_int = hts::theta_integrand(theta_hat, (void*) &bobfilter);
+	vector<double> grid_phi = hts::midpoint<double>::generate_cgrid(phi_hat); // needed by theta integrand
+	hts::bayes_orient_bias_filter_f::lp_bases_theta_f t_f (grid_phi, bobfilter, ALPHA_PHI, BETA_PHI);
+	double theta_int = t_f(theta_hat);
 	BOOST_CHECK_MESSAGE(abs(theta_int - THETA_INT_STD) < TEST_EPS,
 		"Theta integrand: got: " << theta_int << ", expected: " << THETA_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating evidence");
-	hts::evidences ev = bobfilter.model_evidence(ALPHA_PHI, BETA_PHI);
+	hts::evidences ev = bobfilter.model_evidence<hts::midpoint>(ALPHA_PHI, BETA_PHI);
 	BOOST_CHECK_MESSAGE(abs(ev.null - EV_NULL_STD) < TEST_EPS,
 		"Evidence for null model: got: " << ev.null << ", expected: " << EV_NULL_STD);
 	BOOST_CHECK_MESSAGE(abs(ev.alt - EV_ALT_STD) < TEST_EPS,
 		"Evidence for alternate model: got: " << ev.alt << ", expected: " << EV_ALT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating posterior probability");
-	double lposterior = bobfilter(PRIOR_ALT, ALPHA_PHI, BETA_PHI);
+	double lposterior = bobfilter.operator()<hts::midpoint>(PRIOR_ALT, ALPHA_PHI, BETA_PHI);
 	BOOST_CHECK_MESSAGE(abs(lposterior - LPOSTERIOR_STD) < TEST_EPS,
 		"Log posterior probability: got: " << lposterior << ", expected: " << LPOSTERIOR_STD);
 } 
@@ -69,7 +69,6 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 BOOST_AUTO_TEST_SUITE(orient_bias_filter_fastbayes)
 
 BOOST_AUTO_TEST_CASE(grid_test) {
-	hts::bayes_orient_bias_filter_f bobfilter (nuc_G, nuc_T, 0);
 	const size_t TEST_COUNT = 5;
 	const double GRID_PARAM[] = {.01, .05, .1, .5, .9};
 	const double GRID_EPS = 1e-6;
@@ -77,7 +76,7 @@ BOOST_AUTO_TEST_CASE(grid_test) {
 	const double GRID_4L_STD[] = {0.4068574, 0.4468574, 0.4968574, 0.7024783, 0.9376477};
 	const size_t GRID_SIZE_STD[] = {22, 26, 28, 31, 28};
 	for (size_t n = 0; n < TEST_COUNT; ++n) {
-		common_cgrid_test(bobfilter, GRID_PARAM[n], GRID_EPS, GRID_4F_STD[n], GRID_4L_STD[n], GRID_SIZE_STD[n]);
+		common_cgrid_test(GRID_PARAM[n], GRID_EPS, GRID_4F_STD[n], GRID_4L_STD[n], GRID_SIZE_STD[n]);
 	}
 }
 
