@@ -1,6 +1,8 @@
 #ifndef _HTSPAN_OPTIMIZATION_HPP_
 #define _HTSPAN_OPTIMIZATION_HPP_
 
+#include <cmath>
+
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_min.h>
 #include <gsl/gsl_cdf.h>
@@ -8,6 +10,44 @@
 #include "functor.hpp"
 
 namespace hts {
+
+template <typename Real>
+inline bool point_is_below_endpoints(gsl_function f, Real x, Real f_lb, Real f_ub) {
+	return (f->function(x, f->params) < f_lb && f->function(x, f->params) < f_ub);
+}
+
+/**
+* This function tries some other guesses if the initial guess is not in the bounds.
+* Should be replaced with proper meta-analysis (Bayesian optimization).
+*/
+template <typename Real>
+Real naive_point_picker (gsl_function f, Real x_0, Real lb, Real ub, size_t max_pow = 4) {
+	size_t p = 1;
+	Real f_lb = f->function(lb, f->params);
+	Real f_ub = f->function(ub, f->params);
+	while (p <= max_pow) {
+		Real div = pow(2, p);
+		double off = (x_0 - lb)/div;
+		if (point_is_below_endpoints<Real>(f, lb + off, f_lb, f_ub)) {
+			return lb + off;
+		}
+		if (p > 1 && point_is_below_endpoints<Real>(f, x_0 - off, f_lb, f_ub)) {
+			return x_0 - off;
+		}
+		off = (ub - x_0)/div;
+		if (point_is_below_endpoints<Real>(f, x_0 + off, f_lb, f_ub)) {
+			return x_0 + off;
+		}
+		if (p > 1 &&point_is_below_endpoints<Real>(f, ub - off, f_lb, f_ub)) {
+			return ub - off;
+		}
+		++p;
+	}
+	return x_0;
+}
+
+
+
 
 /**
 * Optimization routine, using Brent method implementation in GSL.
@@ -41,13 +81,18 @@ Real minimizer_base (gsl_function f, Real x_0,
 	}
 	
 	// if the function at the initial guess is not lower than
-	// the value at both endpoints, minimizer will not work
-	double f_x0 = f_ptr->function(x_0, f->params);
-	double f_lb = f_ptr->function(minimizer_lb, f->params);
-	double f_ub = f_ptr->function(minimizer_ub, f->params);
-	if (f_x0 > f_lb || f_x0 > f_ub) {
-		return (f_lb < f_ub) ? minimizer_lb : minimizer_ub;
+	// the value at both endpoints, minimizer will not work,
+	// so we try searching some other areas for a valid point
+	Real f_lb = f->function(lb, f->params);
+	Real f_ub = f->function(ub, f->params);
+	if (!point_is_below_endpoints<Real>(f, x_0, minimizer_lb, minimizer_ub)) {
+		double x_g = naive_point_picker(f, x_0, minimizer_lb, minimizer_ub);
+		// still no luck? return the lower of the two endpoints
+		if (!point_is_below_endpoints<Real>(f, x_g, minimizer_lb, minimizer_ub)) {
+			return (f_lb < f_ub) ? minimizer_lb : minimizer_ub;
+		}
 	}
+	
 	
 	// initialize minimizer
 	gsl_min_fminimizer* s = gsl_min_fminimizer_alloc(gsl_min_fminimizer_brent);
