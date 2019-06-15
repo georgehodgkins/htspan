@@ -10,50 +10,48 @@
 namespace hts {
 
 /**
-* Minimization code common to the phi and theta estimation functions, using Brent method.
+* Optimization routine, using Brent method implementation in GSL.
 *
+* CAVEATS:
 * If the function value at x_0 is not less than the values at the endpoints,
 * the function will return the smaller of the endpoints and will not perform a minimization.
 *
-* epsabs, minimizer_ub, minimizer_lb, and max_minimizer_iter
-* are const class members set in constructor
+* If the guess is not within the range (ub, lb), the minimizer will return the guess unmodified.
+*
+* This function will only find one minimum in the given bounds, typically the one closest to the lower bound.
 * 
 * @param f_ptr Pointer to a gsl_function struct initialized by the caller
 * @param x_0 An initial guess for the minimizer, within (0, 1)
+* @param minimizer_lb Lower bound to minimize on
+* @param minimizer_ub Upper bound to minimize on
+* @param max_minimizer_iter Maximum number of minimizer iterations
+* @param epsabs Threshold for convergence of minimizer
 * @return Minimum from the GSL minimizer, if possible (see above)
 */
 
-// TODO: Move log transforms to calling code
 
-double minimize_log_function (numeric_functor &func, double x_0,
-		const double minimizer_lb, const double minimizer_ub, const double max_minimizer_iter, const double epsabs) {
-	// create function object to pass to minimizer
-	gsl_function f;
-	f.function = &evaluate_numeric_functor;
-	f.params = (void*) &func;
+template <typename Real>
+Real minimizer_base (gsl_function f, Real x_0,
+		const Real minimizer_lb, const Real minimizer_ub, const size_t max_minimizer_iter, const Real epsabs) {
 
-	// transform the guess into unconstrained space
-	double lx_0 = logit(x_0);
-	
 	// if the function has already been minimized to an endpoint or
 	// starts outside the bounds simply return the guess
-	// generally lx_0 will only be OOB if it's -inf (x_0 == 0)
-	if (lx_0 <= minimizer_lb || lx_0 >= minimizer_ub) {
+	if (x_0 <= minimizer_lb || x_0 >= minimizer_ub) {
 		return x_0;
 	}
 	
 	// if the function at the initial guess is not lower than
 	// the value at both endpoints, minimizer will not work
-	double f_x0 = f_ptr->function(lx_0, f->params);
+	double f_x0 = f_ptr->function(x_0, f->params);
 	double f_lb = f_ptr->function(minimizer_lb, f->params);
 	double f_ub = f_ptr->function(minimizer_ub, f->params);
 	if (f_x0 > f_lb || f_x0 > f_ub) {
-		return (f_lb < f_ub) ? logistic(minimizer_lb) : logistic(minimizer_ub);
+		return (f_lb < f_ub) ? minimizer_lb : minimizer_ub;
 	}
 	
 	// initialize minimizer
 	gsl_min_fminimizer* s = gsl_min_fminimizer_alloc(gsl_min_fminimizer_brent);
-	gsl_min_fminimizer_set(s, f_ptr, lx_0, minimizer_lb, minimizer_ub);
+	gsl_min_fminimizer_set(s, f_ptr, x_0, minimizer_lb, minimizer_ub);
 	
 	// iterate on the minimizer
 	int status = GSL_CONTINUE;
@@ -68,7 +66,7 @@ double minimize_log_function (numeric_functor &func, double x_0,
 	}
 	
 	// store minimizer result and then deallocate
-	double xmin = logistic(gsl_min_fminimizer_x_minimum(s));
+	double xmin = gsl_min_fminimizer_x_minimum(s);
 	gsl_min_fminimizer_free(s);
 	switch (status) {
 		case GSL_SUCCESS:
@@ -81,6 +79,31 @@ double minimize_log_function (numeric_functor &func, double x_0,
 	}
 	// this point should never be reached but this makes the compiler happy
 	return GSL_NAN;
+}
+
+
+/**
+* Two wrappers for the above minimization routine,
+* which convert numeric_functors to appropriate gsl_function objects.
+* 
+* Argmin returns the x-value at which the function minimum occurs (+/- eps).
+* Argmax returns the x-value at which the fucntion maximum occurs (+/- eps).
+*
+* See the caveats on minimizer_base above for important details about functionality.
+*/
+template <typename Real>
+argmin (numeric_functor<Real> &func, Real x_0,
+		const Real minimizer_lb, const Real minimizer_ub, const Real max_minimizer_iter, const Real epsabs) {
+	// Calls standard (non-negative) functor conversion method 
+	return minimizer_base<Real>(f.to_gsl_function(), x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+}
+
+
+template <typename Real>
+argmax (numeric_functor<Real> &func, Real x_0,
+		const Real minimizer_lb, const Real minimizer_ub, const Real max_minimizer_iter, const Real epsabs) {
+	// Calls negated functor conversion method (minimizing the negative is maximization)
+	return minimizer_base<Real>(f.to_neg_gsl_function(), x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 }
 
 } // namespace hts

@@ -16,9 +16,11 @@ namespace hts {
 
 using namespace std;
 
-struct nlp_bases_given_theta : public numeric_functor;
-struct nlp_bases_given_phi : public numeric_functor;
+// Forward declaration of functors used in estimation routines
+struct nlp_bases_given_theta_f : public numeric_functor<double>;
+struct nlp_bases_given_phi_f : public numeric_functor<double>;
 
+// return struct for coordinate ascent estimation
 struct theta_and_phi {
 	double theta;
 	double phi;
@@ -148,7 +150,8 @@ struct base_orient_bias_filter_f {
 	double estimate_theta_given(double phi, double theta_0) {
 		nlp_bases_given_theta_f f (*this, phi);
 		//call common minimization code
-		return minimize_log_function(f, theta_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+		double lmin_theta = argmin<double>(f, logit(theta_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+		return logistic(lmin_theta);
 	}
 	
 	/**
@@ -159,7 +162,8 @@ struct base_orient_bias_filter_f {
 		// instantiate functor of objective function to minimize
 		nlp_bases_given_phi_f f (*this, theta);
 		// call common minimization code
-		return minimize_log_function(f, phi_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+		double lmin_phi = argmin<double>(f, logit(phi_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+		return logistic(lmin_phi);
 	}
 
 	/**
@@ -196,7 +200,7 @@ struct base_orient_bias_filter_f {
 };
 
 
-struct nlp_bases_given_theta_f : public numeric_functor {
+struct nlp_bases_given_theta_f : public numeric_functor<double> {
 	// reference to class containing lp_bases_given
 	base_orient_bias_filter_f &filter;
 	// fixed phi for theta estimation
@@ -210,7 +214,7 @@ struct nlp_bases_given_theta_f : public numeric_functor {
 	}
 }
 
-struct nlp_bases_given_phi_f : public numeric_functor {
+struct nlp_bases_given_phi_f : public numeric_functor<double> {
 	// reference to class containing lp_bases_given
 	base_orient_bias_filter_f &filter;
 	// fixed theta for phi estimation

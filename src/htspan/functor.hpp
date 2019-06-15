@@ -10,24 +10,45 @@ namespace hts {
 * The only other method in derived classes should be a constructor
 * which sets integrand hyperparameters.
 *
+* Note that while this type is templated for compatibility with
+* Boost class signatures, it is not designed to work with types other than double,
+* and non-double instantiations of the type are not supported.
+*
 * Compatible with Boost quadrature methods.
 */
+template <typename Real>
 struct numeric_functor {
-	virtual double operator() (double x) {}
+	virtual Real operator() (Real x) {}
+	// return gsl_function corresponding to this functor
+	gsl_function to_gsl_function () {
+		gsl_function f;
+		f.function = &evaluate_numeric_functor<Real>;
+		f.params = (void*) this;
+		return f;
+	}
+	// return negated gsl_function corresponding to this functor
+	gsl_function to_neg_gsl_function () {
+		gsl_function f;
+		f.function = &neg_evaluate_numeric_functor<Real>;
+		f.params = (void*) this;
+	}
+
 }
 
 /**
 * Evaluates a numeric_functor at the given value of x.
 */
-double evaluate_numeric_functor (double x, void* v) {
-	numeric_functor *p = (numeric_functor*) v;
+template <typename Real>
+Real evaluate_numeric_functor (Real x, void* v) {
+	numeric_functor<Real> *p = (numeric_functor<Real>*) v;
 	return (*p)(x);
 }
 
 /**
 * Returns the negative of a functor's value at the given x.
 */
-inline double neg_evaluate_numeric_functor(double x, void* v) {
+template <typename Real>
+inline Real neg_evaluate_numeric_functor(Real x, void* v) {
 	return - evaluate_numeric_functor(x, v);
 }
 
