@@ -15,12 +15,10 @@ double neg_evaluate_numeric_functor(double x, void* v);
 /**
 * This struct acts as a base interface for functors
 * passed to numerical methods, which must implement
-* an operator() method which takes double and returns double.
+* an operator() method which takes a single double and returns double.
 * The only other method in derived classes should be a constructor
 * which sets integrand hyperparameters.
 *
-*
-* Compatible with Boost quadrature methods.
 */
 struct numeric_functor {
 	// all children of this class must implement an operator()

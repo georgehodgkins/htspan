@@ -155,7 +155,7 @@ struct base_orient_bias_filter_f {
 	}
 	
 	/**
-	*  Find value of phi that maximizes the log probability of observed bases,
+	* Find value of phi that maximizes the log probability of observed bases,
 	* given a value of theta.
 	*/
 	double estimate_phi_given(double theta, double phi_0) {
