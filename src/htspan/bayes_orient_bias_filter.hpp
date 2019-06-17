@@ -119,7 +119,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	* plus(+) the log(pdf) of the beta distribution defined by 
 	* the set alpha and beta, at the given phi.
 	*/
-	struct lp_bases_theta_phi_f : public numeric_functor {
+	struct lp_bases_theta_phi_f : public math::numeric_functor {
 		// pointer to class containing the lp_bases_given fcn
 		bayes_orient_bias_filter_f &bobfilter;
 		// alpha for the beta distribution
@@ -142,7 +142,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	/**
 	* Numerical integration of phi_integrand across a given phi space.
 	*/
-	struct lp_bases_theta_f : public numeric_functor {
+	struct lp_bases_theta_f : public math::numeric_functor {
 		// grid of points which define rectangles for midpoint quadrature
 		vector<double> grid_phi;
 		// pointer to class containing the lp_bases_given fcn
@@ -157,7 +157,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		// evaluates the function to be integrated (in this case, integral of another function)
 		double operator() (double theta) {
 			lp_bases_theta_phi_f p_f (bobfilter, alpha, beta, theta);
-			midpoint integrator;
+			math::midpoint integrator;
 			return integrator.integrate(p_f, 0, 1);
 		}
 	};

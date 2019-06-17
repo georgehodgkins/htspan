@@ -9,7 +9,7 @@
 
 #include "functor.hpp"
 
-namespace hts {
+namespace math {
 
 inline bool point_is_below_endpoints(gsl_function *f, double x, double f_lb, double f_ub) {
 	return (f->function(x, f->params) < f_lb && f->function(x, f->params) < f_ub);
@@ -111,9 +111,9 @@ double minimizer_base (gsl_function *f, double x_0,
 			return xmin;
 		case GSL_FAILURE:
 		case GSL_EBADFUNC:
-			throw runtime_error("Unknown error in minimizer");
+			throw std::runtime_error("Unknown error in minimizer");
 		default:
-			throw runtime_error("Minimizer did not converge");
+			throw std::runtime_error("Minimizer did not converge");
 	}
 	// this point should never be reached but this makes the compiler happy
 	return GSL_NAN;

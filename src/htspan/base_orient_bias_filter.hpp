@@ -150,7 +150,7 @@ struct base_orient_bias_filter_f {
 	double estimate_theta_given(double phi, double theta_0) {
 		nlp_bases_given_theta_f f (*this, phi);
 		//call common minimization code (converting the guess into log space, and the result back)
-		double lmin_theta = argmin(f, logit(theta_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+		double lmin_theta = math::argmin(f, logit(theta_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 		return logistic(lmin_theta);
 	}
 	
@@ -162,7 +162,7 @@ struct base_orient_bias_filter_f {
 		// instantiate functor of objective function to minimize
 		nlp_bases_given_phi_f f (*this, theta);
 		// call common minimization code (converting the guess into log space, and the result back)
-		double lmin_phi = argmin(f, logit(phi_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+		double lmin_phi = math::argmin(f, logit(phi_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 		return logistic(lmin_phi);
 	}
 
@@ -193,7 +193,7 @@ struct base_orient_bias_filter_f {
 		return rtn;
 	}
 
-	struct nlp_bases_given_theta_f : public numeric_functor {
+	struct nlp_bases_given_theta_f : public math::numeric_functor {
 		// reference to class containing lp_bases_given
 		base_orient_bias_filter_f &filter;
 		// fixed phi for theta estimation
@@ -207,7 +207,7 @@ struct base_orient_bias_filter_f {
 		}
 	};
 
-	struct nlp_bases_given_phi_f : public numeric_functor {
+	struct nlp_bases_given_phi_f : public math::numeric_functor {
 		// reference to class containing lp_bases_given
 		base_orient_bias_filter_f &filter;
 		// fixed theta for phi estimation

@@ -3,7 +3,7 @@
 
 #include <gsl/gsl_math.h>
 
-namespace hts {
+namespace math {
 
 // forward declaration of evaluation functions called in struct methods
 //

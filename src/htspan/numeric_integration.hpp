@@ -8,7 +8,7 @@
 
 #include "functor.hpp"
 
-namespace hts {
+namespace math {
 
 using namespace std;
 
