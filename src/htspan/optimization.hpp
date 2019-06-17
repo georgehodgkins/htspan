@@ -11,8 +11,7 @@
 
 namespace hts {
 
-template <typename Real>
-inline bool point_is_below_endpoints(gsl_function *f, Real x, Real f_lb, Real f_ub) {
+inline bool point_is_below_endpoints(gsl_function *f, double x, double f_lb, double f_ub) {
 	return (f->function(x, f->params) < f_lb && f->function(x, f->params) < f_ub);
 }
 
@@ -20,25 +19,24 @@ inline bool point_is_below_endpoints(gsl_function *f, Real x, Real f_lb, Real f_
 * This function tries some other guesses if the initial guess is not in the bounds.
 * Should be replaced with proper meta-analysis (Bayesian optimization).
 */
-template <typename Real>
-Real naive_point_picker (gsl_function *f, Real x_0, Real lb, Real ub, size_t max_pow = 4) {
+double naive_point_picker (gsl_function *f, double x_0, double lb, double ub, size_t max_pow = 4) {
 	size_t p = 1;
-	Real f_lb = f->function(lb, f->params);
-	Real f_ub = f->function(ub, f->params);
+	double f_lb = f->function(lb, f->params);
+	double f_ub = f->function(ub, f->params);
 	while (p <= max_pow) {
-		Real div = pow(2, p);
+		double div = pow(2, p);
 		double off = (x_0 - lb)/div;
-		if (point_is_below_endpoints<Real>(f, lb + off, f_lb, f_ub)) {
+		if (point_is_below_endpoints(f, lb + off, f_lb, f_ub)) {
 			return lb + off;
 		}
-		if (p > 1 && point_is_below_endpoints<Real>(f, x_0 - off, f_lb, f_ub)) {
+		if (p > 1 && point_is_below_endpoints(f, x_0 - off, f_lb, f_ub)) {
 			return x_0 - off;
 		}
 		off = (ub - x_0)/div;
-		if (point_is_below_endpoints<Real>(f, x_0 + off, f_lb, f_ub)) {
+		if (point_is_below_endpoints(f, x_0 + off, f_lb, f_ub)) {
 			return x_0 + off;
 		}
-		if (p > 1 &&point_is_below_endpoints<Real>(f, ub - off, f_lb, f_ub)) {
+		if (p > 1 && point_is_below_endpoints(f, ub - off, f_lb, f_ub)) {
 			return ub - off;
 		}
 		++p;
@@ -70,9 +68,8 @@ Real naive_point_picker (gsl_function *f, Real x_0, Real lb, Real ub, size_t max
 */
 
 
-template <typename Real>
-Real minimizer_base (gsl_function *f, Real x_0,
-		const Real minimizer_lb, const Real minimizer_ub, const size_t max_minimizer_iter, const Real epsabs) {
+double minimizer_base (gsl_function *f, double x_0,
+		const double minimizer_lb, const double minimizer_ub, const size_t max_minimizer_iter, const double epsabs) {
 
 	// if the function has already been minimized to an endpoint or
 	// starts outside the bounds simply return the guess
@@ -83,12 +80,12 @@ Real minimizer_base (gsl_function *f, Real x_0,
 	// if the function at the initial guess is not lower than
 	// the value at both endpoints, minimizer will not work,
 	// so we try searching some other areas for a valid point
-	Real f_lb = f->function(minimizer_lb, f->params);
-	Real f_ub = f->function(minimizer_ub, f->params);
-	if (!point_is_below_endpoints<Real>(f, x_0, minimizer_lb, minimizer_ub)) {
+	double f_lb = f->function(minimizer_lb, f->params);
+	double f_ub = f->function(minimizer_ub, f->params);
+	if (!point_is_below_endpoints(f, x_0, minimizer_lb, minimizer_ub)) {
 		double x_g = naive_point_picker(f, x_0, minimizer_lb, minimizer_ub);
 		// still no luck? return the lower of the two endpoints
-		if (!point_is_below_endpoints<Real>(f, x_g, minimizer_lb, minimizer_ub)) {
+		if (!point_is_below_endpoints(f, x_g, minimizer_lb, minimizer_ub)) {
 			return (f_lb < f_ub) ? minimizer_lb : minimizer_ub;
 		}
 	}
@@ -136,21 +133,19 @@ Real minimizer_base (gsl_function *f, Real x_0,
 *
 * See the caveats on minimizer_base above for important details about functionality.
 */
-template <typename Real>
-Real argmin (numeric_functor<Real> &func, Real x_0,
-		const Real minimizer_lb, const Real minimizer_ub, const Real max_minimizer_iter, const Real epsabs) {
+double argmin (numeric_functor &func, double x_0,
+		const double minimizer_lb, const double minimizer_ub, const double max_minimizer_iter, const double epsabs) {
 	// Calls standard (non-negative) functor conversion method 
 	gsl_function f = func.to_gsl_function();
-	return minimizer_base<Real>(&f, x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+	return minimizer_base(&f, x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 }
 
 
-template <typename Real>
-Real argmax (numeric_functor<Real> &func, Real x_0,
-		const Real minimizer_lb, const Real minimizer_ub, const Real max_minimizer_iter, const Real epsabs) {
+double argmax (numeric_functor &func, double x_0,
+		const double minimizer_lb, const double minimizer_ub, const double max_minimizer_iter, const double epsabs) {
 	// Calls negated functor conversion method (minimizing the negative is maximization)
 	gsl_function f = func.to_neg_gsl_function();
-	return minimizer_base<Real>(&f, x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+	return minimizer_base(&f, x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 }
 
 } // namespace hts

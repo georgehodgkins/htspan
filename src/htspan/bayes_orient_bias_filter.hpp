@@ -19,9 +19,6 @@ namespace hts {
 
 using namespace std;
 
-// forward declaration of functors defined at end of file
-//struct lp_bases_theta_phi_f : public numeric_functor<double>;
-//struct lp_bases_theta_f : public numeric_functor<double>;
 
 /**
 * Return struct for the model_evidence method in bayes_orient_bias_filter_f,
@@ -65,6 +62,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	* Note that the return type for this method is
 	* defined above the main class in this file.
 	*
+	* @template Integrator Integrator object to use, which has an integrate method with signature (double) (double, double, double)
 	* @param alpha Value of alpha for the prior beta distribution of phi
 	* @param beta Value of beta for the prior beta distribution of phi
 	* @return Struct containing evidence values for null and alt models
@@ -72,11 +70,11 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	template <typename Integrator>
 	evidences model_evidence(double alpha, double beta) {
 		// evaluate null model evidence (theta = 0)
-		lp_bases_theta_phi_f p_f (this, alpha, beta, 0);
-		Integrator<double> integrator;
+		lp_bases_theta_phi_f p_f (*this, alpha, beta, 0);
+		Integrator integrator;
 		double ev_null = integrator.integrate(p_f, 0, 1);
 		// evaluate alternate model evidence (integrating across possible values of theta)
-		lp_bases_theta_f t_f (grid_phi, this, alpha, beta);
+		lp_bases_theta_f t_f (grid_phi, *this, alpha, beta);
 		double ev_alt = integrator.integrate(t_f, 0, 1);
 		evidences rtn;
 		rtn.null = ev_null;
@@ -121,7 +119,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	* plus(+) the log(pdf) of the beta distribution defined by 
 	* the set alpha and beta, at the given phi.
 	*/
-	struct lp_bases_theta_phi_f : public numeric_functor<double> {
+	struct lp_bases_theta_phi_f : public numeric_functor {
 		// pointer to class containing the lp_bases_given fcn
 		bayes_orient_bias_filter_f &bobfilter;
 		// alpha for the beta distribution
@@ -144,7 +142,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	/**
 	* Numerical integration of phi_integrand across a given phi space.
 	*/
-	struct lp_bases_theta_f : public numeric_functor<double> {
+	struct lp_bases_theta_f : public numeric_functor {
 		// grid of points which define rectangles for midpoint quadrature
 		vector<double> grid_phi;
 		// pointer to class containing the lp_bases_given fcn
@@ -159,7 +157,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		// evaluates the function to be integrated (in this case, integral of another function)
 		double operator() (double theta) {
 			lp_bases_theta_phi_f p_f (bobfilter, alpha, beta, theta);
-			midpoint<double> integrator;
+			midpoint integrator;
 			return integrator.integrate(p_f, 0, 1);
 		}
 	};

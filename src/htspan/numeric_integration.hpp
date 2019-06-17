@@ -12,7 +12,6 @@ namespace hts {
 
 using namespace std;
 
-template<typename Real>
 struct midpoint {
 
 	/**
@@ -31,8 +30,8 @@ struct midpoint {
 	* @param base Base of the exponential term in step generation (see above)
 	* @return A std::vector containing the grid points
 	*/
-	static vector<Real> generate_cgrid (Real center, Real eps = 1e-6, Real step = .005,
-			Real base = 1.4, Real lb = 0.0, Real ub = 1.0) {
+	static vector<double> generate_cgrid (double center, double eps = 1e-6, double step = .005,
+			double base = 1.4, double lb = 0.0, double ub = 1.0) {
 		// calculate number of grid points to allocate
 		// log_b is log base b
 		// c+s*b^k < 1 - eps ---> k < log_b ((1-eps-c)/2), k is integer
@@ -47,7 +46,7 @@ struct midpoint {
 		// three extra points: center and two endpoints
 		size_t v_cap = right_points + left_points + 3;
 		// allocate vector
-		vector<Real> grid (v_cap);
+		vector<double> grid (v_cap);
 		// place fixed points
 		grid[0] = eps;
 		grid[v_cap - 1] = 1 - eps;
@@ -74,19 +73,19 @@ struct midpoint {
 	* @param grid Vector of x-values which define grid.size()-1 rectangles to use for integration
 	* @param f numeric_functor object, which has an operator() method that takes and returns template type Real.
 	*/
-	static Real midpoint_integration (vector<Real> grid, const numeric_functor<Real> &f) {
+	static double midpoint_integration (vector<double> grid, numeric_functor &f) {
 		// calculate midpoints and grid widths
-		vector<Real> midpoints (grid.size() - 1);
-		vector<Real> widths (grid.size() - 1);
+		vector<double> midpoints (grid.size() - 1);
+		vector<double> widths (grid.size() - 1);
 		for (size_t i = 0; i < grid.size() - 1; ++i) {
 			widths[i] = grid[i+1] - grid[i];
 			midpoints[i] = grid[i] + widths[i]/2;
 		}
 		// evaluate function at each midpoint, multiply by width, and add to previous total
-		Real result = 0;
+		double result = 0;
 		for (size_t i = 0; i < midpoints.size(); ++i) {
-			Real evl = f(midpoints[i]);
-			Real area = evl * widths[i];
+			double evl = f(midpoints[i]);
+			double area = evl * widths[i];
 			result += area;
 		}
 		return result;
@@ -106,14 +105,13 @@ struct midpoint {
 	* @param step Step value for integration
 	* @return The estimate of the definite integral of F from a to b
 	*/
-	template <typename F>
-	Real integrate (const F f, Real a, Real b, Real step = .005) {
+	double integrate (numeric_functor &f, double a, double b, double step = .005) {
 		// passing in the midpoint as a guess is not a good way to do this,
 		// since it'll probably kick out the endpoint half the time
 		// adding Bayesian optimization would be much better
-		Real center = argmax<Real>(f, (a-b)/2, a, b, 50, numeric_limits<Real>::epsilon);
+		double center = argmax(f, (a-b)/2, a, b, 50, numeric_limits<double>::epsilon());
 		// generate grid to integrate on
-		vector<Real> cgrid = generate_cgrid(center, numeric_limits<Real>::epsilon, step, 1.4, a, b);
+		vector<double> cgrid = generate_cgrid(center, numeric_limits<double>::epsilon(), step, 1.4, a, b);
 		// do the integration
 		return midpoint_integration(cgrid, f);
 	}
