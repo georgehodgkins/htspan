@@ -164,7 +164,7 @@ struct bayes_orient_bias_filter_f : public orient_bias_filter_f {
 	* @return Posterior probability of the alternative model
 	*/
 	double operator () (double prior_alt, double alpha, double beta) {
-		evidence_rtn ev = model_evidence(alpha, beta);
+		evidences ev = model_evidence(alpha, beta);
 		// evaluate the log posterior probability of the alternate model
 		double lev_null = log(ev.null);
 		double lev_alt = log(ev.alt);
