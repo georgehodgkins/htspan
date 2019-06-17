@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE (lp_functions) {
 	const double LP_FULL_STD = -28.65358;
 	const double LP_BASE_STD = -36.10886;
 	const double DEV_STD = 14.91057;
-	BOOST_TEST_MESSAGE("Running constituent function test:");
+	BOOST_TEST_MESSAGE("Running log-prob function tests:");
 	std::vector<int8_t> base_t (BASES, BASES + sizeof(BASES)/sizeof(int8_t));
 	std::vector<double> err_t (ERRS, ERRS + sizeof(ERRS)/sizeof(double));
 	std::vector<bool> orient_t (ORIENTS, ORIENTS + sizeof(ORIENTS)/sizeof(bool));

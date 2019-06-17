@@ -109,7 +109,7 @@ struct midpoint {
 		// passing in the midpoint as a guess is not a good way to do this,
 		// since it'll probably kick out the endpoint half the time
 		// adding Bayesian optimization would be much better
-		double center = argmax(f, (a-b)/2, a, b, 50, numeric_limits<double>::epsilon());
+		double center = argmax(f, abs(a-b)/2, a, b, 50, numeric_limits<double>::epsilon());
 		// generate grid to integrate on
 		vector<double> cgrid = generate_cgrid(center, numeric_limits<double>::epsilon(), step, 1.4, a, b);
 		// do the integration

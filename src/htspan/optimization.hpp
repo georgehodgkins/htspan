@@ -82,14 +82,10 @@ double minimizer_base (gsl_function *f, double x_0,
 	// so we try searching some other areas for a valid point
 	double f_lb = f->function(minimizer_lb, f->params);
 	double f_ub = f->function(minimizer_ub, f->params);
-	if (!point_is_below_endpoints(f, x_0, minimizer_lb, minimizer_ub)) {
-		double x_g = naive_point_picker(f, x_0, minimizer_lb, minimizer_ub);
-		// still no luck? return the lower of the two endpoints
-		if (!point_is_below_endpoints(f, x_g, minimizer_lb, minimizer_ub)) {
-			return (f_lb < f_ub) ? minimizer_lb : minimizer_ub;
-		}
+	double f_x0 = f->function(x_0, f->params);
+	if (f_x0 > f_lb || f_x0 > f_ub) {
+		return (f_lb < f_ub) ? minimizer_lb : minimizer_ub;
 	}
-	
 	
 	// initialize minimizer
 	gsl_min_fminimizer* s = gsl_min_fminimizer_alloc(gsl_min_fminimizer_brent);

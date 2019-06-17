@@ -61,7 +61,7 @@ struct orient_bias_data {
 		: r1_ref(_ref),
 			r1_alt(_alt),
 			r2_ref(nuc_complement(r1_ref)),
-			r2_alt(nuc_complement(r2_alt))
+			r2_alt(nuc_complement(r1_alt))
 	{
 		reserve(n);
 	}

@@ -149,7 +149,7 @@ struct base_orient_bias_filter_f {
 	 */
 	double estimate_theta_given(double phi, double theta_0) {
 		nlp_bases_given_theta_f f (*this, phi);
-		//call common minimization code
+		//call common minimization code (converting the guess into log space, and the result back)
 		double lmin_theta = argmin(f, logit(theta_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 		return logistic(lmin_theta);
 	}
@@ -161,7 +161,7 @@ struct base_orient_bias_filter_f {
 	double estimate_phi_given(double theta, double phi_0) {
 		// instantiate functor of objective function to minimize
 		nlp_bases_given_phi_f f (*this, theta);
-		// call common minimization code
+		// call common minimization code (converting the guess into log space, and the result back)
 		double lmin_phi = argmin(f, logit(phi_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 		return logistic(lmin_phi);
 	}

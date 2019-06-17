@@ -20,7 +20,7 @@ using namespace std;
 void common_cgrid_test(const double GRID_PARAM, const double GRID_EPS,
 		const double GRID_4F_STD, const double GRID_4L_STD, const size_t GRID_SIZE_STD) {
 	BOOST_TEST_MESSAGE("Running centered grid test with parameter " << GRID_PARAM << ":");
-	vector<double> test_grid = hts::midpoint<double>::generate_cgrid(GRID_PARAM, GRID_EPS);
+	vector<double> test_grid = hts::midpoint::generate_cgrid(GRID_PARAM, GRID_EPS);
 	BOOST_CHECK_MESSAGE(test_grid.front() == GRID_EPS,
 		"First member is not equal to set eps (got: " << test_grid.front() << ")");
 	BOOST_CHECK_MESSAGE(test_grid.back() == (1 - GRID_EPS),
@@ -49,7 +49,7 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 	BOOST_CHECK_MESSAGE(abs(phi_int - PHI_INT_STD) < TEST_EPS,
 		"Phi integrand: got: " << phi_int << ", expected: " << PHI_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating theta integrand");
-	vector<double> grid_phi = hts::midpoint<double>::generate_cgrid(phi_hat); // needed by theta integrand
+	vector<double> grid_phi = hts::midpoint::generate_cgrid(phi_hat); // needed by theta integrand
 	hts::bayes_orient_bias_filter_f::lp_bases_theta_f t_f (grid_phi, bobfilter, ALPHA_PHI, BETA_PHI);
 	double theta_int = t_f(theta_hat);
 	BOOST_CHECK_MESSAGE(abs(theta_int - THETA_INT_STD) < TEST_EPS,
