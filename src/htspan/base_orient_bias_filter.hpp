@@ -217,7 +217,7 @@ struct base_orient_bias_filter_f {
 			filter(fi), theta(t) {}
 		// negative log probability of bases given phi
 		double operator() (double phi_real) {
-			return - filter.lp_bases_given(logistic(phi_real), theta);
+			return - filter.lp_bases_given(theta, logistic(phi_real));
 		}
 	};
  
