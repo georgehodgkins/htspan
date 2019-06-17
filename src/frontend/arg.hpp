@@ -1,3 +1,6 @@
+#ifndef _HTSPAN_OPTCHK_HPP_
+#define _HTSPAN_OPTCHK_HPP_
+
 #include <fstream>
 #include <cstring>
 #include <cstdlib>
@@ -12,9 +15,7 @@
 #include "../htspan/nucleotide.hpp"
 #include "../htspan/piler.hpp"
 #include "file.hpp"
-
-#ifndef _HTSPAN_OPTCHK_HPP_
-#define _HTSPAN_OPTCHK_HPP_
+#include "cstring.hpp"
 
 // UNDER CONSTRUCTION
 // This file contains argument checks for the option parser.
@@ -22,23 +23,6 @@
 namespace hts {
 	
 namespace frontend {
-
-
-/**
-* Case insensitive strcmp, returns bool instead of the traditional int
-*/
-int strcmpi (const char* s1, const char* s2) {
-	while (tolower(*s1) == tolower(*s2)) {
-		++s1;
-		++s2;
-		if (*s1 == 0x0) break;
-	}
-	if (*s1 == *s2) {//they should both be null so no need for tolower
-		return 0;
-	} else {
-		return *s1 - *s2;
-	}
-}
 
 using namespace option;
 
@@ -52,7 +36,7 @@ struct Arg: public option::Arg {
 	* @paran n_xtns Number of members in xtns
 	* @return ARG_OK if filename passes and ARG_ILLEGAL if it does not
 	*/
-	static ArgStatus InputFile (const Option& opt, bool msg, const char* xtns[], const size_t n_xtns = 0) {
+	static ArgStatus InputFile (const Option& opt, bool msg, const char* xtns[] = NULL, const size_t n_xtns = 0) {
 		if (opt.arg == NULL || strlen(opt.arg) == 0) {
 			if (msg) {
 				std::cerr << "Option " << opt.name << " requires an argument. Try --help.\n";
@@ -65,7 +49,7 @@ struct Arg: public option::Arg {
 			}
 			return ARG_ILLEGAL;
 		}
-		if (n_xtns > 0) {
+		if (xtns != NULL && n_xtns > 0) {
 			const char* dot = strrchr(opt.arg, '.') + 1;
 			for(size_t i = 0; i < n_xtns; ++i) {
 				if (strcmpi(dot, xtns[i]) == 0) {
@@ -228,60 +212,75 @@ struct Arg: public option::Arg {
 	}
 
 
-	static ArgStatus AlignmentFile (const Option& opt, bool msg, hts::piler& p) {
+	static ArgStatus AlignmentFile (const Option& opt, bool msg, bool try_open = true) {
 		// normal file and extension checks
 		const char* xtns[] = {"bam"};
 		ArgStatus rtn = InputFile(opt, msg, xtns, 1);
 		if (rtn != ARG_OK) {
 			return rtn;
 		}
+
 		// check if the file is a valid BAM file with header and index
+		if (try_open) {
+			hts::piler p;
+			if (!p.open(opt.arg)) {
+				if (msg) {
+					std::cerr << "Could not open \'" << opt.arg << "\' as an alignment file.";
+				}
+				return ARG_ILLEGAL;
+			}
+		}
+		return ARG_OK;
+	}
+
+	static ArgStatus PairedEndAlignmentFile (const Option& opt, bool msg) {
+		// number of reads to check
+		const int n_checks = 10;
+
+		// this function will open the file in the piler if it can be opened
+		ArgStatus rtn = AlignmentFile (opt, msg, false);
+		if (rtn != ARG_OK) {
+			return rtn;
+		}
+
+		// open the file
+		hts::piler p;
 		if (!p.open(opt.arg)) {
 			if (msg) {
 				std::cerr << "Could not open \'" << opt.arg << "\' as an alignment file.";
 			}
 			return ARG_ILLEGAL;
 		}
-		return ARG_OK;
-	}
 
-	static ArgStatus PairedEndAlignmentFile (const Option& opt, bool msg) {
-		hts::piler p;
-		// this function will open the file in the piler if it can be opened
-		ArgStatus rtn = AlignmentFile (opt, msg, p);
-		if (rtn != ARG_OK) {
-			return rtn;
-		}
-		// read the first pile from the file
-		const bam_pileup1_t *samp = p.next();
-		if (samp == NULL) {
+		const bam_pileup1_t *pile = p.next();
+		if (pile == NULL) {
 			if (msg) {
-				std::cerr << "Could not get a read from \'" << opt.arg << "\'.";
+				std::cerr << "Could not get pileup from \'" << opt.arg << "\'.";
 			}
 			return ARG_ILLEGAL;
 		}
-		// if any read in the pile has a read1/read2 flag, consider it paired-end
-		// otherwise, error (after 10 tests)
-		int rfs = 0; // counts reads from the current pileup
-		for (size_t r = 0; r < 10; ++r) {
-			// handles cases where the pileup has <10 reads
-			if (rfs >= p.curr_plp_size()) {
-				samp = p.next();
-				rfs = 0;
+
+		// check up to 10 reads
+		int total = 0;
+		while (total < n_checks) {
+			// if any read in the pile has a read1/read2 flag, consider it paired-end
+			for (size_t r = 0; r < p.size(); ++r) {
+				if (bam_is_read1 (pile[r].b) || bam_is_read2 (pile[r].b)) {
+					return ARG_OK;
+				}
+				++total;
 			}
-			if (bam_is_read1 (samp[r].b) || bam_is_read2 (samp[r].b)) {
-				p.close();
-				return ARG_OK;
-			}
-			++rfs;
+			pile = p.next();
+			if (pile == NULL) break;
 		}
-		p.close();
+
+		// none of the checked reads are paired-end: error
 		if (msg) {
-			std::cerr << "BAM file \'" << opt.arg << "\' is not paired end.";
+			std::cerr << "BAM file \'" << opt.arg << "\' is not paired-end; "
+				"it appears to be single-end.";
 		}
 		return ARG_ILLEGAL;
 	}
-
 
 	static ArgStatus ReferenceFile (const Option& opt, bool msg) {
 		const char* xtns[] = {"fasta", "fa"};
