@@ -1,5 +1,10 @@
 # htspan
-C++ port of https://github.com/djhshih/orient-bias-filter
+
+Collection of utilities for filtering high-throughput sequencing data:
+
+* global re-alignment filter
+* supporting read statistics
+* orientation bias filter (C++ port of https://github.com/djhshih/orient-bias-filter)
 
 ## Dependencies
 
@@ -10,6 +15,8 @@ C++ port of https://github.com/djhshih/orient-bias-filter
 
 * htslib >= 1.8
 * mlat >= 0.1
+* Lean Mean C++ Option Parser 1.7
+* tanh-sinh quadrature method from https://www.codeproject.com/Articles/31550/Fast-Numerical-Integration
 
 ## Install
 
