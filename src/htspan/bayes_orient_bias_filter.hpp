@@ -42,16 +42,12 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	// parameters for the beta distribution
 	double alpha_phi, beta_phi;
 
-	// grid to integrate phi on (stored here to simplify parameter passing)
-	vector<double> grid_phi;
-
 	// pass through extra parameters to the base class
 	bayes_orient_bias_filter_f (orient_bias_data &dref, 
 		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
 		: base_orient_bias_filter_f(dref, lb, ub, eps, max_iter),
 			alpha_phi(0.0),
-			beta_phi(0.0),
-			grid_phi(0)
+			beta_phi(0.0)
 	{
 	}
 
@@ -74,7 +70,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		Integrator integrator;
 		double ev_null = integrator.integrate(p_f, 0, 1);
 		// evaluate alternate model evidence (integrating across possible values of theta)
-		lp_bases_theta_f t_f (grid_phi, *this, alpha, beta);
+		lp_bases_theta_f<Integrator> t_f (*this, alpha, beta);
 		double ev_alt = integrator.integrate(t_f, 0, 1);
 		evidences rtn;
 		rtn.null = ev_null;
@@ -132,7 +128,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		lp_bases_theta_phi_f (bayes_orient_bias_filter_f &fi, double a, double b, double t) :
 			bobfilter(fi), alpha(a), beta(b), theta(t) {}
 		// evaluates the function to be integrated
-		double operator() (double phi) {
+		double operator() (double phi) const {
 			return exp(bobfilter.lp_bases_given(theta, phi) +
 				log(gsl_ran_beta_pdf(phi, alpha, beta)));
 		}
@@ -142,9 +138,8 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	/**
 	* Numerical integration of phi_integrand across a given phi space.
 	*/
+	template <typename Integrator>
 	struct lp_bases_theta_f : public math::numeric_functor {
-		// grid of points which define rectangles for midpoint quadrature
-		vector<double> grid_phi;
 		// pointer to class containing the lp_bases_given fcn
 		bayes_orient_bias_filter_f &bobfilter;
 		// alpha for the beta distribution
@@ -152,12 +147,12 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		// beta for the beta distribution
 		double beta;
 		// constructor which sets hyperparameters
-		lp_bases_theta_f (vector<double> g, bayes_orient_bias_filter_f &fi, double a, double b) :
-			grid_phi(g), bobfilter(fi), alpha(a), beta(b) {}
+		lp_bases_theta_f (bayes_orient_bias_filter_f &fi, double a, double b) :
+			bobfilter(fi), alpha(a), beta(b) {}
 		// evaluates the function to be integrated (in this case, integral of another function)
-		double operator() (double theta) {
+		double operator() (double theta) const {
 			lp_bases_theta_phi_f p_f (bobfilter, alpha, beta, theta);
-			math::midpoint integrator;
+			Integrator integrator;
 			return integrator.integrate(p_f, 0, 1);
 		}
 	};

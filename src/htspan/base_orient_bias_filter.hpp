@@ -202,7 +202,7 @@ struct base_orient_bias_filter_f {
 		nlp_bases_given_theta_f (base_orient_bias_filter_f &fi, double p) :
 			filter(fi), phi(p) {}
 		// negative log probability of bases given theta
-		double operator() (double theta_real) {
+		double operator() (double theta_real) const {
 			 return - filter.lp_bases_given(logistic(theta_real), phi);
 		}
 	};
@@ -216,7 +216,7 @@ struct base_orient_bias_filter_f {
 		nlp_bases_given_phi_f (base_orient_bias_filter_f &fi, double t) :
 			filter(fi), theta(t) {}
 		// negative log probability of bases given phi
-		double operator() (double phi_real) {
+		double operator() (double phi_real) const {
 			return - filter.lp_bases_given(theta, logistic(phi_real));
 		}
 	};

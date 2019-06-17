@@ -23,7 +23,9 @@ double neg_evaluate_numeric_functor(double x, void* v);
 * Compatible with Boost quadrature methods.
 */
 struct numeric_functor {
-	virtual double operator() (double x) {
+	// all children of this class must implement an operator()
+	// const so it can work with external integrator code
+	virtual double operator() (double x) const {
 		return 0.0;
 	}
 	// return gsl_function corresponding to this functor

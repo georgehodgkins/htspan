@@ -50,8 +50,7 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 	BOOST_CHECK_MESSAGE(abs(phi_int - PHI_INT_STD) < TEST_EPS,
 		"Phi integrand: got: " << phi_int << ", expected: " << PHI_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating theta integrand");
-	vector<double> grid_phi = math::midpoint::generate_cgrid(phi_hat); // needed by theta integrand
-	hts::bayes_orient_bias_filter_f::lp_bases_theta_f t_f (grid_phi, bobfilter, ALPHA_PHI, BETA_PHI);
+	hts::bayes_orient_bias_filter_f::lp_bases_theta_f<INTEGRATOR> t_f (bobfilter, ALPHA_PHI, BETA_PHI);
 	double theta_int = t_f(theta_hat);
 	BOOST_CHECK_MESSAGE(abs(theta_int - THETA_INT_STD) < TEST_EPS,
 		"Theta integrand: got: " << theta_int << ", expected: " << THETA_INT_STD);
@@ -67,7 +66,7 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 		"Log posterior probability: got: " << lposterior << ", expected: " << LPOSTERIOR_STD);
 } 
 
-BOOST_AUTO_TEST_SUITE(orient_bias_filter_fastbayes)
+BOOST_AUTO_TEST_SUITE(bayes_orient_bias_filter_midpoint)
 
 BOOST_AUTO_TEST_CASE(grid_test) {
 	const size_t TEST_COUNT = 5;
