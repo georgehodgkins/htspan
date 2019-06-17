@@ -8,6 +8,7 @@
 #include "frontend/hts-orient-bias-filter.hpp"
 #include "frontend/hts-orient-bias-quant.hpp"
 #include "frontend/optionparser.hpp"
+#include "frontend/cstring.hpp"
 
 #include "htspan/nucleotide.hpp"
 #include "htspan/fetcher.hpp"
@@ -38,12 +39,12 @@ int main (int argc, char** argv) {
 	// get command
 	bool quantifying = false;
 	bool identifying = false;
-	if (strcmp(command, "quantify") == 0) {
+	if (strcmpi(command, "quantify") == 0) {
 		quantifying = true;
 		// skip command
 		argv++;
 		argc--;
-	} else if (strcmp(command, "identify") == 0) {
+	} else if (strcmpi(command, "identify") == 0) {
 		identifying = true;
 		// skip command
 		argv++;
@@ -119,10 +120,10 @@ int main (int argc, char** argv) {
 	nuc_t ref = nuc_N;
 	nuc_t alt = nuc_N;
 	if (options[DAMAGE_TYPE]) {
-		if (strcmp(options[DAMAGE_TYPE].arg, "ffpe") == 0) {
+		if (strcmpi(options[DAMAGE_TYPE].arg, "ffpe") == 0) {
 			ref = nuc_C;
 			alt = nuc_T;
-		} else if (strcmp(options[DAMAGE_TYPE].arg, "oxog") == 0) {
+		} else if (strcmpi(options[DAMAGE_TYPE].arg, "oxog") == 0) {
 			ref = nuc_G;
 			alt = nuc_T;
 		}
