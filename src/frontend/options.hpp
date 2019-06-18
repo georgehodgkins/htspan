@@ -19,15 +19,16 @@ namespace frontend {
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, MINZ_EPS=18, MINZ_ITER=19,
-	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, HELP=25};
-const size_t total_arg_count = 26;
+	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, INTEGRATOR=25, ALPHA=26,
+	BETA=27, MODEL=28, HELP=29};
+const size_t total_arg_count = 30;
 	
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
 // These arrays track arguments that apply to both commands, for printing help texts
 // common_args help will be printed before args unique to the command
-const OptionIndex common_args[] = {DAMAGE_TYPE, INT_SIM, EXT_SIM, KEEP_DUP, MIN_MAPQ, MIN_BASEQ, BAMFILE, RESFILE, REF, ALT};
-const size_t common_arg_count = 10;
+const OptionIndex common_args[] = {DAMAGE_TYPE, INT_SIM, EXT_SIM, KEEP_DUP, MIN_MAPQ, MIN_BASEQ, BAMFILE, RESFILE, REF, ALT, MODEL};
+const size_t common_arg_count = 11;
 
 const OptionIndex utility_args[] = {VERBOSITY, LOGFILE, STDOUT, HELP};
 const size_t utility_arg_count = 4;
@@ -37,8 +38,8 @@ const size_t utility_arg_count = 4;
 const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
 const size_t quant_arg_count = 2;
 
-const OptionIndex ident_only_args[] = {SNVFILE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER};
-const size_t ident_arg_count = 5;
+const OptionIndex ident_only_args[] = {SNVFILE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER, ALPHA, BETA, INTEGRATOR};
+const size_t ident_arg_count = 8;
 
 const OptionIndex intsim_only_args[] = {THETA_SIM, PHI_SIM, ERR_MEAN_SIM, ERR_SD_SIM};
 const size_t sim_arg_count = 4;
@@ -143,7 +144,7 @@ const option::Descriptor usage[] = {
 		"p",
 		"phi",
 		Arg::Probability,
-		"-p, --phi Estimate of global damage for damage identification. [.01]\n"
+		"-p, --phi Estimate of global damage for frequentist damage identification. [.01]\n"
 		"This can be supplied by the damage quantfication step or manually input with this option.\n"
 		"If damage quantification is performed, its result will replace any value given here."
 	},{
@@ -169,14 +170,14 @@ const option::Descriptor usage[] = {
 		t_OTHER,
 		"",
 		"min-mapq",
-		Arg::MinMapQ, // TODO
+		Arg::MinMapQ, 
 		"--min-mapq Minimum mapping quality for a read to be included in analysis [5]"
 	},{
 		MIN_BASEQ,
 		t_OTHER,
 		"",
 		"min-baseq",
-		Arg::MinBaseQ, // TODO
+		Arg::MinBaseQ, 
 		"--min-baseq Minimum base quality for a read to be included in analysis [20]"
 	},{
 		KEEP_DUP,
@@ -190,7 +191,7 @@ const option::Descriptor usage[] = {
 		t_OTHER,
 		"",
 		"max-reads",
-		Arg::MaxQReads, // TODO
+		Arg::MaxQReads, 
 		"--max-reads Maximum number of reads to process in the damage quantification process. [5e7]\n"
 		"Note that this argument has no effect on the damage identification process."
 	},{
@@ -198,7 +199,7 @@ const option::Descriptor usage[] = {
 		t_OTHER,
 		"",
 		"minimizer-bound",
-		Arg::MinzBound, // TODO
+		Arg::MinzBound, 
 		"--minimizer-bound Magnitude (log space) of the symmetrical domain to minimize in during damage identification. [15]\n"
 		"i.e. for the default arg the minimizer will search from xval 10^-15 to 10^15 in real space."
 	},{
@@ -206,35 +207,35 @@ const option::Descriptor usage[] = {
 		t_OTHER,
 		"",
 		"minimizer-tolerance",
-		Arg::MinzEps, // TODO
+		Arg::MinzEps,
 		"Maximum allowable distance (epsilon) for convergence when minimizing during damage identification. [1e-6]"
 	},{
 		MINZ_ITER,
 		t_OTHER,
 		"",
 		"minimizer-iterations",
-		Arg::MinzIter, // TODO
+		Arg::MinzIter, 
 		"--minimizer-iterations Maximum number of iterations when minimizing during damage identification [100]"
 	},{
 		THETA_SIM,
 		t_OTHER,
 		"",
 		"simulation-theta",
-		Arg::Probability, // TODO
+		Arg::Probability, 
 		"--simulation-theta Global alternate allele frequency used to generate \"reads\" during internal simulation."
 	},{
 		PHI_SIM,
 		t_OTHER,
 		"",
 		"simulation-phi",
-		Arg::Probability, // TODO
+		Arg::Probability, 
 		"--simulation-phi Global damage rate used to generate damaged \"reads\" during internal simulation."
 	},{
 		ERR_MEAN_SIM,
 		t_OTHER,
 		"",
 		"simulation-error-mean",
-		Arg::ErrMeanSim, // TODO
+		Arg::Positive, 
 		"--simulation-error-mean Mean to generate normally distributed read error rates\n"
 		"(anti-phred of quality scores) around during internal simulation."
 	},{
@@ -242,7 +243,7 @@ const option::Descriptor usage[] = {
 		t_OTHER,
 		"",
 		"simulation-error-stdev",
-		Arg::ErrStdevSim, // TODO
+		Arg::Positive, 
 		"--simulation-error-stdev Standard deviation of normally distributed read error rates\n"
 		"(anti-phred of quality scores) generated during internal simulation."
 	},{
@@ -253,6 +254,36 @@ const option::Descriptor usage[] = {
 		Arg::DamageType,
 		"-t, --damage-type Type of damage to identify or quantify (e.g. what variant type to analyze).\n"
 		"Choices are \'ffpe\' or \'oxog\'. This flag will override variants selected using -R and -A."
+	},{
+		INTEGRATOR,
+		t_OTHER,
+		"",
+		"integrator",
+		Arg::Integrator,
+		"--integrator Numerical integration algorithm to use for evaluated integrals in Bayesian identification [tanhsinh].\n"
+		"Choices are \'tanhsinh\' or \'midpoint\'."
+	},{
+		ALPHA,
+		t_OTHER,
+		"",
+		"alpha",
+		Arg::Positive,
+		"--alpha Alpha hyperparameter for beta distribution used in Bayesian identification."
+	},{
+		BETA,
+		t_OTHER,
+		"",
+		"beta",
+		Arg::Positive,
+		"--beta Beta hyperparameter for beta distribution used in Bayesian identification."
+	},{
+		ITYPE,
+		t_OTHER,
+		"M",
+		"model",
+		Arg::Model,
+		"-M, --model Model to use for identification or quantification. [bayes]\n"
+		"Choices are \'freq\' or \'bayes\'."
 	},{
 		HELP,
 		t_OTHER,

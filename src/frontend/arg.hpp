@@ -282,6 +282,17 @@ struct Arg: public option::Arg {
 		return ARG_ILLEGAL;
 	}
 
+	static ArgStatus Model (const Option& opt, bool msg) {
+		if (strcmpi(opt.arg, "freq") ||
+				strcmpi(opt.arg, "bayes")) {
+			return ARG_OK;
+		}
+		if (msg) {
+			std::cerr << "Argument to " << opt.name << "must be either \'freq\' or \'bayes\'.";
+		}
+		return ARG_ILLEGAL;
+	}
+
 	static ArgStatus ReferenceFile (const Option& opt, bool msg) {
 		const char* xtns[] = {"fasta", "fa"};
 		return InputFile(opt, msg, xtns, 2);
@@ -320,11 +331,7 @@ struct Arg: public option::Arg {
 		return IntRange(opt, msg, 10, 1000);
 	}
 
-	static ArgStatus ErrMeanSim (const Option& opt, bool msg) {// check bounds
-		return DoubleRange(opt, msg, 0.0, 100.0);
-	}
-
-	static ArgStatus ErrStdevSim (const Option& opt, bool msg) {// ^^^
+	static ArgStatus Positive (const Option& opt, bool msg) {
 		return DoubleRange(opt, msg, 0.0, 100.0);
 	}
 
