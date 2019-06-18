@@ -11,42 +11,6 @@
 
 namespace math {
 
-inline bool point_is_below_endpoints(gsl_function *f, double x, double f_lb, double f_ub) {
-	return (f->function(x, f->params) < f_lb && f->function(x, f->params) < f_ub);
-}
-
-/**
-* This function tries some other guesses if the initial guess is not in the bounds.
-* Should be replaced with proper meta-analysis (Bayesian optimization).
-*/
-double naive_point_picker (gsl_function *f, double x_0, double lb, double ub, size_t max_pow = 4) {
-	size_t p = 1;
-	double f_lb = f->function(lb, f->params);
-	double f_ub = f->function(ub, f->params);
-	while (p <= max_pow) {
-		double div = pow(2, p);
-		double off = (x_0 - lb)/div;
-		if (point_is_below_endpoints(f, lb + off, f_lb, f_ub)) {
-			return lb + off;
-		}
-		if (p > 1 && point_is_below_endpoints(f, x_0 - off, f_lb, f_ub)) {
-			return x_0 - off;
-		}
-		off = (ub - x_0)/div;
-		if (point_is_below_endpoints(f, x_0 + off, f_lb, f_ub)) {
-			return x_0 + off;
-		}
-		if (p > 1 && point_is_below_endpoints(f, ub - off, f_lb, f_ub)) {
-			return ub - off;
-		}
-		++p;
-	}
-	return x_0;
-}
-
-
-
-
 /**
 * Optimization routine, using Brent method implementation in GSL.
 *
