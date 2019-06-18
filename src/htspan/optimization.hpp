@@ -2,6 +2,7 @@
 #define _HTSPAN_OPTIMIZATION_HPP_
 
 #include <cmath>
+#include <vector>
 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_min.h>
@@ -10,6 +11,49 @@
 #include "functor.hpp"
 
 namespace math {
+
+/**
+* Initial rough minimization optionally performed before a guess is passed to the GSL minimizer.
+* This is useful because the GSL minimizer only accepts guesses with y-values lower than the endpoints,
+* and converges much faster for good guesses.
+*
+* Tail-recursive algorithm divides the space between the given bounds into div # of sections, evaluates
+* each internal section boundary (/not/ including the bounds themselves), and picks the minimum evaluation 
+* as the new guess. The new bounds are the next and previous section boundaries (possibly including one of the
+* outer bounds). These new bounds and guess are then passed to the next iteration, for iter+1 number of iterations.
+*
+* @param f Function of interest
+* @param x_0 Initial guess
+* @param lb Lower bound of space to be sectioned
+* @param ub Upper bound of space to be sectioned
+* @param div Number of sections to divide search space into
+* @param iter Remaining number of iterations (after the current one)
+* @param margin Guesses closer than this value to the bounds will be discarded
+*/
+double improve_guess (gsl_function *f, double x_0, const double lb, const double ub,
+		const size_t div, const size_t iter, const double margin = 1e-6) {
+	double inc = abs(lb-ub)/div;
+	if (x_0 < lb + margin) {
+		x_0 = lb + margin;
+	} else if (x_0 > ub - margin) {
+		x_0 = ub - margin;
+	}
+	double min_g = x_0;
+	double min_fval = f->function(x_0, f->params);
+	for (size_t n = 1; n < div-1; ++n) {
+		double fval = f->function(lb + n*inc + margin, f->params);
+		if (fval < min_fval) {
+			min_fval = fval;
+			min_g = lb + n*inc + margin;
+		}
+	}
+	if (iter == 0) {
+		return min_g;
+	} else {
+		return improve_guess(f, min_g, min_g - inc + margin, min_g + inc - margin, div, iter-1);
+	}
+}
+
 
 /**
 * Optimization routine, using Brent method implementation in GSL.
@@ -28,26 +72,28 @@ namespace math {
 * @param minimizer_ub Upper bound to minimize on
 * @param max_minimizer_iter Maximum number of minimizer iterations
 * @param epsabs Threshold for convergence of minimizer
+* @param improve Whether to run the initial rough minimization [true]
 * @return Minimum from the GSL minimizer, if possible (see above)
 */
 
-
 double minimizer_base (gsl_function *f, double x_0,
-		const double minimizer_lb, const double minimizer_ub, const size_t max_minimizer_iter, const double epsabs) {
+		const double minimizer_lb, const double minimizer_ub, const size_t max_minimizer_iter,
+		const double epsabs, bool improve = true) {
 
 	// if the function has already been minimized to an endpoint or
 	// starts outside the bounds simply return the guess
 	if (x_0 <= minimizer_lb || x_0 >= minimizer_ub) {
 		return x_0;
 	}
-	
-	// if the function at the initial guess is not lower than
-	// the value at both endpoints, minimizer will not work,
-	// so we try searching some other areas for a valid point
+	// a hacky initial minimization algorithm that's not too expensive
+	if (improve) {
+		x_0 = improve_guess(f, x_0, minimizer_lb, minimizer_ub, 8, 4);
+	}
 	double f_lb = f->function(minimizer_lb, f->params);
 	double f_ub = f->function(minimizer_ub, f->params);
 	double f_x0 = f->function(x_0, f->params);
-	if (f_x0 > f_lb || f_x0 > f_ub) {
+	// the epsilon here compensates for cases where the guesser places x_0 extremely close to a bound
+	if (f_x0 + epsabs > f_lb || f_x0 + epsabs > f_ub) {
 		return (f_lb < f_ub) ? minimizer_lb : minimizer_ub;
 	}
 	
@@ -99,7 +145,6 @@ double argmin (numeric_functor &func, double x_0,
 	gsl_function f = func.to_gsl_function();
 	return minimizer_base(&f, x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
 }
-
 
 double argmax (numeric_functor &func, double x_0,
 		const double minimizer_lb, const double minimizer_ub, const double max_minimizer_iter, const double epsabs) {
