@@ -37,7 +37,6 @@ struct evidences {
 */
 
 struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
-	//TODO: streamline math methods to use the same calling paradigm
 
 	// parameters for the beta distribution
 	double alpha_phi, beta_phi;

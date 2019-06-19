@@ -25,6 +25,7 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 	data.read(TSVNAME);
 	BOOST_TEST_CHECKPOINT("Evaluating phi integrand");
 	hts::bayes_orient_bias_filter_f bobfilter (data);
+	// TODO: evaluate integrand fcns at fixed points, and update terminology
 	double phi_hat = bobfilter.estimate_phi_given(0, 0.5); // fixed params same in model_evidence method
 	double theta_hat = bobfilter.estimate_theta_given(phi_hat, 0.5); // ^^^
 	hts::bayes_orient_bias_filter_f::lp_bases_theta_phi_f p_f (bobfilter, ALPHA_PHI, BETA_PHI, theta_hat);
