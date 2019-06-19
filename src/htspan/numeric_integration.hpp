@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <limits>
+#include <stdexcept>
 
 #include "functor.hpp"
 
@@ -28,28 +29,35 @@ struct midpoint {
 	* @param eps Defines the endpoints of the grid, [eps, 1-eps]
 	* @param step Coefficient of the exponential term in step generation (see above)
 	* @param base Base of the exponential term in step generation (see above)
+	* @param lb Lower bound for grid generation
+	* @param ub Upper bound for grid generation
 	* @return A std::vector containing the grid points
 	*/
 	static vector<double> generate_cgrid (double center, double eps = 1e-6, double step = .005,
 			double base = 1.4, double lb = 0.0, double ub = 1.0) {
 		// calculate number of grid points to allocate
-		// log_b is log base b
-		// c+s*b^k < 1 - eps ---> k < log_b ((1-eps-c)/2), k is integer
-		size_t right_points = (size_t) ceil(log((1-eps-center)/step)/log(base));
-		// c-s*b^k > eps ---> k < log_b((c-eps)/s), " "
-		size_t left_points = (size_t) ceil(log((center - eps)/step)/log(base));
-		if (center < eps) {
-			left_points = 0;
-		} else if (center > 1 - eps) {
-			right_points = 0;
+		size_t right_points = 0;
+		if (center < lb || center > ub) {
+			throw runtime_error("Centered grid generation: Center must be between the bounds.");
+		}
+		// if the center is less than one step from the ub, no points on the right
+		if ((ub - eps - center) > step) {
+			// c+s*b^k < 1 - eps ---> k < log_b ((1-eps-c)/2), k is integer
+			right_points = (size_t) ceil(log((ub - eps - center)/step)/log(base));
+		}
+		size_t left_points = 0;
+		// if the center is less than one step from the lb, no points on the left
+		if ((center - eps - lb) > step) {
+			// c-s*b^k > eps ---> k < log_b((c-eps)/s), k is integer
+			left_points = (size_t) ceil(log((center - eps - lb)/step)/log(base));
 		}
 		// three extra points: center and two endpoints
 		size_t v_cap = right_points + left_points + 3;
 		// allocate vector
 		vector<double> grid (v_cap);
 		// place fixed points
-		grid[0] = eps;
-		grid[v_cap - 1] = 1 - eps;
+		grid[0] = lb + eps;
+		grid[v_cap - 1] = ub - eps;
 		// first point is eps, so last generated point on left is at index left_points
 		grid[left_points + 1] = center;
 		// generate left points
