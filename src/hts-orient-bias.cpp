@@ -28,7 +28,6 @@ using namespace hts::frontend;
 int main (int argc, char** argv) {
 	// used for clarity when setting model and integrator options
 	enum ModelType {BAYES, FREQ};
-	enum IntgrType {THSH, MIDPOINT};
 
 	//
 	// Process input arguments
@@ -181,13 +180,6 @@ int main (int argc, char** argv) {
 		}
 	}
 	
-	// get integrator (default is tanhsinh)
-	IntgrType integrator = THSH;
-	if (options[INTEGRATOR]) {
-		if (strcmpi(options[INTEGRATOR].arg, "midpoint") == 0) {
-			integrator = MIDPOINT;
-		}
-	}
 
 	// argument checks for specific commands
 	if (quantifying) {
@@ -359,11 +351,7 @@ int main (int argc, char** argv) {
 		} else {
 			global_log.v(1) << "Starting identification...\n";
 			if (model == BAYES) {
-				if (integrator == THSH) {
-					success = orient_bias_identify_bayes<math::tanh_sinh<math::numeric_functor> >(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
-				} else if (integrator == MIDPOINT) {
-					success = orient_bias_identify_bayes<math::midpoint>(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
-				}
+				success = orient_bias_identify_bayes<math::tanh_sinh<math::numeric_functor> >(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
 			} else if (model == FREQ) {
 				success = orient_bias_identify_freq(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
 			}

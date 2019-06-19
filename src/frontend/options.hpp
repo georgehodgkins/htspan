@@ -19,9 +19,9 @@ namespace frontend {
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, MINZ_EPS=18, MINZ_ITER=19,
-	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, INTEGRATOR=25, ALPHA=26,
-	BETA=27, ALTPRI=28, MODEL=29, HELP=30};
-const size_t total_arg_count = 31;
+	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, ALPHA=25,
+	BETA=26, ALTPRI=27, MODEL=28, HELP=29};
+const size_t total_arg_count = 30;
 
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
@@ -38,7 +38,7 @@ const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
-const OptionIndex ident_only_args[] = {SNVFILE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER, ALPHA, BETA, INTEGRATOR, ALTPRI};
+const OptionIndex ident_only_args[] = {SNVFILE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER, ALPHA, BETA, ALTPRI};
 const size_t ident_arg_count = sizeof(ident_only_args)/sizeof(OptionIndex);
 
 const OptionIndex intsim_only_args[] = {THETA_SIM, PHI_SIM, ERR_MEAN_SIM, ERR_SD_SIM};
@@ -254,14 +254,6 @@ const option::Descriptor usage[] = {
 		Arg::DamageType,
 		"-t, --damage-type Type of damage to identify or quantify (e.g. what variant type to analyze).\n"
 		"Choices are \'ffpe\' or \'oxog\'. This flag will override variants selected using -R and -A."
-	},{
-		INTEGRATOR,
-		t_OTHER,
-		"",
-		"integrator",
-		Arg::Integrator,
-		"--integrator Numerical integration algorithm to use for evaluated integrals in Bayesian identification [tanhsinh].\n"
-		"Choices are \'tanhsinh\' or \'midpoint\'."
 	},{
 		ALPHA,
 		t_OTHER,

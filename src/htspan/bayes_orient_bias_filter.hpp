@@ -12,7 +12,6 @@
 #include "orient_bias_data.hpp"
 #include "nucleotide.hpp"
 #include "functor.hpp"
-#include "numeric_integration.hpp"
 
 
 namespace hts {
