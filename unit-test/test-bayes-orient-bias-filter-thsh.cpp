@@ -43,10 +43,10 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 		"Theta integrand: got: " << theta_int << ", expected: " << THETA_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating evidence");
 	hts::evidences ev = bobfilter.model_evidence<INTEGRATOR>(ALPHA_PHI, BETA_PHI);
-	BOOST_CHECK_MESSAGE(test_val(ev.null, EV_NULL_STD),
-		"Evidence for null model: got: " << ev.null << ", expected: " << EV_NULL_STD);
-	BOOST_CHECK_MESSAGE(test_val(ev.alt, EV_ALT_STD),
-		"Evidence for alternate model: got: " << ev.alt << ", expected: " << EV_ALT_STD);
+	BOOST_CHECK_MESSAGE(test_val(log(ev.null), EV_NULL_STD),
+		"Evidence for null model: got: " << log(ev.null) << ", expected: " << EV_NULL_STD);
+	BOOST_CHECK_MESSAGE(test_val(log(ev.alt), EV_ALT_STD),
+		"Evidence for alternate model: got: " << log(ev.alt) << ", expected: " << EV_ALT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating posterior probability");
 	double lposterior = bobfilter.operator()<INTEGRATOR>(PRIOR_ALT, ALPHA_PHI, BETA_PHI);
 	BOOST_CHECK_MESSAGE(test_val(lposterior, LPOSTERIOR_STD),
@@ -64,8 +64,8 @@ BOOST_AUTO_TEST_CASE(hs_hd) {
 	const double THETA_T = COMMON_THETA;
 	const double PHI_INT_STD = 3.9844623e-32;
 	const double THETA_INT_STD = 3.4907991e-33;
-	const double EV_NULL_STD = 1.5655737e-49;
-	const double EV_ALT_STD = 3.0031175e-34;
+	const double EV_NULL_STD = -112.5565153;
+	const double EV_ALT_STD = -77.3509179;
 	const double LPOSTERIOR_STD = 0.0;
 	common_model_test(TSVNAME, ALPHA_PHI, BETA_PHI, PRIOR_ALT, PHI_T, THETA_T,
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
@@ -80,8 +80,8 @@ BOOST_AUTO_TEST_CASE(hs_ld) {
 	const double THETA_T = COMMON_THETA;
 	const double PHI_INT_STD = 1.8932271e-30;
 	const double THETA_INT_STD = 5.2998802e-32;
-	const double EV_NULL_STD = 4.7640676e-58;
-	const double EV_ALT_STD = 3.4185215e-33;
+	const double EV_NULL_STD = -131.9902998;
+	const double EV_ALT_STD = -74.8719863;
 	const double LPOSTERIOR_STD = 0.0;
 	common_model_test(TSVNAME, ALPHA_PHI, BETA_PHI, PRIOR_ALT, PHI_T, THETA_T,
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
@@ -96,8 +96,8 @@ BOOST_AUTO_TEST_CASE(ls_hd) {
 	const double THETA_T = COMMON_THETA;
 	const double PHI_INT_STD = 9.0136431e-22;
 	const double THETA_INT_STD = 3.4159817e-23;
-	const double EV_NULL_STD = 2.1193205e-19;
-	const double EV_ALT_STD = 2.4202584e-21;
+	const double EV_NULL_STD = -43.131369;
+	const double EV_ALT_STD = -47.6025126;
 	const double LPOSTERIOR_STD = -4.4837466;
 	common_model_test(TSVNAME, ALPHA_PHI, BETA_PHI, PRIOR_ALT, PHI_T, THETA_T,
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
@@ -112,9 +112,9 @@ BOOST_AUTO_TEST_CASE(ms_hd) {
 	const double THETA_T = COMMON_THETA;
 	const double PHI_INT_STD = 3.669267e-30;
 	const double THETA_INT_STD = 5.0788968e-31;
-	const double EV_NULL_STD = 9.7007392e-37;
-	const double EV_ALT_STD = 1.7065937e-31;
-	const double LPOSTERIOR_STD = -5.6842537e-06;
+	const double EV_NULL_STD = -83.1150929;
+	const double EV_ALT_STD = -71.0309627;
+	const double LPOSTERIOR_STD = -5.6484295e-06;
 	common_model_test(TSVNAME, ALPHA_PHI, BETA_PHI, PRIOR_ALT, PHI_T, THETA_T,
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
 }
@@ -128,9 +128,9 @@ BOOST_AUTO_TEST_CASE(ls_ld) {
 	const double THETA_T = COMMON_THETA;
 	const double PHI_INT_STD = 8.3875786e-11;
 	const double THETA_INT_STD = 5.4264592e-12;
-	const double EV_NULL_STD = 0.0002444;
-	const double EV_ALT_STD = 2.8219751e-06;
-	const double LPOSTERIOR_STD = -4.4729571;
+	const double EV_NULL_STD = -8.3270583;
+	const double EV_ALT_STD = -12.7868176;
+	const double LPOSTERIOR_STD = -4.471258;
 	common_model_test(TSVNAME, ALPHA_PHI, BETA_PHI, PRIOR_ALT, PHI_T, THETA_T,
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
 }
@@ -144,9 +144,9 @@ BOOST_AUTO_TEST_CASE(ms_ld) {
 	const double THETA_T = COMMON_THETA;
 	const double PHI_INT_STD = 2.3856537e-17;
 	const double THETA_INT_STD = 7.7776958e-19;
-	const double EV_NULL_STD = 6.1727405e-24;
-	const double EV_ALT_STD = 7.3143099e-18;
-	const double LPOSTERIOR_STD = -8.4392622e-07;
+	const double EV_NULL_STD = -53.4426378;
+	const double EV_ALT_STD = -39.4986378;
+	const double LPOSTERIOR_STD = -8.7942247e-07;
 	common_model_test(TSVNAME, ALPHA_PHI, BETA_PHI, PRIOR_ALT, PHI_T, THETA_T,
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
 }
@@ -160,9 +160,9 @@ BOOST_AUTO_TEST_CASE(ns_hd) {
 	const double THETA_T = COMMON_THETA;
 	const double PHI_INT_STD = 2.4968668e-15;
 	const double THETA_INT_STD = 8.2723427e-17;
-	const double EV_NULL_STD = 6.4377133e-12;
-	const double EV_ALT_STD = 7.6568799e-14;
-	const double LPOSTERIOR_STD = -4.4435626;
+	const double EV_NULL_STD = -25.8363411;
+	const double EV_ALT_STD = -30.264146;
+	const double LPOSTERIOR_STD = -4.4396749;
 	common_model_test(TSVNAME, ALPHA_PHI, BETA_PHI, PRIOR_ALT, PHI_T, THETA_T,
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
 }
@@ -176,9 +176,9 @@ BOOST_AUTO_TEST_CASE(ns_ld) {
 	const double THETA_T = COMMON_THETA;
 	const double PHI_INT_STD = 8.9650484e-11;
 	const double THETA_INT_STD = 5.3068831e-12;
-	const double EV_NULL_STD = 0.0002632;
-	const double EV_ALT_STD = 2.869548e-06;
-	const double LPOSTERIOR_STD = -4.5294511;
+	const double EV_NULL_STD = -8.2537219;
+	const double EV_ALT_STD = -12.7709305;
+	const double LPOSTERIOR_STD = -4.5280689;
 	common_model_test(TSVNAME, ALPHA_PHI, BETA_PHI, PRIOR_ALT, PHI_T, THETA_T,
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
 }

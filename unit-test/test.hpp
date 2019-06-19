@@ -6,12 +6,12 @@
 #include <cmath>
 
 #define TEST_EPS 1e-3
-#define TEST_RAT .5
+#define TEST_RAT .05
 
 // Returns the difference ratio of two values, the distance between the values divided by their mean
 // not used at the moment
 inline double diff_rat (double a, double b) {
-	return 2.0*abs(a-b)/(a+b);
+	return 2.0*abs(a-b)/abs(a+b);
 }
 
 // Differentiated tests for values smaller than the test eps
@@ -27,7 +27,7 @@ bool test_val(double got, double std) {
 		}
 		return (got/std < 10) && (got/std > .1);
 	} else {
-		return abs(got-std) < TEST_EPS;
+		return diff_rat(got, std) < TEST_RAT;
 	}
 }
 
