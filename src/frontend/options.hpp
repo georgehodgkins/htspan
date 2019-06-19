@@ -20,29 +20,29 @@ signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4,
 	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, MINZ_EPS=18, MINZ_ITER=19,
 	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, INTEGRATOR=25, ALPHA=26,
-	BETA=27, MODEL=28, HELP=29};
-const size_t total_arg_count = 30;
-	
+	BETA=27, ALTPRI=28, MODEL=29, HELP=30};
+const size_t total_arg_count = 31;
+
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
 // These arrays track arguments that apply to both commands, for printing help texts
 // common_args help will be printed before args unique to the command
 const OptionIndex common_args[] = {DAMAGE_TYPE, INT_SIM, EXT_SIM, KEEP_DUP, MIN_MAPQ, MIN_BASEQ, BAMFILE, RESFILE, REF, ALT, MODEL};
-const size_t common_arg_count = 11;
+const size_t common_arg_count = sizeof(common_args)/sizeof(OptionIndex);
 
 const OptionIndex utility_args[] = {VERBOSITY, LOGFILE, STDOUT, HELP};
-const size_t utility_arg_count = 4;
+const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 
 // These arrays track arguments that only apply to quantification, identification, and internal simulation
 // Used to report ignored arguments to the user and for printing help texts
 const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
-const size_t quant_arg_count = 2;
+const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
-const OptionIndex ident_only_args[] = {SNVFILE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER, ALPHA, BETA, INTEGRATOR};
-const size_t ident_arg_count = 8;
+const OptionIndex ident_only_args[] = {SNVFILE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER, ALPHA, BETA, INTEGRATOR, ALTPRI};
+const size_t ident_arg_count = sizeof(ident_only_args)/sizeof(OptionIndex);
 
 const OptionIndex intsim_only_args[] = {THETA_SIM, PHI_SIM, ERR_MEAN_SIM, ERR_SD_SIM};
-const size_t sim_arg_count = 4;
+const size_t sim_arg_count = sizeof(intsim_only_args)/sizeof(OptionIndex);
 
 // Main array of options passed to the parser
 // This array must stay ordered least to greatest index for help printing to work
@@ -235,7 +235,7 @@ const option::Descriptor usage[] = {
 		t_OTHER,
 		"",
 		"simulation-error-mean",
-		Arg::Positive, 
+		Arg::PositiveDouble, 
 		"--simulation-error-mean Mean to generate normally distributed read error rates\n"
 		"(anti-phred of quality scores) around during internal simulation."
 	},{
@@ -243,7 +243,7 @@ const option::Descriptor usage[] = {
 		t_OTHER,
 		"",
 		"simulation-error-stdev",
-		Arg::Positive, 
+		Arg::PositiveDouble, 
 		"--simulation-error-stdev Standard deviation of normally distributed read error rates\n"
 		"(anti-phred of quality scores) generated during internal simulation."
 	},{
@@ -267,17 +267,24 @@ const option::Descriptor usage[] = {
 		t_OTHER,
 		"",
 		"alpha",
-		Arg::Positive,
+		Arg::PositiveDouble,
 		"--alpha Alpha hyperparameter for beta distribution used in Bayesian identification."
 	},{
 		BETA,
 		t_OTHER,
 		"",
 		"beta",
-		Arg::Positive,
+		Arg::PositiveDouble,
 		"--beta Beta hyperparameter for beta distribution used in Bayesian identification."
 	},{
-		ITYPE,
+		ALTPRI,
+		t_OTHER,
+		"",
+		"alt-prior",
+		Arg::Probability,
+		"--alt-prior Prior probability of the alternative hypothesis (theta != 0) in the Bayesian identification model."
+	},{
+		MODEL,
 		t_OTHER,
 		"M",
 		"model",
