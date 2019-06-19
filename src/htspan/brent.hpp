@@ -19,6 +19,8 @@
 
 namespace math {
 
+using namespace std;
+
 double glomin ( double a, double b, double c, double m, double e, double t,
   numeric_functor& f, double &x );
 double local_min ( double a, double b, double t, numeric_functor& f,
@@ -1481,29 +1483,6 @@ double local_min ( double a, double b, double t, double f ( double x ),
 double zero ( double a, double b, double t, double f ( double x ) ){
   func_wrapper foo(f);
   return zero(a, b, t, foo);
-}
-
-// ======================================================================
-// Generally useful functor to evaluate a monic polynomial.
-// For details, see class definition in brent.hpp
-
-double monicPoly::operator()(double x){
-  double rslt(1);
-  for (int ii = coeff.size()-1; ii >= 0; ii--){
-    rslt *= x;
-    rslt += coeff[ii];
-  }
-  return rslt;
-}
-
-// Similarly, evaluate a general polynomial (not necessarily monic):
-double Poly::operator()(double x){
-  double rslt(0);
-  for (int ii = coeff.size()-1; ii >= 0; ii--){
-    rslt *= x;
-    rslt += coeff[ii];
-  }
-  return rslt;
 }
 
 } // namespace math

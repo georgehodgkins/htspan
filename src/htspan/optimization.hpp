@@ -9,6 +9,7 @@
 #include <gsl/gsl_cdf.h>
 
 #include "functor.hpp"
+#include "brent.hpp"
 
 namespace math {
 
@@ -86,9 +87,9 @@ double minimizer_base (gsl_function *f, double x_0,
 		return x_0;
 	}
 	// a hacky initial minimization algorithm that's not too expensive
-	if (improve) {
-		x_0 = improve_guess(f, x_0, minimizer_lb, minimizer_ub, 8, 4);
-	}
+	//if (improve) {
+	//	x_0 = improve_guess(f, x_0, minimizer_lb, minimizer_ub, 4, 3);
+	//}
 	double f_lb = f->function(minimizer_lb, f->params);
 	double f_ub = f->function(minimizer_ub, f->params);
 	double f_x0 = f->function(x_0, f->params);
@@ -131,26 +132,28 @@ double minimizer_base (gsl_function *f, double x_0,
 
 
 /**
-* Two wrappers for the above minimization routine,
-* which convert numeric_functors to appropriate gsl_function objects.
+* Two wrappers for the above minimization routine.
 * 
 * Argmin returns the x-value at which the function minimum occurs (+/- eps).
 * Argmax returns the x-value at which the fucntion maximum occurs (+/- eps).
-*
-* See the caveats on minimizer_base above for important details about functionality.
+* 
 */
-double argmin (numeric_functor &func, double x_0,
+double argmin (numeric_functor &f, double x_0,
 		const double minimizer_lb, const double minimizer_ub, const double max_minimizer_iter, const double epsabs) {
-	// Calls standard (non-negative) functor conversion method 
-	gsl_function f = func.to_gsl_function();
-	return minimizer_base(&f, x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+	double x_min;
+	// x_min is passed by reference ans set to the argmin
+	local_min(minimizer_lb, minimizer_ub, epsabs, f, x_min);
+	return x_min;
 }
 
-double argmax (numeric_functor &func, double x_0,
+double argmax (numeric_functor &f, double x_0,
 		const double minimizer_lb, const double minimizer_ub, const double max_minimizer_iter, const double epsabs) {
-	// Calls negated functor conversion method (minimizing the negative is maximization)
-	gsl_function f = func.to_neg_gsl_function();
-	return minimizer_base(&f, x_0, minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+	// Constructs a negated functor around the passed functor
+	negated_functor nf (f);
+	double x_min;
+	// x_min is passed by reference and set to the argmin of the negative, aka the argmax
+	local_min(minimizer_lb, minimizer_ub, epsabs, nf, x_min);
+	return x_min;
 }
 
 } // namespace hts

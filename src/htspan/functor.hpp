@@ -40,7 +40,17 @@ struct numeric_functor {
 		f.params = (void*) this;
 		return f;
 	}
+};
 
+// constructs a functor which returns the negative of the functor passed to it as a parameter
+struct negated_functor : public numeric_functor {
+	numeric_functor &f;
+
+	negated_functor (numeric_functor &func) : f(func) {}
+
+	double operator() (double x) {
+		return - f(x);
+	}
 };
 
 /**
