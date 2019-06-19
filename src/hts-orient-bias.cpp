@@ -5,8 +5,8 @@
 
 #include "frontend/options.hpp"
 #include "frontend/print-help.hpp"
-#include "frontend/hts-orient-bias-filter.hpp"
-#include "frontend/hts-orient-bias-quant.hpp"
+#include "frontend/orient-bias-identify.hpp"
+#include "frontend/orient-bias-quantify.hpp"
 #include "frontend/optionparser.hpp"
 #include "frontend/cstring.hpp"
 
@@ -14,9 +14,7 @@
 #include "htspan/fetcher.hpp"
 #include "htspan/piler.hpp"
 #include "htspan/print.hpp"
-#include "htspan/orient_bias_quant.hpp"
-#include "htspan/orient_bias_filter.hpp"
-
+#include "htspan/de_integrator.hpp"
 
 #include "htspan/io/faidx_reader.hpp"
 #include "htspan/io/snv.hpp"
@@ -28,6 +26,13 @@ using namespace hts::frontend;
 // TODO Eliminate string/cstr juggling
 
 int main (int argc, char** argv) {
+	// used for clarity when setting model and integrator options
+	enum ModelType {BAYES, FREQ};
+	enum IntgrType {THSH, MIDPOINT};
+
+	//
+	// Process input arguments
+	// 
 	std::cerr << '\n' << std::endl;
 	if (argc <= 1) { // i.e. no arguments given
 		print_help(NULL);
@@ -66,7 +71,7 @@ int main (int argc, char** argv) {
 	} else if (!quantifying && !identifying) {
 		std::cerr << "\'" << command << "\' is not a recognized command.\n\n";
 	}
-	// Convert options to runtime vars
+	// Convert parsed options to runtime vars
 	// Note that all arg checking is handled by the parser,
 	// so any args here are assumed valid
 
@@ -140,7 +145,8 @@ int main (int argc, char** argv) {
 			"A variant type must be specified either with the -t/--damage-type flag or using the -R and -A flags.\n";
 			success = false;
 	}
-	// Simulation and operation flags
+
+	// Simulation flags
 	bool internal_sim = (bool) options[INT_SIM];
 	bool external_sim = (bool) options[EXT_SIM];
 	std::string ext_sim_fname;
@@ -164,6 +170,23 @@ int main (int argc, char** argv) {
 	std::string snv_fname;
 	if (options[SNVFILE]) {
 		snv_fname = options[SNVFILE].arg;
+	}
+
+	// get statistical model (default is bayes)
+	// 0 = bayes, 1 = freq
+	ModelType model = BAYES;
+	if(options[MODEL]) {
+		if (strcmpi(options[MODEL].arg, "freq") == 0) {
+			model = FREQ;
+		}
+	}
+	
+	// get integrator (default is tanhsinh)
+	IntgrType integrator = THSH;
+	if (options[INTEGRATOR]) {
+		if (strcmpi(options[INTEGRATOR].arg, "midpoint") == 0) {
+			integrator = MIDPOINT;
+		}
 	}
 
 	// argument checks for specific commands
@@ -196,12 +219,40 @@ int main (int argc, char** argv) {
 	}
 
 	// Numeric parameter flags
-	double phi = 0.01;
-	if (options[PHI]) {
-		phi = strtod(options[PHI].arg, NULL);
-	} else {
-		global_log.v(1) <<
-			"Warning: no estimate of phi was supplied. Default value of .01 will be used.\n";
+	double phi = .01;
+	double alpha = .1;
+	double beta = .1;
+	double prior_alt = .5;
+	if (model == BAYES) {
+		// alpha hyperparameter
+		if (options[ALPHA]) {
+			alpha = strtod(options[ALPHA].arg, NULL);
+		} else {
+			global_log.v(1) <<
+				"Warning: no estimate of alpha was supplied. Default value of .1 will be used.\n";
+		}
+		// beta hyperparameter
+		if (options[BETA]) {
+			beta = strtod(options[BETA].arg, NULL);
+		} else {
+			global_log.v(1) <<
+				"Warning: no estimate of beta was supplied. Default value of .1 will be used.\n";
+		}
+		// alt prior prob
+		if (options[ALTPRI]) {
+			prior_alt = strtod(options[ALTPRI].arg, NULL);
+		} else {
+			global_log.v(1) <<
+				"Warning: no estimate of beta was supplied. Default value of .1 will be used.\n";
+		}
+	} else if (model == FREQ) {
+		// phi estimate
+		if (options[PHI]) {
+			phi = strtod(options[PHI].arg, NULL);
+		} else {
+			global_log.v(1) <<
+				"Warning: no alternative prior probability was supplied. Default value of .5 will be used.\n";
+		}
 	}
 	int min_mapq = 5;
 	if (options[MIN_MAPQ]) {
@@ -298,16 +349,24 @@ int main (int argc, char** argv) {
 	// Damage identification block
 	// 
 	if (identifying) {
-		if (internal_sim) { // TODO: output for simulation
-			orient_bias_filter_f obfilter(alt, ref, 0);
-			obfilter.simulate(theta_sim, phi_sim, err_mean_sim, err_sd_sim);
+		if (internal_sim) { // TODO: move simulation calls to intermediate file
+			//orient_bias_filter_f obfilter(alt, ref, 0);
+			//obfilter.simulate(theta_sim, phi_sim, err_mean_sim, err_sd_sim);
 		} else if (external_sim) {
-			orient_bias_filter_f obfilter(alt, ref, 0,
-				-1*minz_bound, minz_bound, minz_eps, minz_iter);// change count param when param options are added
-			obfilter.read(ext_sim_fname.c_str());
+			//orient_bias_filter_f obfilter(alt, ref, 0,
+			//	-1*minz_bound, minz_bound, minz_eps, minz_iter);// change count param when param options are added
+			//obfilter.read(ext_sim_fname.c_str());
 		} else {
 			global_log.v(1) << "Starting identification...\n";
-			success = orient_bias_filter(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
+			if (model == BAYES) {
+				if (integrator == THSH) {
+					success = orient_bias_identify_bayes<math::tanh_sinh<math::numeric_functor> >(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+				} else if (integrator == MIDPOINT) {
+					success = orient_bias_identify_bayes<math::midpoint>(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+				}
+			} else if (model == FREQ) {
+				success = orient_bias_identify_freq(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
+			}
 			if (!success) {
 				global_log.v(1) << "Identification process failed.";
 				return 1;

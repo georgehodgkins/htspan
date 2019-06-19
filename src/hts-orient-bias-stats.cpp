@@ -9,20 +9,21 @@ using namespace std;
 #include <htslib/sam.h>
 
 #include "htspan/fetcher.hpp"
-#include "htspan/orient_bias_filter.hpp"
+#include "htspan/freq_orient_bias_filter.hpp"
+#include "htspan/orient_bias_data.hpp"
 using namespace hts;
 
-void print_orient_bias_filter(const orient_bias_filter_f& obfilter) {
+void print_orient_bias_data(const orient_bias_data& data) {
 	cout << "base\torient\terror\tcnuc\tmember\tstrand\tqual" << endl;
-	for (size_t i = 0; i < obfilter.size(); ++i) {
+	for (size_t i = 0; i < data.size(); ++i) {
 		cout
-			<< (int) obfilter.bases[i] << '\t'
-			<< obfilter.orients[i] << '\t'
-			<< obfilter.errors[i] << '\t'
-			<< obfilter.cnucs[i] << '\t'
-			<< obfilter.members[i] << '\t'
-			<< obfilter.strands[i] << '\t'
-			<< obfilter.quals[i] << endl;
+			<< (int) data.bases[i] << '\t'
+			<< data.orients[i] << '\t'
+			<< data.errors[i] << '\t'
+			<< data.cnucs[i] << '\t'
+			<< data.members[i] << '\t'
+			<< data.strands[i] << '\t'
+			<< data.quals[i] << endl;
 	}
 }
 
@@ -66,15 +67,17 @@ int main(int argc, char** argv) {
 	int32_t rid = bam_name2id(f.hdr, target);
 	f.fetch(rid, pos);
 
+	// process fetched data
+	orient_bias_data data(nuc_G, nuc_T, f.pile.queries.size());
+	data.push(f.pile.queries, pos, nt_ref, nt_alt);
+
 	// test for oxoG damage (G>T on read 1 or C>A on read 2)
-	orient_bias_filter_f obfilter(nuc_G, nuc_T, f.pile.queries.size());
-	obfilter.push(f.pile.queries, pos, nt_ref, nt_alt);
-
+	freq_orient_bias_filter_f fobfilter(data);
 	cout << "# Variant test adjusted for oxoG damage" << endl;
-	cout << "# theta_hat = " << obfilter.estimate_theta_given(phi, obfilter.estimate_initial_theta()) << endl;
-	cout << "# p = " << obfilter(phi) << endl;
+	cout << "# theta_hat = " << fobfilter.estimate_theta_given(phi, fobfilter.estimate_initial_theta()) << endl;
+	cout << "# p = " << fobfilter(phi) << endl;
 
-	print_orient_bias_filter(obfilter);
+	print_orient_bias_data(data);
 
 	return 0;
 }
