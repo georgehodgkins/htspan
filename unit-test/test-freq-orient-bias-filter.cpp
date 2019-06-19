@@ -1,14 +1,14 @@
-#define BOOST_TEST_MODULE orient_bias_filter_module
+#define BOOST_TEST_MODULE freq_orient_bias_filter_test
 #define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
-
-#define TEST_EPS 1e-3
 
 #include <cmath>
 
 #include "htspan/freq_orient_bias_filter.hpp"
 #include "htspan/io/snv.hpp"
 #include "htspan/nucleotide.hpp"
+
+#include "test.hpp"
 
 void common_filter_math_test (const char TSVNAME[], const double THETA_0, const double PHI_0,
 		const double THETA_F_STD, const double PVAL_F_STD,
@@ -22,32 +22,36 @@ void common_filter_math_test (const char TSVNAME[], const double THETA_0, const 
 	hts::freq_orient_bias_filter_f fobfilter (data);
 	// fixed phi cases
 	double theta_fixed_phi = fobfilter.estimate_theta_given(PHI_0, THETA_0);
-	BOOST_CHECK_MESSAGE(abs(theta_fixed_phi - THETA_F_STD) < TEST_EPS, 
+	// pass this test if minimizer outperforms the R minimizer
+	BOOST_CHECK_MESSAGE(test_val(theta_fixed_phi, THETA_F_STD) || 
+		(-fobfilter.lp_bases_given(theta_fixed_phi, PHI_0) < -fobfilter.lp_bases_given(THETA_F_STD, PHI_0)), 
 		"Theta estimate for fixed phi: got:" << theta_fixed_phi << ", expected: " << THETA_F_STD << "\n"
 		<< "Objective f(got_theta, phi_0): " << -fobfilter.lp_bases_given(theta_fixed_phi, PHI_0) <<
 		", f(exp_theta, phi_0): " << -fobfilter.lp_bases_given(THETA_F_STD, PHI_0));
 	BOOST_TEST_CHECKPOINT("Calculating p-val for fixed phi case");
 	double pval_fixed_phi = fobfilter(PHI_0);
-	BOOST_CHECK_MESSAGE(abs(pval_fixed_phi - PVAL_F_STD) < TEST_EPS, 
+	BOOST_CHECK_MESSAGE(test_val(pval_fixed_phi, PVAL_F_STD), 
 		"P-val for fixed phi: got:" << pval_fixed_phi << ", expected: " << PVAL_F_STD);
 	// unknown phi cases
 	BOOST_TEST_CHECKPOINT("Estimating theta and phi with unknown phi");
 	hts::theta_and_phi unk_phi = fobfilter.estimate_theta_phi(THETA_0, PHI_0);
-	BOOST_CHECK_MESSAGE(abs(unk_phi.theta - THETA_CA_STD) < TEST_EPS,
+	BOOST_CHECK_MESSAGE(test_val(unk_phi.theta, THETA_CA_STD),
 		"Theta estimate with unknown phi: got:" << unk_phi.theta << ", expected: " << THETA_CA_STD);
-	BOOST_CHECK_MESSAGE(abs(unk_phi.phi - PHI_CA_STD) < TEST_EPS,
+	BOOST_CHECK_MESSAGE(test_val(unk_phi.phi, PHI_CA_STD),
 		"Phi estimate with unknown phi: got:" << unk_phi.phi << ", expected: " << PHI_CA_STD);
-	BOOST_CHECK_MESSAGE((abs(unk_phi.theta - THETA_CA_STD) < TEST_EPS) && (abs(unk_phi.phi - PHI_CA_STD) < TEST_EPS),
+	// pass the test if the minimizer outperforms the R minimizer
+	BOOST_CHECK_MESSAGE((test_val(unk_phi.theta, THETA_CA_STD) && test_val(unk_phi.phi, PHI_CA_STD)) || 
+		-fobfilter.lp_bases_given(unk_phi.theta, unk_phi.phi) < -fobfilter.lp_bases_given(THETA_CA_STD, PHI_CA_STD),
 		"For unknown phi: Objective f(got_theta, got_phi): " << -fobfilter.lp_bases_given(unk_phi.theta, unk_phi.phi) <<
 		", f(exp_theta, exp_phi): " << -fobfilter.lp_bases_given(THETA_CA_STD, PHI_CA_STD));
 	BOOST_TEST_CHECKPOINT("Calculating p-val with unknown phi estimation");
 	double pval_coord_ascent = fobfilter(PHI_0, false);
-	BOOST_CHECK_MESSAGE(abs(pval_coord_ascent - PVAL_CA_STD) < TEST_EPS, 
-		"P-val with unknown phi: got:" << pval_coord_ascent << ", expected: " << PVAL_CA_STD);
+	BOOST_CHECK_MESSAGE(test_val(pval_coord_ascent, PVAL_CA_STD), 
+		"P-val for unknown phi: got:" << pval_coord_ascent << ", expected: " << PVAL_CA_STD);
 }
 
 
-BOOST_AUTO_TEST_SUITE(freq_orient_bias_filter)
+BOOST_AUTO_TEST_SUITE(test)
 
 BOOST_AUTO_TEST_CASE (stat_reader) {
 	const char TSVNAME[] = "../sim-data/obrs_low-signal_high-damage_data.tsv";

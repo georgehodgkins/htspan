@@ -1,13 +1,13 @@
-#define BOOST_TEST_MODULE orient_bias_quant_module
+#define BOOST_TEST_MODULE orient_bias_quant_test
 #define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
-
-#define TEST_EPS 1e-3
 
 #include <cmath>
 
 #include "../htspan/nucleotide.hpp"
 #include "../htspan/orient_bias_quant.hpp"
+
+#include "test.hpp"
 
 void common_obquant_operator_test(const int SET_XC, const int SET_NC, const int SET_XI, const int SET_NI,
 		const double PHI_STD) {
@@ -17,11 +17,11 @@ void common_obquant_operator_test(const int SET_XC, const int SET_NC, const int 
 	obquant.xi = SET_XI;
 	obquant.ni = SET_NI;
 	double result = obquant();
-	BOOST_CHECK_MESSAGE(abs(result - PHI_STD) < TEST_EPS,
+	BOOST_CHECK_MESSAGE(test_val(result, PHI_STD),
 		"Phi estimate for quantification: got: " << result << ", expected: " << PHI_STD);
 }
 
-BOOST_AUTO_TEST_SUITE (orient_bias_quant)
+BOOST_AUTO_TEST_SUITE (test)
 
 BOOST_AUTO_TEST_CASE (operator_only_1) {
 	const int SET_XC = 5;
