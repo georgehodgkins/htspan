@@ -4,6 +4,7 @@
 
 #include "optionparser.hpp"
 #include "options.hpp"
+#include "cstring.hpp"
 
 namespace hts {
 
@@ -12,9 +13,8 @@ namespace frontend {
 using namespace option;
 
 /**
-* Print the help text of a given descriptor.
-* Needed because the one that comes with the parser
-* requires everything to be const.
+* Print the help text of a given Descriptor,
+* with word wrapping and indentation.
 *
 * @param descr The Descriptor to print
 * @param prn The ostream to print to
@@ -23,17 +23,39 @@ using namespace option;
 */
 void print_descr_usage(const Descriptor descr, std::ostream& prn, int width = 80) {
 	int wctr = 0;
+	bool tab_in = false;
 	for (size_t n = 0; n < strlen(descr.help); ++n) {
-		if (wctr == width) {
-			prn << std::endl;
+		// CR tells us to feed a newline and tab in all subsequent lines
+		if (descr.help[n] == '\r') {
+			tab_in = true;
 			wctr = 0;
+			prn << "\n\t";
 		} else if (descr.help[n] == '\n') {
-			wctr = -1;
+			wctr = 0;
+			prn << '\n';
+			if (tab_in) {
+				prn << '\t';
+			}
+		// whole-word wrapping: wraps if the next word (series of chars until a space or string end)
+		// is longer than the remaining width in this row
+		} else if (descr.help[n] == ' ') {// space, 0x20 
+			const char *next_space = strchr(&descr.help[n+1], ' ');
+			if ((next_space == NULL && strlen(&descr.help[n+1]) > (width - wctr)) ||
+			(next_space > &descr.help[n + (width - wctr)])) {
+				wctr = 0;
+				prn << '\n';
+				if (tab_in) {
+					prn << '\t';
+				}
+			} else {
+				prn << ' ';
+			}
+		} else {
+			prn << descr.help[n];
+			++wctr;
 		}
-		prn << descr.help[n];
-		++wctr;
 	}
-	prn << std::endl;
+	prn << "\n\n";
 }
 
 /**
@@ -50,13 +72,13 @@ void print_descr_usage(const Descriptor descr, std::ostream& prn, int width = 80
 void print_selected_usages(const Descriptor full_usage[], size_t n_full, const OptionIndex selection[], const size_t n_sel, std::ostream& prn = std::cerr) {
 	for (size_t x = 0; x < n_sel; ++x) {
 		signed int i = selection[x];//must be signed so that lower bound checking works
-		// search for the correct option if it is not right at its index
+		// search for the correct option if it is not right at its index in the usage array
 		// only works if usage array is sorted
-		if (full_usage[selection[x]].index > selection[x]) {
+		if (full_usage[i].index > selection[x]) {
 			while (full_usage[i].index != selection[x] && i >= 0) {
 				--i;
 			}
-		} else if (full_usage[selection[x]].index < selection[x]) {
+		} else if (full_usage[i].index < selection[x]) {
 			while (full_usage[i].index != selection[x] && i < n_full) {
 				++i;
 			}
@@ -66,21 +88,23 @@ void print_selected_usages(const Descriptor full_usage[], size_t n_full, const O
 		}
 		print_descr_usage(full_usage[i], prn);
 	}
-	prn << std::endl; // print an extra line after the full usage block
+}
+
+void print_help_info () {
+	std::cerr <<
+	"\nhtspan orient-bias: Corrects errors in high-throughput sequencing data.\n" <<
+	"Values in [brackets] are defaults.\n\n";
 }
 
 void print_general_usage() {
+	print_help_info();
 	std::cerr << 
-		"htspan: Corrects errors in high-throughput sequencing data.\n" <<
-		"Help format: -f --flag usage [default]\n" <<
-		"more usage\n\n" <<
-
 		"Commands:\n" <<
 		"quantify - Calculate an estimate of global damage in the given BAM file.\n" <<
 		"identify - Examine each SNV in the given snv file and provide a likelihood of damage.\n\n" <<
 
-		"Use --help [command] for details on use or\n" <<
-		"--help utility for information on options relating to logging, debugging, and output.\n";
+		"Use --help [command] for details on use or --help utility\n" <<
+		"for information on options relating to logging, debugging, and output.\n";
 	std::cerr.flush();
 }
 
@@ -90,10 +114,9 @@ void print_general_usage() {
 * Print the usage information for the 'quantify' command.
 */
 void print_quant_usage() {
-	std::cerr << "\nQuantification help:\n" <<
-		"Common flags:\n";
+	print_help_info();
+	std::cerr << "Quantification help:\n\n";
 	print_selected_usages (usage, total_arg_count, common_args, common_arg_count);
-	std::cerr << "Quantification-specific flags:\n";
 	print_selected_usages (usage, total_arg_count, quant_only_args, quant_arg_count);
 }
 
@@ -101,17 +124,17 @@ void print_quant_usage() {
 * Print the usage information for the 'identify' command.
 */
 void print_ident_usage() {
-	std::cerr << "\nIdentification help:\n" << 
-		"Common flags:\n";
+	print_help_info();
+	std::cerr << "\nIdentification help:\n";
 	print_selected_usages (usage, total_arg_count, common_args, common_arg_count);
-	std::cerr << "Identification-specific flags:\n";
-	print_selected_usages (usage, total_arg_count, quant_only_args, quant_arg_count);
+	print_selected_usages (usage, total_arg_count, ident_only_args, ident_arg_count);
 }
 
 /**
 * Print the usage information for misc utility commands.
 */
 void print_utility_usage() {
+	print_help_info();
 	std::cerr << "Utilty flags:\n";
 	print_selected_usages (usage, total_arg_count, utility_args, utility_arg_count);
 }
@@ -122,11 +145,11 @@ void print_utility_usage() {
 void print_help (const char* arg) {
 	if (arg == NULL) {
 		print_general_usage();
-	} else if (strcmp(arg, "quantify") == 0) {
+	} else if (strcmpi(arg, "quantify") == 0) {
 		print_quant_usage();
-	} else if (strcmp(arg, "identify") == 0) {
+	} else if (strcmpi(arg, "identify") == 0) {
 		print_ident_usage();
-	} else if (strcmp(arg, "utility") == 0) {
+	} else if (strcmpi(arg, "utility") == 0) {
 		print_utility_usage();
 	} else {
 		if (strlen(arg) > 0) {

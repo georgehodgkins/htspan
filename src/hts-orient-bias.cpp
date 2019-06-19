@@ -32,7 +32,6 @@ int main (int argc, char** argv) {
 	//
 	// Process input arguments
 	// 
-	std::cerr << '\n' << std::endl;
 	if (argc <= 1) { // i.e. no arguments given
 		print_help(NULL);
 		return 1;
@@ -53,6 +52,10 @@ int main (int argc, char** argv) {
 		// skip command
 		argv++;
 		argc--;
+	} else if (strcmpi(command, "--help") == 0 ||
+			strcmpi(command, "-?") == 0) {
+		print_help(argv[1]);
+		return 0;
 	}
 	// parse options according to definitions in options.hpp
 	option::Stats stats(usage, argc, argv);
@@ -69,6 +72,8 @@ int main (int argc, char** argv) {
 		return 0;
 	} else if (!quantifying && !identifying) {
 		std::cerr << "\'" << command << "\' is not a recognized command.\n\n";
+		print_help(NULL);
+		return 1;
 	}
 	// Convert parsed options to runtime vars
 	// Note that all arg checking is handled by the parser,
