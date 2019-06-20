@@ -21,6 +21,29 @@ namespace math {
 
 using namespace std;
 
+/**
+* Two wrappers for the minimization routine below.
+* 
+* Argmin returns the x-value at which the function minimum occurs (+/- eps).
+* Argmax returns the x-value at which the fucntion maximum occurs (+/- eps).
+* 
+*/
+double argmin (numeric_functor &f, const double minimizer_lb, const double minimizer_ub, const double epsabs) {
+  double x_min;
+  // x_min is passed by reference and set to the argmin
+  local_min(minimizer_lb, minimizer_ub, epsabs, f, x_min);
+  return x_min;
+}
+
+double argmax (numeric_functor &f, const double minimizer_lb, const double minimizer_ub, const double epsabs) {
+  // Constructs a negated functor around the passed functor
+  negated_functor nf (f);
+  double x_min;
+  // x_min is passed by reference and set to the argmin of the negative, aka the argmax
+  local_min(minimizer_lb, minimizer_ub, epsabs, nf, x_min);
+  return x_min;
+}
+
 double glomin ( double a, double b, double c, double m, double e, double t,
   numeric_functor& f, double &x );
 double local_min ( double a, double b, double t, numeric_functor& f,
