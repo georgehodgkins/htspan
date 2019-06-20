@@ -189,17 +189,29 @@ struct Arg: public option::Arg {
 			return ARG_ILLEGAL;
 		}
 	}
+	
+	/**
+	* Check that a string argument matches one of a list of options.
+	*/
+	static ArgStatus MatchingString (const Option& opt, bool msg, const char* str[], const size_t n_str) {
+		for (int n = 0; n < n_str; ++n) {
+			if (strcmpi(opt.arg, str[n]) == 0) {
+				return ARG_OK;
+			}
+		}
+		// if we reach this point arg did not match any valid strings
+		if (msg) {
+			std::cerr << "Argument to " << opt.name << " must match one of the following:\n";
+			for (int n = 0; n < n_str-1; ++n) {
+				std::cerr << "\'" << str[n] << "\', ";
+			}
+			std::cerr << "\'" << str[n_str-1] << "\'.\n";
+		}
+	}
 
 	static ArgStatus DamageType (const Option& opt, bool msg) {
-		if (strcmpi(opt.arg, "ffpe") == 0 ||
-			strcmpi(opt.arg, "oxog") == 0) {
-			return ARG_OK;
-		} else {
-			if (msg) {
-				std::cerr << "Argument to " << opt.name << " must be either \'ffpe\' or \'oxog\'.";
-			}
-			return ARG_ILLEGAL;
-		}
+		const char* str[] = {"ffpe", "oxog"};
+		return MatchingString(opt, msg, str, 2);
 	} 
 
 	static ArgStatus ExternalSim (const Option& opt, bool msg) {
@@ -283,14 +295,8 @@ struct Arg: public option::Arg {
 	}
 
 	static ArgStatus Model (const Option& opt, bool msg) {
-		if (strcmpi(opt.arg, "freq") ||
-				strcmpi(opt.arg, "bayes")) {
-			return ARG_OK;
-		}
-		if (msg) {
-			std::cerr << "Argument to " << opt.name << "must be either \'freq\' or \'bayes\'.";
-		}
-		return ARG_ILLEGAL;
+		const char* str[] = {"bayes", "freq"};
+		return MatchingString(opt, msg, str, 2);
 	}
 
 	static ArgStatus ReferenceFile (const Option& opt, bool msg) {
