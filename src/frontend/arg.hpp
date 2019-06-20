@@ -219,12 +219,12 @@ struct Arg: public option::Arg {
 
 	static ArgStatus DamageType (const Option& opt, bool msg) {
 		const char* str[] = {"ffpe", "oxog"};
-		return MatchingString(opt, msg, str, 2);
+		return MatchingString(opt, msg, str, sizeof(str)/sizeof(char*));
 	} 
 
 	static ArgStatus ExternalSim (const Option& opt, bool msg) {
 		const char* xtns[] = {"tsv"};
-		return InputFile(opt, msg, xtns, 1);
+		return InputFile(opt, msg, xtns, sizeof(xtns)/sizeof(char*));
 	}
 
 	static ArgStatus Verbosity (const Option& opt, bool msg) {
@@ -235,7 +235,7 @@ struct Arg: public option::Arg {
 	static ArgStatus AlignmentFile (const Option& opt, bool msg, bool try_open = true) {
 		// normal file and extension checks
 		const char* xtns[] = {"bam"};
-		ArgStatus rtn = InputFile(opt, msg, xtns, 1);
+		ArgStatus rtn = InputFile(opt, msg, xtns, sizeof(xtns)/sizeof(char*));
 		if (rtn != ARG_OK) {
 			return rtn;
 		}
@@ -304,17 +304,17 @@ struct Arg: public option::Arg {
 
 	static ArgStatus Model (const Option& opt, bool msg) {
 		const char* str[] = {"bayes", "freq"};
-		return MatchingString(opt, msg, str, 2);
+		return MatchingString(opt, msg, str, sizeof(str)/sizeof(char*));
 	}
 
 	static ArgStatus ReferenceFile (const Option& opt, bool msg) {
 		const char* xtns[] = {"fasta", "fa"};
-		return InputFile(opt, msg, xtns, 2);
+		return InputFile(opt, msg, xtns, sizeof(xtns)/sizeof(char*));
 	}
 
 	static ArgStatus SnvFile (const Option& opt, bool msg) {
 		const char* xtns[] = {"tsv", "snv"};
-		return InputFile(opt, msg, xtns, 2);
+		return InputFile(opt, msg, xtns, sizeof(xtns)/sizeof(char*));
 	}
 
 	static ArgStatus Probability (const Option& opt, bool msg) {
@@ -351,7 +351,7 @@ struct Arg: public option::Arg {
 
 	static ArgStatus SnvFType (const Option& opt, bool msg) {
 		const char* str[] = {"tsv", "vcf", "bcf"};
-		return MatchingString(opt, msg, str, 3);
+		return MatchingString(opt, msg, str, sizeof(str)/sizeof(char*));
 	}
 
 };// struct Arg
