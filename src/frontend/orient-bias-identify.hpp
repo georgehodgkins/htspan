@@ -106,13 +106,12 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, con
 		if ((rec.nt_ref == ref && rec.nt_alt == alt) ||
 				(rec.nt_ref == nuc_complement(ref) && rec.nt_alt == nuc_complement(alt))) {
 			// fetch reads at target position
-			int32_t rid = bam_name_to_id(f.hdr, rec.chrom);
-			if (rid == -1) {
+			if (rec.rid == -1) {
 				frontend::global_log.v(1) << "Warning: could not find " << rec.chrom << '\n';
 				continue;
 			}
 
-			if (!f.fetch(rid, rec.pos)) {
+			if (!f.fetch(rec.rid, rec.pos)) {
 				frontend::global_log.v(1) << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << '\n';
 				continue;
 			}
