@@ -21,7 +21,7 @@ void common_filter_math_test (const char TSVNAME[], const double THETA_0, const 
 	BOOST_TEST_CHECKPOINT("Estimating theta for fixed phi case");
 	hts::freq_orient_bias_filter_f fobfilter (data);
 	// fixed phi cases
-	double theta_fixed_phi = fobfilter.estimate_theta_given(PHI_0, THETA_0);
+	double theta_fixed_phi = fobfilter.estimate_theta_given(PHI_0);
 	// pass this test if minimizer outperforms the R minimizer
 	BOOST_CHECK_MESSAGE(test_val(theta_fixed_phi, THETA_F_STD) || 
 		(-fobfilter.lp_bases_given(theta_fixed_phi, PHI_0) < -fobfilter.lp_bases_given(THETA_F_STD, PHI_0)), 

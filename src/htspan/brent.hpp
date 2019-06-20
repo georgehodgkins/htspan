@@ -21,8 +21,21 @@ namespace math {
 
 using namespace std;
 
+double glomin ( double a, double b, double c, double m, double e, double t,
+  numeric_functor& f, double &x );
+double local_min ( double a, double b, double t, numeric_functor& f,
+  double &x );
+double local_min_rc ( double &a, double &b, int &status, double value );
+double r8_epsilon ( );
+double r8_max ( double x, double y );
+double r8_sign ( double x );
+void timestamp ( );
+double zero ( double a, double b, double t, numeric_functor& f );
+void zero_rc ( double a, double b, double t, double &arg, int &status,
+  double value );
+
 /**
-* Two wrappers for the minimization routine below.
+* Two wrappers for the minimization routine declared above.
 * 
 * Argmin returns the x-value at which the function minimum occurs (+/- eps).
 * Argmax returns the x-value at which the fucntion maximum occurs (+/- eps).
@@ -43,19 +56,6 @@ double argmax (numeric_functor &f, const double minimizer_lb, const double minim
   local_min(minimizer_lb, minimizer_ub, epsabs, nf, x_min);
   return x_min;
 }
-
-double glomin ( double a, double b, double c, double m, double e, double t,
-  numeric_functor& f, double &x );
-double local_min ( double a, double b, double t, numeric_functor& f,
-  double &x );
-double local_min_rc ( double &a, double &b, int &status, double value );
-double r8_epsilon ( );
-double r8_max ( double x, double y );
-double r8_sign ( double x );
-void timestamp ( );
-double zero ( double a, double b, double t, numeric_functor& f );
-void zero_rc ( double a, double b, double t, double &arg, int &status,
-  double value );
 
 // === simple wrapper functions
 // === for convenience and/or compatibility

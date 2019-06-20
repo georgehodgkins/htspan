@@ -43,8 +43,8 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 
 	// pass through extra parameters to the base class
 	bayes_orient_bias_filter_f (orient_bias_data &dref, 
-		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
-		: base_orient_bias_filter_f(dref, lb, ub, eps, max_iter),
+		double lb = -15.0, double ub = 15.0, double eps = 1e-6)
+		: base_orient_bias_filter_f(dref, lb, ub, eps),
 			alpha_phi(0.0),
 			beta_phi(0.0)
 	{

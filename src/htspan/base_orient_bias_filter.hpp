@@ -10,7 +10,7 @@
 #include "math.hpp"
 #include "orient_bias_data.hpp"
 #include "functor.hpp"
-#include "optimization.hpp"
+#include "brent.hpp"
 
 namespace hts {
 
@@ -46,17 +46,14 @@ struct base_orient_bias_filter_f {
 	const double minimizer_lb;//default -15.0
 	const double minimizer_ub;//default 15.0
 	//maximum error threshold for estimation (and integration in Bayesian method)
-	const double epsabs;//default .001
-	//maximum number of iterations for estimation
-	const size_t max_minimizer_iter;//default 100
+	const double epsabs;//default 1e-6
 
 	base_orient_bias_filter_f(const orient_bias_data &dref,
 		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
 	: data(dref),	
 		minimizer_lb(lb),
 		minimizer_ub(ub),
-		epsabs(eps),
-		max_minimizer_iter(max_iter)
+		epsabs(eps)
 	{
 	}
 
@@ -147,10 +144,10 @@ struct base_orient_bias_filter_f {
 	 * Find value of theta that maximizes the log probability of observed bases,
 	 * given a value of phi.
 	 */
-	double estimate_theta_given(double phi, double theta_0) {
+	double estimate_theta_given(double phi) {
 		nlp_bases_given_theta_f f (*this, phi);
-		//call common minimization code (converting the guess into log space, and the result back)
-		double lmin_theta = math::argmin(f, logit(theta_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+		//call common minimization code
+		double lmin_theta = math::argmin(f, minimizer_lb, minimizer_ub, epsabs);
 		return logistic(lmin_theta);
 	}
 	
@@ -158,11 +155,11 @@ struct base_orient_bias_filter_f {
 	* Find value of phi that maximizes the log probability of observed bases,
 	* given a value of theta.
 	*/
-	double estimate_phi_given(double theta, double phi_0) {
+	double estimate_phi_given(double theta) {
 		// instantiate functor of objective function to minimize
 		nlp_bases_given_phi_f f (*this, theta);
-		// call common minimization code (converting the guess into log space, and the result back)
-		double lmin_phi = math::argmin(f, logit(phi_0), minimizer_lb, minimizer_ub, max_minimizer_iter, epsabs);
+		// call common minimization code
+		double lmin_phi = math::argmin(f, minimizer_lb, minimizer_ub, epsabs);
 		return logistic(lmin_phi);
 	}
 
