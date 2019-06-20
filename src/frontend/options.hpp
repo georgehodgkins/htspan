@@ -17,9 +17,9 @@ namespace frontend {
 // They are signed so the print_selected_usages function in print-help.hpp works correctly
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, SNVFILE=10, PHI=11, STDOUT=12,
-	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, MINZ_EPS=18, MINZ_ITER=19,
-	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, ALPHA=25, BETA=26,
-	ALTPRI=27, MODEL=28, SNVFTYPE=29, HELP=30};
+	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, EPS=18,
+	THETA_SIM=19, PHI_SIM=20, ERR_MEAN_SIM=21, ERR_SD_SIM=22, DAMAGE_TYPE=23, ALPHA=24, BETA=25,
+	ALTPRI=26, MODEL=27, SNVFTYPE=28, HELP=29};
 
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
@@ -36,7 +36,7 @@ const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
-const OptionIndex ident_only_args[] = {SNVFILE, SNVFTYPE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER, ALPHA, BETA, ALTPRI};
+const OptionIndex ident_only_args[] = {SNVFILE, SNVFTYPE, PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI};
 const size_t ident_arg_count = sizeof(ident_only_args)/sizeof(OptionIndex);
 
 const OptionIndex intsim_only_args[] = {THETA_SIM, PHI_SIM, ERR_MEAN_SIM, ERR_SD_SIM};
@@ -201,19 +201,12 @@ const option::Descriptor usage[] = {
 		"--minimizer-bound [15]\rMagnitude (log space) of the symmetrical domain to minimize in during damage identification. "
 		"i.e. for the default arg the minimizer will search from xval 10^-15 to 10^15 in real space."
 	},{
-		MINZ_EPS,
+		EPS,
 		t_OTHER,
-		"",
-		"minimizer-tolerance",
-		Arg::MinzEps,
-		"--minimizer-tolerance [1e-6]\rMaximum allowable distance (epsilon) for convergence when minimizing during damage identification."
-	},{
-		MINZ_ITER,
-		t_OTHER,
-		"",
-		"minimizer-iterations",
-		Arg::MinzIter, 
-		"--minimizer-iterations [100]\rMaximum number of iterations when minimizing during damage identification."
+		"e",
+		"epsilon",
+		Arg::Eps,
+		"--epsilon [1e-6]\rMaximum allowable distance (epsilon) for convergence in minimization and integration methods used."
 	},{
 		THETA_SIM,
 		t_OTHER,

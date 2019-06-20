@@ -337,7 +337,7 @@ struct Arg: public option::Arg {
 		return IntRange(opt, msg, 5, 1000);
 	}
 
-	static ArgStatus MinzEps (const Option& opt, bool msg) {
+	static ArgStatus Eps (const Option& opt, bool msg) {
 		return DoubleRange(opt, msg, 1e-12, .01);
 	}
 

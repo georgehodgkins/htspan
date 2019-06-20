@@ -16,10 +16,6 @@ namespace hts {
 
 using namespace std;
 
-// Forward declaration of functors used in estimation routines
-//struct nlp_bases_given_theta_f : public numeric_functor;
-//struct nlp_bases_given_phi_f : public numeric_functor;
-
 // return struct for coordinate ascent estimation
 struct theta_and_phi {
 	double theta;

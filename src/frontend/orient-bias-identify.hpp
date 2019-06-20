@@ -69,10 +69,6 @@ bool pile_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::
 	return false;// no more records
 }
 
-
-
-
-
 /**
 * This function provides an interface between the
 * calling frontend and the backend classes for
@@ -86,7 +82,8 @@ bool pile_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::
 * @return whether the operation succeeded.
 */
 template <typename SnvReader>
-bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, const char* align_fname, double phi) {
+bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bound,
+		 const char* snv_fname, const char* align_fname, double phi) {
 	fetcher f;
 	orient_bias_data data(ref, alt, 0);
 	// Open BAM file
@@ -110,9 +107,9 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, cons
 				continue;
 			}
 			// run filter
-			freq_orient_bias_filter_f fobfilter(data);
+			freq_orient_bias_filter_f fobfilter(data, -minz_bound, minz_bound, eps);
 			frontend::global_out << fobfilter(phi) << '\t'
-				<< fobfilter.estimate_theta_given(phi, fobfilter.estimate_initial_theta()) << '\n';
+				<< fobfilter.estimate_theta_given(phi) << '\n';
 		}
 	return true;
 }
@@ -122,7 +119,6 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, cons
 * calling frontend and the backend classes for
 * Bayesian-model damage identification/filtering.
 *
-* @template Integration method to use
 * @param ref Reference nucleotide of interest
 * @param alt Alternate nucleotide of interest
 * @param snv_fname Path to SNV file which locates SNVs to check for damage
@@ -131,8 +127,8 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, cons
 * @return whether the operation succeeded.
 */
 template <typename SnvReader>
-bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, const char* align_fname,
-		double alpha, double beta, double prior_alt) {
+bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bound, const char* snv_fname,
+		const char* align_fname, double alpha, double beta, double prior_alt) {
 	fetcher f;
 	orient_bias_data data (ref, alt, 0);
 	// Open BAM file
@@ -155,7 +151,7 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, con
 				continue;
 			}
 			// run filter
-			bayes_orient_bias_filter_f bobfilter(data);
+			bayes_orient_bias_filter_f bobfilter(data, -minz_bound, minz_bound, eps);
 			frontend::global_out << bobfilter(prior_alt, alpha, beta);
 	}
 	return true;

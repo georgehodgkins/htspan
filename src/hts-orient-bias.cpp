@@ -294,13 +294,9 @@ int main (int argc, char** argv) {
 	if (options[MINZ_BOUND]) {
 		minz_bound = atoi(options[MINZ_BOUND].arg);
 	}
-	double minz_eps = 1e-6;
-	if (options[MINZ_BOUND]) {
-		minz_eps = strtod(options[MINZ_EPS].arg, NULL);
-	}
-	int minz_iter = 100;
-	if (options[MINZ_ITER]) {
-		minz_iter = atoi(options[MINZ_ITER].arg);
+	double eps = 1e-6;
+	if (options[EPS]) {
+		eps = strtod(options[EPS].arg, NULL);
 	}
 
 	// simulation-only flags
@@ -384,15 +380,19 @@ int main (int argc, char** argv) {
 			global_log.v(1) << "Starting identification...\n";
 			if (model == BAYES) {
 				if (snv_xtn == TSV) {
-					success = orient_bias_identify_bayes<snv::tsv_reader>(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+					success = orient_bias_identify_bayes<snv::tsv_reader>(ref, alt, eps, minz_bound,
+						snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
 				} else if (snv_xtn == VCF) {
-					success = orient_bias_identify_bayes<snv::vcf_reader>(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+					success = orient_bias_identify_bayes<snv::vcf_reader>(ref, alt, eps, minz_bound,
+						snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
 				}
 			} else if (model == FREQ) {
 				if (snv_xtn == TSV) {
-					success = orient_bias_identify_freq<snv::tsv_reader>(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
+					success = orient_bias_identify_freq<snv::tsv_reader>(ref, alt, eps, minz_bound,
+						snv_fname.c_str(), align_fname.c_str(), phi);
 				} else if (snv_xtn == VCF) {
-					success = orient_bias_identify_freq<snv::vcf_reader>(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
+					success = orient_bias_identify_freq<snv::vcf_reader>(ref, alt, eps, minz_bound,
+						snv_fname.c_str(), align_fname.c_str(), phi);
 				}
 			}
 			if (!success) {
