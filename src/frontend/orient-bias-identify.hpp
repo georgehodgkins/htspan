@@ -42,12 +42,12 @@ bool pile_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::
 			return true;
 		}
 		// check that the SNV is consistent with damage
-		if ((rec.nt_ref == data.ref && rec.nt_alt == data.alt) ||
-				(rec.nt_ref == nuc_complement(data.ref) && rec.nt_alt == nuc_complement(data.alt))) {
+		if ((rec.nt_ref == data.r1_ref && rec.nt_alt == data.r1_alt) ||
+				(rec.nt_ref == data.r2_ref && rec.nt_alt == data.r2_alt)) {
 
 			// fetch reads at target position
 			f.clear();
-			if (!f.fetch(rid, rec.pos)) {
+			if (!f.fetch(rec.rid, rec.pos)) {
 				frontend::global_log.v(1) << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << '\n';
 				rec.err = -1;
 				return true;
@@ -96,7 +96,9 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, cons
 		return false;
 	}
 	// open SNV file (TSV or VCF)
-	snv::reader &snvr = SnvReader(snv_fname, f.hdr); // throws an exception if opening fails
+	SnvReader snvr_obj(snv_fname, f.hdr); // throws an exception if opening fails
+	snv::reader &snvr = snvr_obj; // assign a base class reference to the derived class object
+
 	snv::record rec;
 	// table header
 	frontend::global_out << "p\ttheta_hat" << '\n';
@@ -129,9 +131,10 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, cons
 * @return whether the operation succeeded.
 */
 template <typename SnvReader, typename Integrator>
-bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, SnvFileType snv_type, const char* align_fname,
+bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, const char* align_fname,
 		double alpha, double beta, double prior_alt) {
 	fetcher f;
+	orient_bias_data data (ref, alt, 0);
 	// Open BAM file
 	if (!f.open(align_fname)) {
 		std::cerr <<
@@ -139,7 +142,8 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, Snv
 		return false;
 	}
 	// open SNV file (TSV or VCF)
-	snv::reader& snvr = SnvReader(snv_fname, f.hdr);// throws exception on failure to open
+	SnvReader snvr_obj(snv_fname, f.hdr);// throws exception on failure to open
+	snv::reader &snvr = snvr_obj;
 	snv::record rec;
 	// table header
 	frontend::global_out << "log posterior prob. of non-zero theta" << '\n';

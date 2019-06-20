@@ -3,13 +3,12 @@
 #ifndef _HTSPAN_OPTION_HPP_
 #define _HTSPAN_OPTION_HPP_
 
-
-// UNDER CONSTRUCTION
 // Array of options for use in the option parser for the unified frontend.
 // The goal is for this file to be mostly self-documenting
 // via the help texts in the array.
 
-// TODO: cleanup removed flags
+// TODO: Remove unused minimizer options
+
 namespace hts {
 	
 namespace frontend {
@@ -19,8 +18,8 @@ namespace frontend {
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, MINZ_EPS=18, MINZ_ITER=19,
-	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, ALPHA=25,
-	BETA=26, ALTPRI=27, MODEL=28, HELP=29};
+	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, ALPHA=25, BETA=26,
+	ALTPRI=27, MODEL=28, SNVFTYPE=29, HELP=30};
 
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
@@ -37,14 +36,18 @@ const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
-const OptionIndex ident_only_args[] = {SNVFILE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER, ALPHA, BETA, ALTPRI};
+const OptionIndex ident_only_args[] = {SNVFILE, SNVFTYPE, PHI, MINZ_BOUND, MINZ_EPS, MINZ_ITER, ALPHA, BETA, ALTPRI};
 const size_t ident_arg_count = sizeof(ident_only_args)/sizeof(OptionIndex);
 
 const OptionIndex intsim_only_args[] = {THETA_SIM, PHI_SIM, ERR_MEAN_SIM, ERR_SD_SIM};
 const size_t sim_arg_count = sizeof(intsim_only_args)/sizeof(OptionIndex);
 
-// Main array of options passed to the parser
-// This array must stay ordered least to greatest index for help printing to work
+/**
+* Main array of options passed to the parser
+* This array must stay ordered least to greatest index for help printing to work
+* Note that in help descrs, \r feeds a newline + indentation for all subsequent lines in that description
+* All option checks are in arg.hpp.
+*/
 const option::Descriptor usage[] = {
 	{
 		UNKNOWN,
@@ -141,7 +144,7 @@ const option::Descriptor usage[] = {
 		"p",
 		"phi",
 		Arg::Probability,
-		"-p, --phi [.01]\rEstimate of global damage for frequentist damage identification.\n"
+		"-p, --phi [.01]\rEstimate of global damage for frequentist damage identification."
 	},{
 		STDOUT,
 		t_ON,
@@ -279,13 +282,22 @@ const option::Descriptor usage[] = {
 		"-M, --model [bayes]\rModel to use for identification or quantification. "
 		"Choices are \'freq\' or \'bayes\'."
 	},{
+		SNVFTYPE,
+		t_OTHER,
+		"",
+		"snv-type",
+		Arg::SnvFType,
+		"--snv-type [auto]\rFormat of SNV file selecting variants for damage identification.\n"
+		"Choices are \'tsv\', \'vcf\', or \'bcf\'. If this option is not provided, type will be deduced from the file extension.\n"
+		"NB: The \'vcf\' and \'bcf\' arguments are synonymous."
+	},{
 		HELP,
 		t_OTHER,
 		"?",
 		"help",
 		Arg::Optional,
 		"-?, --help\rPrint this help message."
-	},{
+	},{// null terminator
 		UNKNOWN,
 		0,
 		0,

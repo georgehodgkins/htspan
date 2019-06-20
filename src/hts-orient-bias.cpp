@@ -28,6 +28,7 @@ using namespace hts::frontend;
 int main (int argc, char** argv) {
 	// used for clarity when setting model and integrator options
 	enum ModelType {BAYES, FREQ};
+	enum SnvFileType {TSV, VCF};
 
 	//
 	// Process input arguments
@@ -172,6 +173,7 @@ int main (int argc, char** argv) {
 		ref_fname = options[REFFILE].arg;
 	}
 	std::string snv_fname;
+	SnvFileType snv_xtn;
 	if (options[SNVFILE]) {
 		snv_fname = options[SNVFILE].arg;
 	}
@@ -205,7 +207,33 @@ int main (int argc, char** argv) {
 			std::cerr <<
 				"Error: SNV file argument (-V, --snv-file) is mandatory for damage identification.\n";
 			success = false;
+		} else {
+			// check if SNV file type is set manually
+			if (options[SNVFTYPE]) {
+				if (strcmpi(options[SNVFTYPE].arg, "tsv") == 0) {
+					snv_xtn = TSV;
+				} else {// VCF or BCF
+					snv_xtn = VCF;
+				}
+			} else { // deduce type if it is not set manually
+				const char* xtn = strrchr(snv_fname.c_str(), '.');
+				if (xtn != NULL) {
+					if (strcmpi(&xtn[1], "tsv") == 0) {
+						snv_xtn = TSV;
+					} else if (strcmpi(&xtn[1], "vcf") == 0 ||
+							strcmpi(&xtn[1], "bcf") == 0) {
+						snv_xtn = VCF;
+					} else {
+						std::cerr << "Could not deduce SNV file type from extension. Please specify a type with --snv-type.";
+						success = false;
+					}
+				} else { // no extension on filename
+					std::cerr << "Could not deduce SNV file type from extension. Please specify a type with --snv-type.";
+					success = false;
+				}
+			}
 		}
+
 		// Warn about ignored arguments
 		// Array and counter defined in options.hpp
 		for (size_t n = 0; n < quant_arg_count; ++n) {
@@ -356,9 +384,17 @@ int main (int argc, char** argv) {
 		} else {
 			global_log.v(1) << "Starting identification...\n";
 			if (model == BAYES) {
-				success = orient_bias_identify_bayes<math::tanh_sinh<math::numeric_functor> >(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+				if (snv_xtn == TSV) {
+					success = orient_bias_identify_bayes<snv::tsv_reader, math::tanh_sinh<math::numeric_functor> >(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+				} else if (snv_xtn == VCF) {
+					success = orient_bias_identify_bayes<snv::vcf_reader, math::tanh_sinh<math::numeric_functor> >(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+				}
 			} else if (model == FREQ) {
-				success = orient_bias_identify_freq(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
+				if (snv_xtn == TSV) {
+					success = orient_bias_identify_freq<snv::tsv_reader>(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
+				} else if (snv_xtn == VCF) {
+					success = orient_bias_identify_freq<snv::vcf_reader>(ref, alt, snv_fname.c_str(), align_fname.c_str(), phi);
+				}
 			}
 			if (!success) {
 				global_log.v(1) << "Identification process failed.";

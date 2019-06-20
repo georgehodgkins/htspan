@@ -17,8 +17,7 @@
 #include "file.hpp"
 #include "cstring.hpp"
 
-// UNDER CONSTRUCTION
-// This file contains argument checks for the option parser.
+// This file contains generic and specific argument checks for the option parser.
 
 namespace hts {
 	
@@ -27,6 +26,10 @@ namespace frontend {
 using namespace option;
 
 struct Arg: public option::Arg {
+	//
+	// Generic option checks used for multiple options
+	//
+
 	/**
 	* Check whether file can be opened for input.
 	* 
@@ -189,7 +192,7 @@ struct Arg: public option::Arg {
 			return ARG_ILLEGAL;
 		}
 	}
-	
+
 	/**
 	* Check that a string argument matches one of a list of options.
 	*/
@@ -207,7 +210,12 @@ struct Arg: public option::Arg {
 			}
 			std::cerr << "\'" << str[n_str-1] << "\'.\n";
 		}
+		return ARG_ILLEGAL;
 	}
+
+	//
+	// Option-specific calls to generic checks
+	//
 
 	static ArgStatus DamageType (const Option& opt, bool msg) {
 		const char* str[] = {"ffpe", "oxog"};
@@ -339,6 +347,11 @@ struct Arg: public option::Arg {
 
 	static ArgStatus PositiveDouble (const Option& opt, bool msg) {
 		return DoubleRange(opt, msg, 0.0, DBL_MAX);
+	}
+
+	static ArgStatus SnvFType (const Option& opt, bool msg) {
+		const char* str[] = {"tsv", "vcf", "bcf"};
+		return MatchingString(opt, msg, str, 3);
 	}
 
 };// struct Arg
