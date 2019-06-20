@@ -65,10 +65,10 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		// evaluate null model evidence (theta = 0)
 		lp_bases_theta_phi_f p_f (*this, alpha, beta, 0);
 		math::tanh_sinh<math::numeric_functor> integrator;
-		double ev_null = integrator.integrate(p_f, 0, 1);
+		double ev_null = integrator.integrate(p_f, 0, 1, epsabs);
 		// evaluate alternate model evidence (integrating across possible values of theta)
-		lp_bases_theta_f t_f (*this, alpha, beta);
-		double ev_alt = integrator.integrate(t_f, 0, 1);
+		lp_bases_theta_f t_f (*this, alpha, beta, epsabs);
+		double ev_alt = integrator.integrate(t_f, 0, 1, epsabs);
 		evidences rtn;
 		rtn.null = ev_null;
 		rtn.alt = ev_alt;
@@ -141,14 +141,16 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		double alpha;
 		// beta for the beta distribution
 		double beta;
+		// epsilon for integration (here, set to same as parent class)
+		double eps;
 		// constructor which sets hyperparameters
-		lp_bases_theta_f (bayes_orient_bias_filter_f &fi, double a, double b) :
-			bobfilter(fi), alpha(a), beta(b) {}
+		lp_bases_theta_f (bayes_orient_bias_filter_f &fi, double a, double b, double e) :
+			bobfilter(fi), alpha(a), beta(b), eps(e) {}
 		// evaluates the function to be integrated (in this case, integral of another function)
 		double operator() (double theta) const {
 			lp_bases_theta_phi_f p_f (bobfilter, alpha, beta, theta);
 			math::tanh_sinh<math::numeric_functor> integrator;
-			return integrator.integrate(p_f, 0, 1);
+			return integrator.integrate(p_f, 0, 1, eps);
 		}
 	};
 

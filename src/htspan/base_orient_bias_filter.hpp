@@ -45,7 +45,7 @@ struct base_orient_bias_filter_f {
 	//upper and lower bounds for estimation
 	const double minimizer_lb;//default -15.0
 	const double minimizer_ub;//default 15.0
-	//maximum error threshold for estimation
+	//maximum error threshold for estimation (and integration in Bayesian method)
 	const double epsabs;//default .001
 	//maximum number of iterations for estimation
 	const size_t max_minimizer_iter;//default 100

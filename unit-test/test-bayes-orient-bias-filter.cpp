@@ -35,7 +35,7 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 	BOOST_CHECK_MESSAGE(test_val(phi_int, PHI_INT_STD),
 		"Phi integrand: got: " << phi_int << ", expected: " << PHI_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating theta integrand");
-	hts::bayes_orient_bias_filter_f::lp_bases_theta_f t_f (bobfilter, ALPHA_PHI, BETA_PHI);
+	hts::bayes_orient_bias_filter_f::lp_bases_theta_f t_f (bobfilter, ALPHA_PHI, BETA_PHI, bobfilter.epsabs);
 	double theta_int = t_f(THETA_T);
 	BOOST_CHECK_MESSAGE(test_val(theta_int, THETA_INT_STD),
 		"Theta integrand: got: " << theta_int << ", expected: " << THETA_INT_STD);

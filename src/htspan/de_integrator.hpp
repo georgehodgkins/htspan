@@ -1,15 +1,16 @@
-#ifndef DEINTEGRATOR_H
-#define DEINTEGRATOR_H
+#ifndef _HTSPAN_TANHSINH_HPP_
+#define _HTSPAN_TANHSINH_HPP_
 
 #include "de_integration_constants.hpp"
 #include <float.h>
 
-// TODO: write out vars we don't need
+/**
+* Tanh-sinh numeric integration method written by John Cook,
+* with some cosmetic changes to make it compatible with htspan.
+* Sourced from https://www.codeproject.com/Articles/31550/Fast-Numerical-Integration.
+*/
 
 namespace math {
-
-    double thsh_error_est = 0;
-    int thsh_numfuneval = 0;
 
 /*! Numerical integration in one dimension using the double expontial method of M. Mori. */
 template<class TFunctionObject>
@@ -22,9 +23,9 @@ public:
         const TFunctionObject& f,       //!< [in] integrand
         double a,                       //!< [in] left limit of integration
         double b,                       //!< [in] right limit of integration
-        double targetAbsoluteError = 1e-3,     //!< [in] desired bound on error
-        int& numFunctionEvaluations = thsh_numfuneval,    //!< [out] number of function evaluations used
-        double& errorEstimate = thsh_error_est          //!< [out] estimated error in integration
+        double targetAbsoluteError,     //!< [in] desired bound on error
+        int& numFunctionEvaluations,    //!< [out] number of function evaluations used
+        double& errorEstimate         //!< [out] estimated error in integration
     )
     {
         // Apply the linear change of variables x = ct + d
@@ -52,7 +53,7 @@ public:
         function evaluation counts or error estimates.
         @return The value of the integral. 
     */
-    static double Integrate
+    static double integrate
     (
         const TFunctionObject& f,       //!< [in] integrand
         double a,                       //!< [in] left limit of integration
@@ -62,7 +63,7 @@ public:
     {
         int numFunctionEvaluations;
         double errorEstimate;
-        return Integrate
+        return integrate
         (
             f,
             a,
@@ -158,6 +159,6 @@ private:
 
 };
 
-} // namespace jcook
+} // namespace math
 
-#endif // include guard
+#endif // _HTSPAN_TANH_SINH_HPP_
