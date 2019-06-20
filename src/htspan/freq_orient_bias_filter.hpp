@@ -39,6 +39,33 @@ struct freq_orient_bias_filter_f : public base_orient_bias_filter_f {
 	}
 
 	/**
+	* Estimate theta and phi jointly using coordinate ascent.
+	*
+	* @param theta initial value of theta
+	* @param phi initial value of phi
+	* @param eps numerical tolerance
+	* @param max_iter maximum number of iterations
+	* @return a struct containing the estimated values of theta and phi
+	*/
+	theta_and_phi estimate_theta_phi(double theta, double phi, double eps = 1e-6, int max_iter = 100) {
+		double theta_old = theta;
+		double phi_old = phi;
+		for (int n = 1; n <= max_iter; ++n) {
+			theta = estimate_theta_given(phi, theta);
+			phi = estimate_phi_given(theta, phi);
+			if (abs(theta_old - theta) < eps && abs(phi_old - phi) < eps) {
+				break;
+			}
+			theta_old = theta;
+			phi_old = phi;
+		}
+		theta_and_phi rtn;
+		rtn.theta = theta;
+		rtn.phi = phi;
+		return rtn;
+	}
+
+	/**
 	 * Variant test with adjustment for orientation bias.
 	 *
 	 * Test whether variant allele frequence > 0,
