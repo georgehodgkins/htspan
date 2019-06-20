@@ -95,7 +95,7 @@ $(bin)/hts-orient-bias-stats: $(src)/hts-orient-bias-stats.cpp
 $(bin)/hts-orient-bias: $(src)/hts-orient-bias.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
 
-#! Unit test targets
+#! Unit test targets for orient-bias
 
 $(utest)/$(bin)/test-freq-orient-bias-filter: $(utest)/test-freq-orient-bias-filter.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
@@ -103,7 +103,7 @@ $(utest)/$(bin)/test-freq-orient-bias-filter: $(utest)/test-freq-orient-bias-fil
 $(utest)/$(bin)/test-orient-bias-quant: $(utest)/test-orient-bias-quant.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
 
-$(utest)/$(bin)/test-bayes-orient-bias-filter: $(utest)/test-bayes-orient-bias-filter-thsh.cpp
+$(utest)/$(bin)/test-bayes-orient-bias-filter: $(utest)/test-bayes-orient-bias-filter.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
 
 clean:

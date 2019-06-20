@@ -14,7 +14,6 @@
 #include "htspan/fetcher.hpp"
 #include "htspan/piler.hpp"
 #include "htspan/print.hpp"
-#include "htspan/de_integrator.hpp"
 
 #include "htspan/io/faidx_reader.hpp"
 #include "htspan/io/snv.hpp"
@@ -385,9 +384,9 @@ int main (int argc, char** argv) {
 			global_log.v(1) << "Starting identification...\n";
 			if (model == BAYES) {
 				if (snv_xtn == TSV) {
-					success = orient_bias_identify_bayes<snv::tsv_reader, math::tanh_sinh<math::numeric_functor> >(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+					success = orient_bias_identify_bayes<snv::tsv_reader>(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
 				} else if (snv_xtn == VCF) {
-					success = orient_bias_identify_bayes<snv::vcf_reader, math::tanh_sinh<math::numeric_functor> >(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
+					success = orient_bias_identify_bayes<snv::vcf_reader>(ref, alt, snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
 				}
 			} else if (model == FREQ) {
 				if (snv_xtn == TSV) {

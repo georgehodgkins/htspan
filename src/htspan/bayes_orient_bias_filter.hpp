@@ -8,6 +8,7 @@
 #include <gsl/gsl_cdf.h>
 #include <gsl/gsl_math.h>
 
+#include "de_integrator.hpp"
 #include "base_orient_bias_filter.hpp"
 #include "orient_bias_data.hpp"
 #include "nucleotide.hpp"
@@ -56,19 +57,17 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	* Note that the return type for this method is
 	* defined above the main class in this file.
 	*
-	* @template Integrator Integrator object to use, which has an integrate method with signature (double) (double, double, double)
 	* @param alpha Value of alpha for the prior beta distribution of phi
 	* @param beta Value of beta for the prior beta distribution of phi
 	* @return Struct containing evidence values for null and alt models
 	*/
-	template <typename Integrator>
 	evidences model_evidence(double alpha, double beta) {
 		// evaluate null model evidence (theta = 0)
 		lp_bases_theta_phi_f p_f (*this, alpha, beta, 0);
-		Integrator integrator;
+		math::tanh_sinh<math::numeric_functor> integrator;
 		double ev_null = integrator.integrate(p_f, 0, 1);
 		// evaluate alternate model evidence (integrating across possible values of theta)
-		lp_bases_theta_f<Integrator> t_f (*this, alpha, beta);
+		lp_bases_theta_f t_f (*this, alpha, beta);
 		double ev_alt = integrator.integrate(t_f, 0, 1);
 		evidences rtn;
 		rtn.null = ev_null;
@@ -89,9 +88,8 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	* @param beta Value of beta for the prior beta distribution of phi
 	* @return Posterior probability of the alternative model
 	*/
-	template <typename Integrator>
 	double operator () (double prior_alt, double alpha, double beta) {
-		evidences ev = model_evidence<Integrator>(alpha, beta);
+		evidences ev = model_evidence(alpha, beta);
 		// evaluate the log posterior probability of the alternate model
 		double lev_null = log(ev.null);
 		double lev_alt = log(ev.alt);
@@ -136,7 +134,6 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 	/**
 	* Numerical integration of phi_integrand across a given phi space.
 	*/
-	template <typename Integrator>
 	struct lp_bases_theta_f : public math::numeric_functor {
 		// pointer to class containing the lp_bases_given fcn
 		bayes_orient_bias_filter_f &bobfilter;
@@ -150,15 +147,12 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		// evaluates the function to be integrated (in this case, integral of another function)
 		double operator() (double theta) const {
 			lp_bases_theta_phi_f p_f (bobfilter, alpha, beta, theta);
-			Integrator integrator;
+			math::tanh_sinh<math::numeric_functor> integrator;
 			return integrator.integrate(p_f, 0, 1);
 		}
 	};
 
 }; // bayes_orient_bias_filter_f struct
-
-// Integrand functors which take a double x-value and have hyperparameters set at instantiation
-// Base class defined in functor.hpp (just an empty virtual operator())
 
 } // namespace hts
 

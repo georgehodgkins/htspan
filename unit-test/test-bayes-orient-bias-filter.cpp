@@ -14,8 +14,6 @@
 #include <iostream>
 
 #include "htspan/bayes_orient_bias_filter.hpp"
-#include "htspan/de_integrator.hpp"
-#define INTEGRATOR math::tanh_sinh<math::numeric_functor>
 #include "htspan/nucleotide.hpp"
 
 #include "test.hpp"
@@ -37,18 +35,18 @@ void common_model_test(const char TSVNAME[], const double ALPHA_PHI, const doubl
 	BOOST_CHECK_MESSAGE(test_val(phi_int, PHI_INT_STD),
 		"Phi integrand: got: " << phi_int << ", expected: " << PHI_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating theta integrand");
-	hts::bayes_orient_bias_filter_f::lp_bases_theta_f<INTEGRATOR> t_f (bobfilter, ALPHA_PHI, BETA_PHI);
+	hts::bayes_orient_bias_filter_f::lp_bases_theta_f t_f (bobfilter, ALPHA_PHI, BETA_PHI);
 	double theta_int = t_f(THETA_T);
 	BOOST_CHECK_MESSAGE(test_val(theta_int, THETA_INT_STD),
 		"Theta integrand: got: " << theta_int << ", expected: " << THETA_INT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating evidence");
-	hts::evidences ev = bobfilter.model_evidence<INTEGRATOR>(ALPHA_PHI, BETA_PHI);
+	hts::evidences ev = bobfilter.model_evidence(ALPHA_PHI, BETA_PHI);
 	BOOST_CHECK_MESSAGE(test_val(log(ev.null), EV_NULL_STD),
 		"Evidence for null model: got: " << log(ev.null) << ", expected: " << EV_NULL_STD);
 	BOOST_CHECK_MESSAGE(test_val(log(ev.alt), EV_ALT_STD),
 		"Evidence for alternate model: got: " << log(ev.alt) << ", expected: " << EV_ALT_STD);
 	BOOST_TEST_CHECKPOINT("Evaluating posterior probability");
-	double lposterior = bobfilter.operator()<INTEGRATOR>(PRIOR_ALT, ALPHA_PHI, BETA_PHI);
+	double lposterior = bobfilter.operator()(PRIOR_ALT, ALPHA_PHI, BETA_PHI);
 	BOOST_CHECK_MESSAGE(test_val(lposterior, LPOSTERIOR_STD),
 		"Log posterior probability: got: " << lposterior << ", expected: " << LPOSTERIOR_STD);
 } 

@@ -130,7 +130,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, cons
 * @param phi Estimate of global damage rate
 * @return whether the operation succeeded.
 */
-template <typename SnvReader, typename Integrator>
+template <typename SnvReader>
 bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, const char* align_fname,
 		double alpha, double beta, double prior_alt) {
 	fetcher f;
@@ -156,7 +156,7 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, con
 			}
 			// run filter
 			bayes_orient_bias_filter_f bobfilter(data);
-			frontend::global_out << bobfilter.operator()<Integrator>(prior_alt, alpha, beta);
+			frontend::global_out << bobfilter(prior_alt, alpha, beta);
 	}
 	return true;
 }
