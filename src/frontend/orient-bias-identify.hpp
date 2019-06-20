@@ -11,12 +11,67 @@ using namespace std;
 #include "htspan/fetcher.hpp"
 #include "htspan/freq_orient_bias_filter.hpp"
 #include "htspan/bayes_orient_bias_filter.hpp"
-#include "htspan/io/snv.hpp"
+#include "htspan/nucleotide.hpp"
 
+#include "htspan/io/snv.hpp"
 #include "htspan/io/simul_writer.hpp"
-using namespace hts;
+
 
 namespace hts {
+
+// Disambiguate non-fatal error codes from SNV reading (defined in snv.hpp)
+inline void print_snvr_err(snv::record &rec) {
+	switch(rec.err) {
+	case 1:
+		frontend::global_log.v(1) << "Warning: could not find " << rec.chrom;
+		return;
+	case 2:
+		frontend::global_log.v(1) << "Warning: could not unpack VCF/BCF record.";
+		return;
+	case 3:
+		frontend::global_log.v(1) << "Warning: ignoring multiple-nucleotide variant read from VCF/BCF.";
+		return;
+	}
+}
+
+bool pile_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::record &rec) {
+	if (snvr.next(rec)) {
+		// check for non-fatal errors
+		if (rec.err != 0) {
+			print_snvr_err(rec);
+			return true;
+		}
+		// check that the SNV is consistent with damage
+		if ((rec.nt_ref == data.ref && rec.nt_alt == data.alt) ||
+				(rec.nt_ref == nuc_complement(data.ref) && rec.nt_alt == nuc_complement(data.alt))) {
+
+			// fetch reads at target position
+			f.clear();
+			if (!f.fetch(rid, rec.pos)) {
+				frontend::global_log.v(1) << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << '\n';
+				rec.err = -1;
+				return true;
+			}
+			frontend::global_log.v(2) << "Info: fetched " << f.pile.queries.size() << " reads" << '\n';
+
+			// read in data
+			data.clear();
+			data.reserve(f.pile.queries.size(), true);
+			data.push(f.pile.queries, rec.pos, rec.nt_ref, rec.nt_alt);
+
+		} else { // SNV is not damage-consistent
+			frontend::global_log.v(1) << "Warning: Variant " << nuc_to_char(rec.nt_ref) << '>' <<
+				nuc_to_char(rec.nt_alt) << "is not consistent with selected damage type, ignoring.";
+			rec.err = -1;
+		}
+		return true;// not at EOF yet
+	}
+	return false;// no more records
+}
+
+
+
+
 
 /**
 * This function provides an interface between the
@@ -30,47 +85,33 @@ namespace hts {
 * @param phi Estimate of global damage rate
 * @return whether the operation succeeded.
 */
+template <typename SnvReader>
 bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, const char* align_fname, double phi) {
 	fetcher f;
-	snv::reader snvr (snv_fname); // throws an exception if opening fails
-	snv::record rec;
+	orient_bias_data data(ref, alt, 0);
 	// Open BAM file
 	if (!f.open(align_fname)) {
 		std::cerr <<
 			"Error: Could not open BAM file \'" << align_fname << "\'.";
 		return false;
 	}
+	// open SNV file (TSV or VCF)
+	snv::reader &snvr = SnvReader(snv_fname, f.hdr); // throws an exception if opening fails
+	snv::record rec;
 	// table header
 	frontend::global_out << "p\ttheta_hat" << '\n';
-	while (snvr.next(rec)) {
-		//check that the SNV is consistent with damage
-		if ((rec.nt_ref == ref && rec.nt_alt == alt) ||
-				(rec.nt_ref == nuc_complement(ref) && rec.nt_alt == nuc_complement(alt))) {
-			// fetch reads at target position
-			int32_t rid = bam_name_to_id(f.hdr, rec.chrom);
-			if (rid == -1) {
-				frontend::global_log.v(1) << "Warning: could not find " << rec.chrom << '\n';
+	// note that pile_next_snv modifies all of the objects passed to it
+	// In particular, data is populated with a new set of data for the read SNV
+	while (pile_next_snv(snvr, f, data, rec)) {
+			// check for non-fatal errors in SNV reading/piling
+			if (rec.err) {
 				continue;
 			}
-
-			if (!f.fetch(rid, rec.pos)) {
-				frontend::global_log.v(1) << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << '\n';
-				continue;
-			}
-
-			frontend::global_log.v(2) << "Info: fetched " << f.pile.queries.size() << " reads" << '\n';
-
-			// read in data
-			orient_bias_data data(ref, alt, f.pile.queries.size());
-			data.push(f.pile.queries, rec.pos, rec.nt_ref, rec.nt_alt);
-
 			// run filter
 			freq_orient_bias_filter_f fobfilter(data);
 			frontend::global_out << fobfilter(phi) << '\t'
 				<< fobfilter.estimate_theta_given(phi, fobfilter.estimate_initial_theta()) << '\n';
-			f.clear();
 		}
-	}
 	return true;
 }
 
@@ -87,46 +128,31 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, const char* snv_fname, cons
 * @param phi Estimate of global damage rate
 * @return whether the operation succeeded.
 */
-template <typename Integrator>
-bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, const char* align_fname,
+template <typename SnvReader, typename Integrator>
+bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, const char* snv_fname, SnvFileType snv_type, const char* align_fname,
 		double alpha, double beta, double prior_alt) {
 	fetcher f;
-	snv::reader snvr (snv_fname); // throws an exception if opening fails
-	snv::record rec;
 	// Open BAM file
 	if (!f.open(align_fname)) {
 		std::cerr <<
 			"Error: Could not open BAM file \'" << align_fname << "\'.";
 		return false;
 	}
+	// open SNV file (TSV or VCF)
+	snv::reader& snvr = SnvReader(snv_fname, f.hdr);// throws exception on failure to open
+	snv::record rec;
 	// table header
 	frontend::global_out << "log posterior prob. of non-zero theta" << '\n';
-	while (snvr.next(rec)) {
-		//check that the SNV is consistent with damage
-		if ((rec.nt_ref == ref && rec.nt_alt == alt) ||
-				(rec.nt_ref == nuc_complement(ref) && rec.nt_alt == nuc_complement(alt))) {
-			// fetch reads at target position
-			if (rec.rid == -1) {
-				frontend::global_log.v(1) << "Warning: could not find " << rec.chrom << '\n';
+	// note that pile_next_snv modifies all of the objects passed to it
+	// In particular, data is populated with a new set of data for the read SNV
+	while (pile_next_snv(snvr, f, data, rec)) {
+			// check for non-fatal errors in SNV reading/piling
+			if (rec.err) {
 				continue;
 			}
-
-			if (!f.fetch(rec.rid, rec.pos)) {
-				frontend::global_log.v(1) << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << '\n';
-				continue;
-			}
-
-			frontend::global_log.v(2) << "Info: fetched " << f.pile.queries.size() << " reads" << '\n';
-
-			// run filter
-			orient_bias_data data(ref, alt, f.pile.queries.size());
-			data.push(f.pile.queries, rec.pos, rec.nt_ref, rec.nt_alt);
-
 			// run filter
 			bayes_orient_bias_filter_f bobfilter(data);
 			frontend::global_out << bobfilter.operator()<Integrator>(prior_alt, alpha, beta);
-			f.clear();
-		}
 	}
 	return true;
 }
