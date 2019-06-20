@@ -82,26 +82,26 @@ BOOST_AUTO_TEST_CASE (stat_reader) {
 		"199th member of errors vector does not match.");
 }
 
-BOOST_AUTO_TEST_CASE (snv_reader) {
+BOOST_AUTO_TEST_CASE (tsv_reader) {
 	const char SNVNAME[] = "../sim-data/../../data/snv.tsv";
 	const size_t SLEN = 3;
 	const nuc_t REF_F = nuc_C;
 	const long int POS_F = 7674420;
 	const nuc_t REF_L = nuc_C;
 	const long int POS_L = 7674361;
-	BOOST_TEST_MESSAGE("Running SNV reader test: ");
-	hts::snv::reader snvr (SNVNAME);
+	BOOST_TEST_MESSAGE("Running TSV reader test: ");
+	hts::snv::tsv_reader snvr (SNVNAME, NULL);
 	hts::snv::record recF, recL;
 	snvr.next(recF);
 	while (snvr.next(recL)) {}
 	BOOST_CHECK_MESSAGE(recF.nt_ref == REF_F,
 		"First record ref nucleotide does not match.");
 	BOOST_CHECK_MESSAGE(recF.pos == POS_F-1,
-		"First record position does not match. Got: " << recF.pos << ", expected: " << POS_F);
+		"First record position does not match. Got: " << recF.pos << ", expected: " << POS_F-1);
 	BOOST_CHECK_MESSAGE(recL.nt_ref == REF_L,
 		"Last record ref nucleotide does not match.");
 	BOOST_CHECK_MESSAGE(recL.pos == POS_L-1,
-		"Last record position does not match. Got: " << recL.pos << ", expected: " << POS_L);
+		"Last record position does not match. Got: " << recL.pos << ", expected: " << POS_L-1);
 }
 
 BOOST_AUTO_TEST_CASE (lp_functions) {

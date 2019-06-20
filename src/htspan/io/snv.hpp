@@ -35,6 +35,7 @@ struct record {
 	* 1=could not find RID given in TSV
 	* 2=could not unpack VCF 
 	* 3=multiple-nucleotide variant in VCF
+	* -1=Externally set error (record was read correctly)
 	*/
 	// Note that since vcf_read() returns the same value for EOF and other read errors, we cannot easily catch errors there
 	int32_t err;
@@ -42,9 +43,9 @@ struct record {
 
 struct reader {
 
-	virtual bool next (record &r) {}
+	virtual bool next (record &r) = 0;
 
-	virtual void close ()
+	virtual void close () = 0;
 };
 
 struct tsv_reader : reader {
@@ -54,7 +55,7 @@ struct tsv_reader : reader {
 
 	string line;
 
-	tsv_reader(const char* path, bam_hdr_t *h) : f(path), h(hdr) {
+	tsv_reader(const char* path, bam_hdr_t *h) : f(path), hdr(h) {
 	 	if (!f.is_open()) {
 	 		throw runtime_error("Error: could not open input TSV file.");
 	 	}
@@ -76,7 +77,7 @@ struct tsv_reader : reader {
 		// process line
 		istringstream ss(line);
 		char char_ref, char_alt;
-		ss >> rec.chrom >> r.pos >> char_ref >> char_alt;
+		ss >> r.chrom >> r.pos >> char_ref >> char_alt;
 
 		// convert from 1-based to 0-based
 		r.pos -= 1;
@@ -84,7 +85,11 @@ struct tsv_reader : reader {
 		r.nt_alt = char_to_nuc(char_alt);
 
 		// lookup rid in the attached BAM header
-		r.rid = bam_name_to_id(hdr, rec.chrom);
+		if (hdr != NULL) {// standalone test case does not set a BAM header (and ignores error codes)
+			r.rid = bam_name_to_id(hdr, r.chrom);
+		} else {
+			r.rid = -1;
+		}
 		if (r.rid == -1) {
 			r.err = 1;
 			return true;
@@ -104,11 +109,12 @@ struct vcf_reader : reader {
 	// pointer to main VCF/BCF file object
 	htsFile *hf;
 	// pointer to VCF/BCF header object
-	const bcf_hdr_t *hdr;
+	bcf_hdr_t *hdr;
 	// pointer to VCF record buffer to read to/from
 	bcf1_t *v;
 
-	vcf_reader(const char* path) {
+	// the second parameter is for compatibility with the above's constructor signature, not used
+	vcf_reader(const char* path, bam_hdr_t *h) {
 		// open HTS file handle
 		hf = hts_open(path, "r");
 		if (!hf) {
@@ -126,17 +132,18 @@ struct vcf_reader : reader {
 	}
 
 	bool next(record &r) {
-		// read in and unpack the record
+		// read in the record
 		int status = bcf_read1(hf, hdr, v);
 		if (status == -1) {// EOF or other reading error
 			return false;
 		}
+		// unpack the record up to (including) the ALT field
 		status = bcf_unpack(v, BCF_UN_STR);
 		if (status < 0) {
 			r.err = 2;
 			return true;
 		}
-		// This class only handles SNVs
+		// This class only handles /S/ NVs
 		if (v->rlen > 1) {
 			r.err = 3;
 			return true;
@@ -157,9 +164,7 @@ struct vcf_reader : reader {
 		bcf_destroy1(v);
 		bcf_hdr_destroy(hdr);
 	}
-}
-
-
+};
 
 }  // namespace snv
 
