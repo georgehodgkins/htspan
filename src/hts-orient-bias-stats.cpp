@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
 	// test for oxoG damage (G>T on read 1 or C>A on read 2)
 	freq_orient_bias_filter_f fobfilter(data);
 	cout << "# Variant test adjusted for oxoG damage" << endl;
-	cout << "# theta_hat = " << fobfilter.estimate_theta_given(phi, fobfilter.estimate_initial_theta()) << endl;
+	cout << "# theta_hat = " << fobfilter.estimate_theta_given(phi) << endl;
 	cout << "# p = " << fobfilter(phi) << endl;
 
 	print_orient_bias_data(data);
