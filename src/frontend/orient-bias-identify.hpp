@@ -34,6 +34,21 @@ inline void print_snvr_err(snv::record &rec) {
 	}
 }
 
+/**
+* This function reads the next SNV from the given SNV reader,
+* fetches corresponding reads from the given fetcher, and piles
+* the fetched reads in the given data object.
+*
+* @param snvr Any derived class of snv::reader, already opened
+* @param f A hts::fetcher, already opened
+* @param data orient_bias_data object initialized with the nucleotides of interest
+* @param rec snv::record to read data into
+* @return Whether the snvr has reached EOF
+*	All passed objects are also modified:
+*		snvr & f internal iterators are advanced
+*		data is cleared and populated with reads corresponding to the read SNV
+*		rec is populated with the read SNV, including error codes if reading or fetching fails
+*/
 bool pile_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::record &rec) {
 	if (snvr.next(rec)) {
 		// check for non-fatal errors
@@ -74,8 +89,11 @@ bool pile_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::
 * calling frontend and the backend classes for
 * frequentist-model damage identification/filtering.
 *
+* @template SnvReader Derived class of snv::reader to use
 * @param ref Reference nucleotide of interest
 * @param alt Alternate nucleotide of interest
+* @param eps Convergence tolerance for numerical minimization
+* @param minz_bound Bounds for log-space numerical minimization
 * @param snv_fname Path to SNV file which locates SNVs to check for damage
 * @param align_fname Path to BAM file containing sequence of interest
 * @param phi Estimate of global damage rate
@@ -119,11 +137,16 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 * calling frontend and the backend classes for
 * Bayesian-model damage identification/filtering.
 *
+* @template SnvReader Derived class of snv::reader to use
 * @param ref Reference nucleotide of interest
 * @param alt Alternate nucleotide of interest
+* @param eps Convergence tolerance for numerical minimization
+* @param minz_bound Bounds for log-space numerical minimization
 * @param snv_fname Path to SNV file which locates SNVs to check for damage
 * @param align_fname Path to BAM file containing sequence of interest
-* @param phi Estimate of global damage rate
+* @param alpha Alpha hyperparameter for the beta distribution
+* @param beta Beta hyperparameter for the beta distribution
+* @param prior_alt Prior probability of the alternate model (theta != 0)
 * @return whether the operation succeeded.
 */
 template <typename SnvReader>
