@@ -55,4 +55,16 @@ BOOST_AUTO_TEST_CASE (tsv_reader) {
 		"Last record position does not match. Got: " << recL.pos << ", expected: " << POS_L-1);
 }
 
+BOOST_AUTO_TEST_CASE (vcf_reader) {// UNDER CONSTRUCTION
+	const char SNVNAME[] = "../../data/sample.vcf";
+	const int RID_F = 20;
+	const long int POS_F = 14370;
+	const nuc_t REF_F = nuc_G;
+	const nuc_t ALT_F = nuc_A;
+	const int RID_L = 20;
+	const long int POS_L = 1234567;
+	const nuc_T REF_L = C;
+	const nuc_T ALT_L = G;
+
+
 BOOST_AUTO_TEST_SUITE_END()
