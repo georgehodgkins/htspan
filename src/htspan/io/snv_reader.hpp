@@ -11,6 +11,8 @@
 #include "htspan/nucleotide.hpp"
 #include "htspan/bam.hpp"
 
+//TODO: Documentation
+
 namespace hts {
 
 using namespace std;
@@ -51,14 +53,20 @@ struct tsv_reader : reader {
 
 	record cached;
 
-	tsv_reader(const char* path) : f(path) {
+	tsv_reader(const char* path) {
+	 	open(path);
+	}
+
+	 void open (const char* path) {
+	 	f.open(path);
+
 	 	if (!f.is_open()) {
 	 		throw runtime_error("Error: could not open input TSV file.");
 	 	}
 
 	 	// discard header line
 	 	getline(f, line);
-	 }
+	}
 
 	/**
 	 * Get next record.
@@ -92,8 +100,12 @@ struct tsv_reader : reader {
 		return cached;
 	}
 
-	~tsv_reader() {
+	void close() {
 		f.close();
+	}
+
+	~tsv_reader() {
+		close();
 	}
 };
 
@@ -107,6 +119,10 @@ struct vcf_reader : reader {
 
 	// the second parameter is for compatibility with the above's constructor signature, not used
 	vcf_reader(const char* path) {
+		open(path);
+	}
+
+	void open (const char* path) {
 		// open HTS file handle
 		hf = hts_open(path, "r");
 		if (!hf) {
@@ -153,10 +169,14 @@ struct vcf_reader : reader {
 		return v;
 	}
 
-	~vcf_reader() {
+	void close() {
 		hts_close(hf);
 		bcf_destroy1(v);
 		bcf_hdr_destroy(hdr);
+	}
+
+	~vcf_reader() {
+		close();
 	}
 };
 

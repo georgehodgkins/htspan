@@ -13,7 +13,7 @@ using namespace std;
 #include "htspan/bayes_orient_bias_filter.hpp"
 #include "htspan/nucleotide.hpp"
 
-#include "htspan/io/snv.hpp"
+#include "htspan/io/snv_reader.hpp"
 #include "htspan/io/simul_writer.hpp"
 
 

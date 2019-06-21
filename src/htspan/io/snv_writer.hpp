@@ -12,13 +12,19 @@ namespace snv {
 
 using namespace std;
 
+// TODO: documentation
+
 struct vcf_writer {
 	// Pointer to VCF file
 	htsFile *hf;
-	// Pointer to BCF header struct
+	// Pointer to BCF header struct for output file
 	bcf_hdr_t *hdr;
 
-	vcf_writer (const char* path, htsFile *f_templ, bcf_hdr_t *h_templ) {
+	vcf_writer(const char* path, htsFile *f_templ, bcf_hdr_t *h_templ) {
+		open(path, f_templ, h_templ);
+	}
+
+	void open(const char* path, htsFile *f_templ, bcf_hdr_t *h_templ) {
 		hdr = bcf_hdr_dup(h_templ);
 		htsFormat form = f_templ->format;
 		hf = hts_open_format(path, "w", &form);
@@ -31,7 +37,7 @@ struct vcf_writer {
 		}
 	}
 
-	void write (bcf1_t* rec, const bcf_hdr_t *src) {
+	void write(bcf1_t* rec, const bcf_hdr_t *src) {
 		bcf_hdr_merge(hdr, src);
 		int status = bcf_write(hf, hdr, rec);
 		if (status != 0) {
@@ -39,9 +45,15 @@ struct vcf_writer {
 		}
 	}
 
-	~vcf_writer () {
+	void close() {
 		hts_close(hf);
 		bcf_hdr_destroy(hdr);
+		hdr = NULL;
+		hf = NULL;
+	}
+
+	~vcf_writer () {
+		close();
 	}
 };
 
