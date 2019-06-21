@@ -13,7 +13,7 @@ Collection of utilities for filtering high-throughput sequencing data:
 
 ### Included dependencies
 
-* htslib >= 1.8
+* htslib >= 1.9
 * mlat >= 0.1
 * Lean Mean C++ Option Parser 1.7
 * tanh-sinh quadrature method from https://www.codeproject.com/Articles/31550/Fast-Numerical-Integration
