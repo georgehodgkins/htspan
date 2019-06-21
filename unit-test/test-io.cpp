@@ -3,7 +3,8 @@
 #include <boost/test/unit_test.hpp>
 
 #include "htspan/nucleotide.hpp"
-#include "htspan/io/snv.hpp"
+#include "htspan/io/snv_reader.hpp"
+#include "htspan/io/snv_writer.hpp"
 #include "htspan/orient_bias_data.hpp"
 
 #include "test.hpp"
@@ -30,7 +31,6 @@ void common_snvr_test (const char SNVNAME[], const long int POS_F, const nuc_t R
 	 BOOST_CHECK_MESSAGE(recL.pos == POS_L-1,
 	 	"Last record position does not match. Got: " << recL.pos << ", expected: " << POS_L-1);
 }
-
 
 BOOST_AUTO_TEST_SUITE(test)
 
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE (tsv_snv) {
 
 }
 
-BOOST_AUTO_TEST_CASE (uncompressed_vcf_snv) {
+BOOST_AUTO_TEST_CASE (uncompressed_vcf_snvr) {
 	const char SNVNAME[] = "../../data/sample.vcf";
 	const long int POS_F = 111;
 	const nuc_t REF_F = nuc_A;
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE (uncompressed_vcf_snv) {
 	common_snvr_test<hts::snv::vcf_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
 }
 
-BOOST_AUTO_TEST_CASE (gzip_vcf_snv) {
+BOOST_AUTO_TEST_CASE (gzip_vcf_snvr) {
 	const char SNVNAME[] = "../../data/sample.vcf.gz";
 	const long int POS_F = 111;
 	const nuc_t REF_F = nuc_A;
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE (gzip_vcf_snv) {
 	common_snvr_test<hts::snv::vcf_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
 }
 
-BOOST_AUTO_TEST_CASE (bgzip_vcf_snv) {
+BOOST_AUTO_TEST_CASE (bgzip_vcf_snvr) {
 	const char SNVNAME[] = "../../data/sample.vcf.bgz";
 	const long int POS_F = 111;
 	const nuc_t REF_F = nuc_A;
@@ -107,6 +107,19 @@ BOOST_AUTO_TEST_CASE (bgzip_vcf_snv) {
 	const nuc_t REF_L = nuc_C;
 	const nuc_t ALT_L = nuc_G;
 	common_snvr_test<hts::snv::vcf_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
+}
+
+// there's no actual programmatic test here, just manually inspect the files
+BOOST_AUTO_TEST_CASE (uncompressed_vcf_snvw) {
+	const char IN_SNVNAME[] = "../../data/sample.vcf";
+	const char OUT_SNVNAME[] = "../../data/test_out.vcf";
+	hts::snv::vcf_reader snvr (IN_SNVNAME);
+	hts::snv::vcf_writer snvw (OUT_SNVNAME, snvr.hf, snvr.hdr);
+	hts::snv::record foo;
+	snvr.next(foo);// discard first line
+	while (snvr.next(foo)) {
+		snvw.write(snvr.get_obj(), snvr.hdr);
+	}
 }
 
 
