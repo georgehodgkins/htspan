@@ -48,6 +48,11 @@ struct reader {
 	virtual void close () = 0;
 };
 
+/**
+* This reader reads from a TSV file containing the following columns:
+* chrom	pos	ref	alt
+* It must contain a header line.
+*/
 struct tsv_reader : reader {
 	ifstream f;
 
@@ -105,6 +110,10 @@ struct tsv_reader : reader {
 	}
 };
 
+/**
+* This reader uses HTSlib to read SNV data from VCF or BCF format files,
+* optionally gzip or bgzip compressed. It will ignore all non-single-nucleotide variants.
+*/
 struct vcf_reader : reader {
 	// pointer to main VCF/BCF file object
 	htsFile *hf;

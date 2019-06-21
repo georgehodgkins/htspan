@@ -137,7 +137,8 @@ const option::Descriptor usage[] = {
 		"V",
 		"snv-file",
 		Arg::SnvFile,
-		"-V, --snv-file\rPath for the list of SNVs to be examined in damage identification."
+		"-V, --snv-file\rPath for the list of SNVs to be examined in damage identification.\n"
+		"Valid formats are plain TSV or VCF/BCF (can be compressed with gzip or bgzip)."
 	},{
 		PHI,
 		t_OTHER,
