@@ -18,7 +18,8 @@ using namespace std;
 
 namespace snv {
 
-KHASH_MAP_INIT_STR(vdict, bcf_idinfo_t) // used in the vcf_reader class
+// Initializes 'vdict' hash table alias used by HTSlib to store contig info
+KHASH_MAP_INIT_STR(vdict, bcf_idinfo_t)
 
 struct record {
 	// HTS identifier of reference sequence
@@ -47,7 +48,6 @@ struct reader {
 
 	virtual bool next (record &r) = 0;
 
-	virtual void close () = 0;
 };
 
 struct tsv_reader : reader {
@@ -100,7 +100,7 @@ struct tsv_reader : reader {
 		return true;
 	}
 
-	void close() {
+	~tsv_reader() {
 		f.close();
 		hdr = NULL;
 	}
@@ -190,7 +190,7 @@ struct vcf_reader : reader {
 		return true;
 	}
 
-	void close() {
+	~vcf_reader() {
 		hts_close(hf);
 		bcf_destroy1(v);
 		bcf_hdr_destroy(hdr);
