@@ -85,7 +85,7 @@ struct tsv_reader : reader {
 		r.nt_alt = char_to_nuc(char_alt);
 
 		// lookup rid in the attached BAM header
-		if (hdr != NULL) {// standalone test case does not set a BAM header (and ignores error codes)
+		if (hdr != NULL) {// standalone unit test does not set a BAM header (and ignores error codes)
 			r.rid = bam_name_to_id(hdr, r.chrom);
 		} else {
 			r.rid = -1;
@@ -134,7 +134,7 @@ struct vcf_reader : reader {
 	bool next(record &r) {
 		// read in the record
 		int status = bcf_read1(hf, hdr, v);
-		if (status == -1) {// EOF or other reading error
+		if (status == -1) {// EOF or fatal reading error
 			return false;
 		}
 		// unpack the record up to (including) the ALT field
@@ -152,7 +152,7 @@ struct vcf_reader : reader {
 		// TODO: find a way to get the chrom name from the rid
 		r.rid = v->rid;
 		r.chrom = "VCF-unset";
-		r.pos = v->pos - 1;// convert from 1-based to 0-based
+		r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
 		r.nt_ref = char_to_nuc(v->d.allele[0][0]);
 		r.nt_alt = char_to_nuc(v->d.allele[1][0]);
 		r.err = 0;

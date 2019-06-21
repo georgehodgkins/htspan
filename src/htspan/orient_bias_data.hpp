@@ -12,6 +12,7 @@
 #include "io/orient_bias_stats.hpp"
 #include "fetcher.hpp"
 #include "nucleotide.hpp"
+#include "math.hpp"
 
 namespace hts {
 

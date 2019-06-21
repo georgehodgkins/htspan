@@ -2,6 +2,12 @@
 #define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 
+#include "htspan/nucleotide.hpp"
+#include "htspan/io/snv.hpp"
+#include "htspan/orient_bias_data.hpp"
+
+#include "test.hpp"
+
 BOOST_AUTO_TEST_SUITE(test)
 
 BOOST_AUTO_TEST_CASE (stat_reader) {
@@ -34,37 +40,65 @@ BOOST_AUTO_TEST_CASE (stat_reader) {
 }
 
 BOOST_AUTO_TEST_CASE (tsv_reader) {
-	const char SNVNAME[] = "../sim-data/../../data/snv.tsv";
+	const char SNVNAME[] = "../../data/snv.tsv";
 	const size_t SLEN = 3;
 	const nuc_t REF_F = nuc_C;
+	const nuc_t ALT_F = nuc_A;
 	const long int POS_F = 7674420;
 	const nuc_t REF_L = nuc_C;
+	const nuc_t ALT_L = nuc_T;
 	const long int POS_L = 7674361;
 	BOOST_TEST_MESSAGE("Running TSV reader test: ");
 	hts::snv::tsv_reader snvr (SNVNAME, NULL);
 	hts::snv::record recF, recL;
 	snvr.next(recF);
 	while (snvr.next(recL)) {}
+	BOOST_TEST_MESSAGE("First RID= " << recF.rid << ", Chrom= " << recF.chrom << ", Err= " << recF.err);
 	BOOST_CHECK_MESSAGE(recF.nt_ref == REF_F,
 		"First record ref nucleotide does not match.");
+	BOOST_CHECK_MESSAGE(recF.nt_alt == ALT_F, 
+		"First record alt nucleotide does not match.");
 	BOOST_CHECK_MESSAGE(recF.pos == POS_F-1,
 		"First record position does not match. Got: " << recF.pos << ", expected: " << POS_F-1);
+	BOOST_TEST_MESSAGE("Last RID= " << recL.rid << ", Chrom= " << recL.chrom << ", Err= " << recL.err);
 	BOOST_CHECK_MESSAGE(recL.nt_ref == REF_L,
 		"Last record ref nucleotide does not match.");
+	BOOST_CHECK_MESSAGE(recL.nt_alt == ALT_L, 
+		"Last record alt nucleotide does not match.");
+	BOOST_CHECK_MESSAGE(recL.pos == POS_L-1,
+		"Last record position does not match. Got: " << recL.pos << ", expected: " << POS_L-1);
+
+}
+
+BOOST_AUTO_TEST_CASE (vcf_reader) {
+	const char SNVNAME[] = "../../data/sample.vcf";
+	const long int POS_F = 111;
+	const nuc_t REF_F = nuc_A;
+	const nuc_t ALT_F = nuc_C;
+	const long int POS_L = 10;
+	const nuc_t REF_L = nuc_C;
+	const nuc_t ALT_L = nuc_G;
+	BOOST_TEST_MESSAGE("Running VCF reader test: ");
+	hts::snv::vcf_reader snvr (SNVNAME, NULL);
+	hts::snv::record recF, recL;
+	snvr.next(recF);
+	while (snvr.next(recL)) {}
+	BOOST_TEST_MESSAGE("First RID= " << recF.rid << ", Chrom= " << recF.chrom << ", Err= " << recF.err);
+	BOOST_CHECK_MESSAGE(recF.nt_ref == REF_F,
+		"First record ref nucleotide does not match.");
+	BOOST_CHECK_MESSAGE(recF.nt_alt == ALT_F, 
+		"First record alt nucleotide does not match.");
+	BOOST_CHECK_MESSAGE(recF.pos == POS_F-1,
+		"First record position does not match. Got: " << recF.pos << ", expected: " << POS_F-1);
+	BOOST_TEST_MESSAGE("Last RID= " << recL.rid << ", Chrom= " << recL.chrom << ", Err= " << recL.err);
+	BOOST_CHECK_MESSAGE(recL.nt_ref == REF_L,
+		"Last record ref nucleotide does not match.");
+	BOOST_CHECK_MESSAGE(recL.nt_alt == ALT_L, 
+		"Last record alt nucleotide does not match.");
 	BOOST_CHECK_MESSAGE(recL.pos == POS_L-1,
 		"Last record position does not match. Got: " << recL.pos << ", expected: " << POS_L-1);
 }
 
-BOOST_AUTO_TEST_CASE (vcf_reader) {// UNDER CONSTRUCTION
-	const char SNVNAME[] = "../../data/sample.vcf";
-	const int RID_F = 20;
-	const long int POS_F = 14370;
-	const nuc_t REF_F = nuc_G;
-	const nuc_t ALT_F = nuc_A;
-	const int RID_L = 20;
-	const long int POS_L = 1234567;
-	const nuc_T REF_L = C;
-	const nuc_T ALT_L = G;
 
 
 BOOST_AUTO_TEST_SUITE_END()

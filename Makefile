@@ -47,7 +47,7 @@ deps = $(src)/htslib/libhts.a
 
 targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-pileup $(bin)/hts-orient-bias-stats
 
-utest_targets = $(utest)/$(bin)/test-freq-orient-bias-filter $(utest)/$(bin)/test-orient-bias-quant $(utest)/$(bin)/test-bayes-orient-bias-filter
+utest_targets = $(utest)/$(bin)/test-freq-orient-bias-filter $(utest)/$(bin)/test-orient-bias-quant $(utest)/$(bin)/test-bayes-orient-bias-filter $(utest)/$(bin)/test-io
 
 mlat_deps = $(src)/mlat/lib/libmlat.a
 
@@ -104,6 +104,9 @@ $(utest)/$(bin)/test-orient-bias-quant: $(utest)/test-orient-bias-quant.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
 
 $(utest)/$(bin)/test-bayes-orient-bias-filter: $(utest)/test-bayes-orient-bias-filter.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
+
+$(utest)/$(bin)/test-io: $(utest)/test-io.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
 
 clean:
