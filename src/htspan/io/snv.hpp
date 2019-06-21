@@ -7,16 +7,18 @@
 
 #include "htslib/hts.h"
 #include "htslib/vcf.h"
+#include "htslib/khash.h"
 
 #include "htspan/nucleotide.hpp"
 #include "htspan/bam.hpp"
-
 
 namespace hts {
 
 using namespace std;
 
 namespace snv {
+
+KHASH_MAP_INIT_STR(vdict, bcf_idinfo_t) // used in the vcf_reader class
 
 struct record {
 	// HTS identifier of reference sequence
@@ -32,7 +34,7 @@ struct record {
 	/**
 	* Non-fatal error codes:
 	* 0=OK
-	* 1=could not find RID given in TSV
+	* 1=could not find RID in BAM header (or VCF header, for VCFs)
 	* 2=could not unpack VCF 
 	* 3=multiple-nucleotide variant in VCF
 	* -1=Externally set error (record was read correctly)
@@ -78,7 +80,7 @@ struct tsv_reader : reader {
 		istringstream ss(line);
 		char char_ref, char_alt;
 		ss >> r.chrom >> r.pos >> char_ref >> char_alt;
-
+		r.err = 0;
 		// convert from 1-based to 0-based
 		r.pos -= 1;
 		r.nt_ref = char_to_nuc(char_ref);
@@ -90,12 +92,11 @@ struct tsv_reader : reader {
 		} else {
 			r.rid = -1;
 		}
+
 		if (r.rid == -1) {
 			r.err = 1;
-			return true;
 		}
 
-		r.err = 0;
 		return true;
 	}
 
@@ -106,6 +107,8 @@ struct tsv_reader : reader {
 };
 
 struct vcf_reader : reader {
+	// pointer to BAM header containing sequences corresponding to these SNVs
+	bam_hdr_t *hdr_bam;
 	// pointer to main VCF/BCF file object
 	htsFile *hf;
 	// pointer to VCF/BCF header object
@@ -114,7 +117,7 @@ struct vcf_reader : reader {
 	bcf1_t *v;
 
 	// the second parameter is for compatibility with the above's constructor signature, not used
-	vcf_reader(const char* path, bam_hdr_t *h) {
+	vcf_reader(const char* path, bam_hdr_t *h) : hdr_bam(h) {
 		// open HTS file handle
 		hf = hts_open(path, "r");
 		if (!hf) {
@@ -149,13 +152,41 @@ struct vcf_reader : reader {
 			return true;
 		}
 		// fill record fields
-		// TODO: find a way to get the chrom name from the rid
+		r.err = 0;
 		r.rid = v->rid;
-		r.chrom = "VCF-unset";
+		// HTSlib automatically converts read chrom IDs from a VCF into int IDs,
+		// even if that contig is not found in the header (it creates a dummy contig entry if that is the case)
+		// We need the original chrom name to match with the BAM, so we have to go back in and find it
+		//
+		// find contig (chrom) string in the hash table
+		typedef khash_t(vdict) vdict_t;
+		vdict_t *contig_dict = (vdict_t*) hdr->dict[BCF_DT_CTG];
+		r.chrom.clear();
+		for (khint_t iter = kh_begin(contig_dict); iter != kh_end(contig_dict); ++iter) {
+			bcf_idinfo_t contig = kh_val(contig_dict, iter);// val is a HTSlib struct
+			if (contig.id == r.rid) {
+				r.chrom = kh_key(contig_dict, iter);// key is c-string chrom name
+				break;
+			}
+		}
+		// if contig was not found
+		if(r.chrom.empty()) {
+			r.chrom = "VCF-unset";
+		}
+		// if contig was not initially defined in VCF file, try to match it with the given BAM
+		if (v->errcode & BCF_ERR_CTG_UNDEF) {
+			if (hdr_bam != NULL) {
+				r.rid = bam_name_to_id(hdr_bam, r.chrom);
+			} else {
+				r.rid = -1;
+			}
+			if (r.rid == -1) {
+				r.err = 1;
+			}
+		}
 		r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
 		r.nt_ref = char_to_nuc(v->d.allele[0][0]);
 		r.nt_alt = char_to_nuc(v->d.allele[1][0]);
-		r.err = 0;
 		return true;
 	}
 
