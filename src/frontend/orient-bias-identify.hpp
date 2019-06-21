@@ -49,7 +49,7 @@ inline void print_snvr_err(snv::record &rec) {
 *		data is cleared and populated with reads corresponding to the read SNV
 *		rec is populated with the read SNV, including error codes if reading or fetching fails
 */
-bool pile_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::record &rec) {
+bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::record &rec) {
 	if (snvr.next(rec)) {
 		// check for non-fatal errors
 		if (rec.err != 0) {
@@ -59,10 +59,15 @@ bool pile_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::
 		// check that the SNV is consistent with damage
 		if ((rec.nt_ref == data.r1_ref && rec.nt_alt == data.r1_alt) ||
 				(rec.nt_ref == data.r2_ref && rec.nt_alt == data.r2_alt)) {
-
+			// get ref ID from chromosome string
+			int rid = bam_name_to_id(f.hdr, rec.chrom);
+			if (rid == -1) {
+				frontend::global_log.v(1) << "Warning: could not find " << rec.chrom;
+				return true;
+			}
 			// fetch reads at target position
 			f.clear();
-			if (!f.fetch(rec.rid, rec.pos)) {
+			if (!f.fetch(rid, rec.pos)) {
 				frontend::global_log.v(1) << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << '\n';
 				rec.err = -1;
 				return true;
@@ -111,7 +116,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 		return false;
 	}
 	// open SNV file (TSV or VCF)
-	SnvReader snvr_obj(snv_fname, f.hdr); // throws an exception if opening fails
+	SnvReader snvr_obj(snv_fname); // throws an exception if opening fails
 	snv::reader &snvr = snvr_obj; // assign a base class reference to the derived class object
 
 	snv::record rec;
@@ -119,7 +124,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	frontend::global_out << "p\ttheta_hat" << '\n';
 	// note that pile_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
-	while (pile_next_snv(snvr, f, data, rec)) {
+	while (fetch_next_snv(snvr, f, data, rec)) {
 			// check for non-fatal errors in SNV reading/piling
 			if (rec.err) {
 				continue;
@@ -161,14 +166,14 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 		return false;
 	}
 	// open SNV file (TSV or VCF)
-	SnvReader snvr_obj(snv_fname, f.hdr);// throws exception on failure to open
+	SnvReader snvr_obj(snv_fname);// throws exception on failure to open
 	snv::reader &snvr = snvr_obj;
 	snv::record rec;
 	// table header
 	frontend::global_out << "log posterior prob. of non-zero theta" << '\n';
 	// note that pile_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
-	while (pile_next_snv(snvr, f, data, rec)) {
+	while (fetch_next_snv(snvr, f, data, rec)) {
 			// check for non-fatal errors in SNV reading/piling
 			if (rec.err) {
 				continue;

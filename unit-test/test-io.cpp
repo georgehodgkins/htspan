@@ -11,18 +11,18 @@
 template <typename SnvReader>
 void common_snvr_test (const char SNVNAME[], const long int POS_F, const nuc_t REF_F, const nuc_t ALT_F,
 		const long int POS_L, const nuc_t REF_L, const nuc_t ALT_L) {
-	 SnvReader snvr (SNVNAME, NULL);
+	 SnvReader snvr (SNVNAME);
 	 hts::snv::record recF, recL;
 	 snvr.next(recF);
 	 while (snvr.next(recL)) {}
-	 BOOST_TEST_MESSAGE("First RID= " << recF.rid << ", Chrom= " << recF.chrom << ", Err= " << recF.err);
+	 BOOST_TEST_MESSAGE("First Chrom= " << recF.chrom << ", Err= " << recF.err);
 	 BOOST_CHECK_MESSAGE(recF.nt_ref == REF_F,
 	 	"First record ref nucleotide does not match.");
 	 BOOST_CHECK_MESSAGE(recF.nt_alt == ALT_F, 
 	 	"First record alt nucleotide does not match.");
 	 BOOST_CHECK_MESSAGE(recF.pos == POS_F-1,
 	 	"First record position does not match. Got: " << recF.pos << ", expected: " << POS_F-1);
-	 BOOST_TEST_MESSAGE("Last RID= " << recL.rid << ", Chrom= " << recL.chrom << ", Err= " << recL.err);
+	 BOOST_TEST_MESSAGE("Last Chrom= " << recL.chrom << ", Err= " << recL.err);
 	 BOOST_CHECK_MESSAGE(recL.nt_ref == REF_L,
 	 	"Last record ref nucleotide does not match.");
 	 BOOST_CHECK_MESSAGE(recL.nt_alt == ALT_L, 
