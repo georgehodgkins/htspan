@@ -1,5 +1,5 @@
-#ifndef _HTSPAN_SNV_HPP_
-#define _HTSPAN_SNV_HPP_
+#ifndef _HTSPAN_SNV_READER_HPP_
+#define _HTSPAN_SNV_READER_HPP_
 
 #include <fstream>
 #include <sstream>
@@ -7,7 +7,6 @@
 
 #include "htslib/hts.h"
 #include "htslib/vcf.h"
-#include "htslib/khash.h"
 
 #include "htspan/nucleotide.hpp"
 #include "htspan/bam.hpp"
@@ -17,9 +16,6 @@ namespace hts {
 using namespace std;
 
 namespace snv {
-
-// Initializes 'vdict' hash table alias used by HTSlib to store contig info
-KHASH_MAP_INIT_STR(vdict, bcf_idinfo_t)
 
 struct record {
 	// Human-readable name of reference sequence
@@ -53,6 +49,8 @@ struct tsv_reader : reader {
 
 	string line;
 
+	record cached;
+
 	tsv_reader(const char* path) : f(path) {
 	 	if (!f.is_open()) {
 	 		throw runtime_error("Error: could not open input TSV file.");
@@ -82,7 +80,16 @@ struct tsv_reader : reader {
 		r.nt_ref = char_to_nuc(char_ref);
 		r.nt_alt = char_to_nuc(char_alt);
 
+		cached = r;
+
 		return true;
+	}
+
+	/**
+	* Read cached record.
+	*/
+	record get_obj () const {
+		return cached;
 	}
 
 	~tsv_reader() {
@@ -135,30 +142,15 @@ struct vcf_reader : reader {
 		}
 		// fill record fields
 		r.err = 0;
-		int rid = v->rid;
-		// HTSlib automatically converts read chrom IDs from a VCF into int IDs,
-		// even if that contig is not found in the header (it creates a dummy contig entry if that is the case)
-		// We need the original chrom name to match with the BAM, so we have to go back in and find it
-		//
-		// find contig (chrom) string in the hash table
-		typedef khash_t(vdict) vdict_t;
-		vdict_t *contig_dict = (vdict_t*) hdr->dict[BCF_DT_CTG];
-		r.chrom.clear();
-		for (khint_t iter = kh_begin(contig_dict); iter != kh_end(contig_dict); ++iter) {
-			bcf_idinfo_t contig = kh_val(contig_dict, iter);// val is a HTSlib struct
-			if (contig.id == rid) {
-				r.chrom = kh_key(contig_dict, iter);// key is c-string chrom name
-				break;
-			}
-		}
-		// if contig was not found
-		if(r.chrom.empty()) {
-			r.chrom = "VCF-unset";
-		}
+		r.chrom = bcf_hdr_id2name(hdr, v->rid);
 		r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
 		r.nt_ref = char_to_nuc(v->d.allele[0][0]);
 		r.nt_alt = char_to_nuc(v->d.allele[1][0]);
 		return true;
+	}
+
+	bcf1_t* get_obj () const {
+		return v;
 	}
 
 	~vcf_reader() {
@@ -172,4 +164,4 @@ struct vcf_reader : reader {
 
 }  // namepsace hts
 
-#endif  // _HTSPAN_SNV_HPP_
+#endif  // _HTSPAN_SNV_READER_HPP_

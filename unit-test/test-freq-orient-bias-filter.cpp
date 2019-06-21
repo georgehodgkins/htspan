@@ -5,7 +5,7 @@
 #include <cmath>
 
 #include "htspan/freq_orient_bias_filter.hpp"
-#include "htspan/io/snv.hpp"
+#include "htspan/io/snv_reader.hpp"
 #include "htspan/nucleotide.hpp"
 
 #include "test.hpp"
