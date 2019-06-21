@@ -103,8 +103,8 @@ void print_general_usage() {
 		"quantify - Calculate an estimate of global damage in the given BAM file.\n" <<
 		"identify - Examine each SNV in the given snv file and provide a likelihood of damage.\n\n" <<
 
-		"Use --help [command] for details on use or --help utility\n" <<
-		"for information on options relating to logging, debugging, and output.\n";
+		"Use --help [command]  or --help [option] (no dashes) for details on use\n" <<
+		"or --help utility for information on options relating to logging, debugging, and output.\n";
 	std::cerr.flush();
 }
 
@@ -152,6 +152,21 @@ void print_help (const char* arg) {
 	} else if (strcmpi(arg, "utility") == 0) {
 		print_utility_usage();
 	} else {
+		if (strlen(arg) == 1) {
+			for (size_t n = 0; n < total_arg_count; ++n) {
+				if (strspn(arg, usage[n].shortopt) > 0) {
+					print_descr_usage(usage[n], std::cerr);
+					return;
+				}
+			}
+		} else {
+			for (size_t n = 0; n < total_arg_count; ++n) {
+				if (strcmpi(arg, usage[n].longopt) == 0) {
+					print_descr_usage(usage[n], std::cerr);
+					return;
+				}
+			}
+		}
 		if (strlen(arg) > 0) {
 			std::cerr << "Unknown help option \'" << arg << "\'.\n\n";
 		}
