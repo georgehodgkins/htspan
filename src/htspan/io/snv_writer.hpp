@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "htslib/vcf.h"
+#include "htslib/hts.h"
 
 #include "snv_reader.hpp"
 
@@ -28,8 +29,20 @@ struct vcf_writer {
 
 	void open(const char* path, htsFile *f_templ, bcf_hdr_t *h_templ) {
 		hdr = bcf_hdr_dup(h_templ);
-		htsFormat form = f_templ->format;
-		hf = hts_open_format(path, "w", &form);
+		char mode[2];
+		mode [0] = 'w';
+		switch(f_templ->format.compression) {
+		case no_compression:
+		default:
+			mode[1] = 'u';
+			break;
+		case gzip:
+			mode[1] = 'g';
+			break;
+		case bgzf:
+			mode[1] = 'z';
+		}
+		hf = hts_open_format(path, mode, &f_templ->format);
 		if (!hf) {
 			throw runtime_error("Error opening VCF file for output.");
 		}
