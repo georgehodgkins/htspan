@@ -6,6 +6,8 @@
 
 #include "htslib/vcf.h"
 
+#include "snv_reader.hpp"
+
 namespace hts {
 
 namespace snv {
@@ -20,8 +22,8 @@ struct vcf_writer {
 	// Pointer to BCF header struct for output file
 	bcf_hdr_t *hdr;
 
-	vcf_writer(const char* path, htsFile *f_templ, bcf_hdr_t *h_templ) {
-		open(path, f_templ, h_templ);
+	vcf_writer(const char* path, vcf_reader &to_copy) {
+		open(path, to_copy.hf, to_copy.hdr);
 	}
 
 	void open(const char* path, htsFile *f_templ, bcf_hdr_t *h_templ) {
@@ -38,18 +40,26 @@ struct vcf_writer {
 	}
 
 	void write(bcf1_t* rec, const bcf_hdr_t *src) {
-		bcf_hdr_merge(hdr, src);
+		sync_header(src);// have to sync in case new contigs were added by a read
 		int status = bcf_write(hf, hdr, rec);
 		if (status != 0) {
 			throw runtime_error("Error writing record to VCF file.");
 		}
 	}
 
+	void sync_header(const bcf_hdr_t *h) {
+		bcf_hdr_merge(hdr, h);
+	}
+
 	void close() {
-		hts_close(hf);
-		bcf_hdr_destroy(hdr);
-		hdr = NULL;
-		hf = NULL;
+		if (hf != NULL) {
+			hts_close(hf);
+			hf = NULL;
+		}
+		if (hdr != NULL) {
+			bcf_hdr_destroy(hdr);
+			hdr = NULL;
+		}
 	}
 
 	~vcf_writer () {

@@ -170,9 +170,15 @@ struct vcf_reader : reader {
 	}
 
 	void close() {
-		hts_close(hf);
-		bcf_destroy1(v);
-		bcf_hdr_destroy(hdr);
+		if (hf != NULL) {
+			hts_close(hf);
+		}
+		if (v != NULL) {
+			bcf_destroy1(v);
+		}
+		if (hdr != NULL) {
+			bcf_hdr_destroy(hdr);
+		}
 	}
 
 	~vcf_reader() {
