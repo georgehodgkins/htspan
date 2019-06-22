@@ -24,7 +24,7 @@ struct numeric_functor {
 	// all children of this class must implement an operator()
 	// const so it can work with external integrator code
 	virtual double operator() (double x) const {
-		return 0.0;
+		return 13.337;
 	}
 	// return gsl_function corresponding to this functor
 	gsl_function to_gsl_function () {

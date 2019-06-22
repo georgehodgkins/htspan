@@ -3,6 +3,9 @@
 
 #include <cmath>
 
+#include "functor.hpp"
+#include "de_integrator.hpp"
+
 namespace hts {
 
 using namespace std;
@@ -61,6 +64,32 @@ double log_sum_exp(size_t n, double xs[]) {
 	} else {
 		return 0;
 	}
+}
+
+struct Beta_fcn_integrand : math::numeric_functor {
+	double alpha;
+	double beta;
+
+	Beta_fcn_integrand (double a, double b) :
+		alpha(a), beta(b) {}
+
+	double operator() (double t) const {
+		return pow(t, alpha - 1.0)*pow(1.0 - t, beta - 1.0);
+	}
+};
+
+double beta_pdf (double x, double alpha, double beta) {
+	static double alpha_stored = -1.0;
+	static double beta_stored = -1.0;
+	static double B_stored = -1.0;
+	if (alpha != alpha_stored || beta != beta_stored) {
+		Beta_fcn_integrand f (alpha, beta);
+		math::tanh_sinh<math::numeric_functor> integrator;
+		B_stored = integrator.integrate(f, 0, 1, 1e-6);
+		alpha_stored = alpha;
+		beta_stored = beta;
+	}
+	return pow(x, alpha - 1.0)*pow(1.0 - x, beta - 1.0) / B_stored;
 }
 
 }  // namespace hts
