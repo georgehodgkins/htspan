@@ -45,7 +45,7 @@ void common_snvw_test (const char IN_SNVNAME[], const char OUT_SNVNAME[]) {
 	snvr.next(recF);//discard first line
 	snvr.next(recF); // store second line (new first line)
 	do {
-		snvw.write(snvr.get_obj(), snvr.hdr);
+		snvw.write(snvr.get_underlying());
 	} while (snvr.next(recL)); // store last line
 	snvw.close();
 	snvr.close();
@@ -95,9 +95,9 @@ BOOST_AUTO_TEST_CASE (tsv_snv) {
 	const long int POS_F = 7674420;
 	const nuc_t REF_F = nuc_C;
 	const nuc_t ALT_F = nuc_A;
-	const long int POS_L = 7674361;
+	const long int POS_L = 7674365;
 	const nuc_t REF_L = nuc_C;
-	const nuc_t ALT_L = nuc_T;
+	const nuc_t ALT_L = nuc_A;
 	common_snvr_test<hts::snv::tsv_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
 
 }
@@ -133,6 +133,12 @@ BOOST_AUTO_TEST_CASE (bgzip_vcf_snvr) {
 	const nuc_t REF_L = nuc_C;
 	const nuc_t ALT_L = nuc_G;
 	common_snvr_test<hts::snv::vcf_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
+}
+
+BOOST_AUTO_TEST_CASE (tsv_snvw) {
+	const char IN_SNVNAME[] = "../../data/snv.tsv";
+	const char OUT_SNVNAME[] = "../../data/test_out.tsv";
+	common_snvw_test<hts::snv::tsv_reader, hts::snv::tsv_writer>(IN_SNVNAME, OUT_SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (uncompressed_vcf_snvw) {

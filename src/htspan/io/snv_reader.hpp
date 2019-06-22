@@ -101,7 +101,7 @@ struct tsv_reader : reader {
 	/**
 	* Read cached record.
 	*/
-	record get_obj () const {
+	record get_underlying () const {
 		return cached;
 	}
 
@@ -174,7 +174,7 @@ struct vcf_reader : reader {
 		return true;
 	}
 
-	bcf1_t* get_obj () const {
+	bcf1_t* get_underlying () const {
 		return v;
 	}
 
