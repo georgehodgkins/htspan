@@ -5,6 +5,8 @@
 
 namespace math {
 
+// TODO: fix unusual behavior if operator() is pure virtual
+
 // forward declaration of evaluation functions called in struct methods
 //
 // Note that the reverse order (declaring struct before functions) does not work
