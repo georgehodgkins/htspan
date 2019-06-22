@@ -16,7 +16,7 @@
 #include "htspan/print.hpp"
 
 #include "htspan/io/faidx_reader.hpp"
-#include "htspan/io/snv.hpp"
+#include "htspan/io/snv_reader.hpp"
 #include "htspan/io/simul_writer.hpp"
 
 using namespace hts::frontend;

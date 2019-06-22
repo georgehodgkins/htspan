@@ -1,5 +1,5 @@
-#ifndef _HTSPAN_SNV_HPP_
-#define _HTSPAN_SNV_HPP_
+#ifndef _HTSPAN_SNV_READER_HPP_
+#define _HTSPAN_SNV_READER_HPP_
 
 #include <fstream>
 #include <sstream>
@@ -11,6 +11,7 @@
 #include "htspan/nucleotide.hpp"
 #include "htspan/bam.hpp"
 
+//TODO: Documentation
 
 namespace hts {
 
@@ -19,8 +20,6 @@ using namespace std;
 namespace snv {
 
 struct record {
-	// HTS identifier of reference sequence
-	int32_t rid;
 	// Human-readable name of reference sequence
 	string chrom;
 	// Read reference position
@@ -32,7 +31,7 @@ struct record {
 	/**
 	* Non-fatal error codes:
 	* 0=OK
-	* 1=could not find RID given in TSV
+	* 1=could not find RID in BAM header (or VCF header, for VCFs)
 	* 2=could not unpack VCF 
 	* 3=multiple-nucleotide variant in VCF
 	* -1=Externally set error (record was read correctly)
@@ -45,7 +44,6 @@ struct reader {
 
 	virtual bool next (record &r) = 0;
 
-	virtual void close () = 0;
 };
 
 /**
@@ -56,18 +54,24 @@ struct reader {
 struct tsv_reader : reader {
 	ifstream f;
 
-	bam_hdr_t *hdr;
-
 	string line;
 
-	tsv_reader(const char* path, bam_hdr_t *h) : f(path), hdr(h) {
+	record cached;
+
+	tsv_reader(const char* path) {
+	 	open(path);
+	}
+
+	 void open (const char* path) {
+	 	f.open(path);
+
 	 	if (!f.is_open()) {
 	 		throw runtime_error("Error: could not open input TSV file.");
 	 	}
 
 	 	// discard header line
 	 	getline(f, line);
-	 }
+	}
 
 	/**
 	 * Get next record.
@@ -83,30 +87,30 @@ struct tsv_reader : reader {
 		istringstream ss(line);
 		char char_ref, char_alt;
 		ss >> r.chrom >> r.pos >> char_ref >> char_alt;
-
+		r.err = 0;
 		// convert from 1-based to 0-based
 		r.pos -= 1;
 		r.nt_ref = char_to_nuc(char_ref);
 		r.nt_alt = char_to_nuc(char_alt);
 
-		// lookup rid in the attached BAM header
-		if (hdr != NULL) {// standalone unit test does not set a BAM header (and ignores error codes)
-			r.rid = bam_name_to_id(hdr, r.chrom);
-		} else {
-			r.rid = -1;
-		}
-		if (r.rid == -1) {
-			r.err = 1;
-			return true;
-		}
+		cached = r;
 
-		r.err = 0;
 		return true;
+	}
+
+	/**
+	* Read cached record.
+	*/
+	record get_obj () const {
+		return cached;
 	}
 
 	void close() {
 		f.close();
-		hdr = NULL;
+	}
+
+	~tsv_reader() {
+		close();
 	}
 };
 
@@ -123,7 +127,11 @@ struct vcf_reader : reader {
 	bcf1_t *v;
 
 	// the second parameter is for compatibility with the above's constructor signature, not used
-	vcf_reader(const char* path, bam_hdr_t *h) {
+	vcf_reader(const char* path) {
+		open(path);
+	}
+
+	void open (const char* path) {
 		// open HTS file handle
 		hf = hts_open(path, "r");
 		if (!hf) {
@@ -158,20 +166,32 @@ struct vcf_reader : reader {
 			return true;
 		}
 		// fill record fields
-		// TODO: find a way to get the chrom name from the rid
-		r.rid = v->rid;
-		r.chrom = "VCF-unset";
+		r.err = 0;
+		r.chrom = bcf_hdr_id2name(hdr, v->rid);
 		r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
 		r.nt_ref = char_to_nuc(v->d.allele[0][0]);
 		r.nt_alt = char_to_nuc(v->d.allele[1][0]);
-		r.err = 0;
 		return true;
 	}
 
+	bcf1_t* get_obj () const {
+		return v;
+	}
+
 	void close() {
-		hts_close(hf);
-		bcf_destroy1(v);
-		bcf_hdr_destroy(hdr);
+		if (hf != NULL) {
+			hts_close(hf);
+		}
+		if (v != NULL) {
+			bcf_destroy1(v);
+		}
+		if (hdr != NULL) {
+			bcf_hdr_destroy(hdr);
+		}
+	}
+
+	~vcf_reader() {
+		close();
 	}
 };
 
@@ -179,4 +199,4 @@ struct vcf_reader : reader {
 
 }  // namepsace hts
 
-#endif  // _HTSPAN_SNV_HPP_
+#endif  // _HTSPAN_SNV_READER_HPP_
