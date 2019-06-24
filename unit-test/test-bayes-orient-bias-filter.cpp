@@ -117,6 +117,7 @@ BOOST_AUTO_TEST_CASE(ms_hd) {
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
 }
 
+// NB: this test case will fail because the values from R are not accurate
 BOOST_AUTO_TEST_CASE(ls_ld) {
 	const char TSVNAME[] = "../sim-data/obrs_low-signal_low-damage_data.tsv";
 	const double ALPHA_PHI = COMMON_ALPHA;
@@ -165,6 +166,7 @@ BOOST_AUTO_TEST_CASE(ns_hd) {
 			PHI_INT_STD, THETA_INT_STD, EV_NULL_STD, EV_ALT_STD, LPOSTERIOR_STD);
 }
 
+// NB: this test case will fail because the values from R are not accurate
 BOOST_AUTO_TEST_CASE(ns_ld) {
 	const char TSVNAME[] = "../sim-data/obrs_no-signal_low-damage_data.tsv";
 	const double ALPHA_PHI = COMMON_ALPHA;
