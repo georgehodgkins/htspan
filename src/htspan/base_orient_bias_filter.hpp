@@ -11,6 +11,7 @@
 #include "orient_bias_data.hpp"
 #include "functor.hpp"
 #include "brent.hpp"
+#include "nucleotide.hpp"
 
 namespace hts {
 
@@ -35,6 +36,7 @@ struct theta_and_phi {
 */
 
 struct base_orient_bias_filter_f {
+	const char* text_id;// "orientation" set in constructor
 	//reference to externally initialized data object
 	const orient_bias_data& data;
 
@@ -46,7 +48,8 @@ struct base_orient_bias_filter_f {
 
 	base_orient_bias_filter_f(const orient_bias_data &dref,
 		double lb = -15.0, double ub = 15.0, double eps = 1e-6, size_t max_iter = 100)
-	: data(dref),	
+	: text_id("orientation"),
+		data(dref),	
 		minimizer_lb(lb),
 		minimizer_ub(ub),
 		epsabs(eps)
@@ -158,6 +161,24 @@ struct base_orient_bias_filter_f {
 		double lmin_phi = math::argmin(f, minimizer_lb, minimizer_ub, epsabs);
 		return logistic(lmin_phi);
 	}
+
+	/**
+	* Return a human-readable description of what this filter detects.
+	* Used for VCF annotation.
+	*/
+	const char* get_description () const {
+		if (data.r1_alt == nuc_T) {
+			if (data.r1_ref == nuc_G) {
+				return "damage artifact detected by oxoG orientation bias filter";
+			}
+			if (data.r1_ref == nuc_C) {
+				return "damage artifact detected by FFPE orientation bias filter";
+			}
+		} else {
+			return "damage artifact detected by other orientation bias filter";
+		}
+	}
+
 
 	struct nlp_bases_given_theta_f : public math::numeric_functor {
 		// reference to class containing lp_bases_given

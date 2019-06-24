@@ -9,6 +9,7 @@
 #include "htslib/hts.h"
 
 #include "snv_reader.hpp"
+#include "../base_orient_bias_filter.hpp"
 
 namespace hts {
 
@@ -34,13 +35,15 @@ struct tsv_writer {
 		f << "chrom\tpos\tref\talt" << endl;
 	}
 
-	void write (record r) {
+	void write (record r, const char* line = NULL) {
 		f << r.chrom << '\t' << r.pos+1 << '\t' << nuc_to_char(r.nt_ref) << '\t' << nuc_to_char(r.nt_alt) << endl;
 	}
 
 	void close() {
 		f.close();
 	}
+
+	void add_filter_tag (base_orient_bias_filter_f& filter) {}
 
 	~tsv_writer() {
 		close();
@@ -87,8 +90,18 @@ struct vcf_writer {
 		}
 	}
 
-	void write(bcf1_t* rec) {
+	void write(bcf1_t* rec, const char* filter_tag = NULL) {
 		sync_header();// have to sync in case new contigs were added by a read
+		if (filter_tag != NULL) {
+			int filter_id = bcf_hdr_id2int(hdr, BCF_DT_ID, filter_tag);
+			if (filter_id < 0) {
+				throw runtime_error("Filter tag not found in header! Add the filter to the header first.");
+			}
+			int status = bcf_add_filter(hdr, rec, filter_id);
+			if (status < 0) {
+				throw runtime_error("Could not add filter tag to selected record.");
+			}
+		}
 		int status = bcf_write(hf, hdr, rec);
 		if (status != 0) {
 			throw runtime_error("Error writing record to VCF file.");
@@ -97,6 +110,11 @@ struct vcf_writer {
 
 	void sync_header() {
 		bcf_hdr_merge(hdr, linked);
+	}
+
+	void add_filter_tag (base_orient_bias_filter_f& filter) {
+		sync_header();
+		bcf_hdr_printf(hdr, "FILTER=<ID=%s,Description=\"%s\">", filter.text_id, filter.get_description());
 	}
 
 	void close() {
@@ -109,6 +127,10 @@ struct vcf_writer {
 			bcf_hdr_destroy(hdr);
 			hdr = NULL;
 		}
+	}
+
+	bool is_annotated () const {
+		return true;
 	}
 
 	~vcf_writer () {
