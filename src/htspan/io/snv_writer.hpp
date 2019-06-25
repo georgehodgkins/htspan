@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <fstream>
+#include <queue>
 
 #include "htslib/vcf.h"
 #include "htslib/hts.h"
@@ -35,7 +36,7 @@ struct tsv_writer {
 		f << "chrom\tpos\tref\talt" << endl;
 	}
 
-	void write (record r, const char* line = NULL) {
+	void write (record r, const char* filter_tag = NULL) {
 		f << r.chrom << '\t' << r.pos+1 << '\t' << nuc_to_char(r.nt_ref) << '\t' << nuc_to_char(r.nt_alt) << endl;
 	}
 
@@ -59,6 +60,8 @@ struct vcf_writer {
 	bcf_hdr_t *hdr;
 	// Linked header (to synchronize with
 	bcf_hdr_t *linked;
+	// FIFO of records to write
+	queue<bcf1_t*> write_queue;
 
 	vcf_writer(const char* path, vcf_reader &to_copy) {
 		open(path, to_copy.hf, to_copy.hdr);
@@ -84,10 +87,6 @@ struct vcf_writer {
 		if (!hf) {
 			throw runtime_error("Error opening VCF file for output.");
 		}
-		int status = bcf_hdr_write(hf, hdr);
-		if (status != 0) {
-			throw runtime_error("Error writing header to VCF file.");
-		}
 	}
 
 	void write(bcf1_t* rec, const char* filter_tag = NULL) {
@@ -102,35 +101,52 @@ struct vcf_writer {
 				throw runtime_error("Could not add filter tag to selected record.");
 			}
 		}
-		int status = bcf_write(hf, hdr, rec);
-		if (status != 0) {
-			throw runtime_error("Error writing record to VCF file.");
-		}
+		// allocate a copy of the record (since the reader does not preserve records) and store a pointer to it
+		write_queue.push(bcf_dup(rec));
 	}
 
 	void sync_header() {
 		bcf_hdr_merge(hdr, linked);
 	}
 
+	void flush() {
+		sync_header();
+		int status = bcf_hdr_write(hf, hdr);
+		if (status != 0) {
+			throw runtime_error("Error writing header to VCF file.");
+		}
+		while (!write_queue.empty()) {
+			bcf1_t* twr = write_queue.front();
+			status = bcf_write(hf, hdr, twr);
+			if (status < 0) {
+				throw runtime_error("Error writing record to VCF file.");
+			}
+			write_queue.pop();
+			// deallocate copy of record
+			bcf_destroy(twr);
+		}
+	}
+
+
+
+
 	void add_filter_tag (base_orient_bias_filter_f& filter) {
 		sync_header();
-		bcf_hdr_printf(hdr, "FILTER=<ID=%s,Description=\"%s\">", filter.text_id, filter.get_description());
+		int status = bcf_hdr_printf(hdr, "##FILTER=<ID=%s,Description=\"%s\">", filter.text_id, filter.get_description());
+		if (status < 0) {
+			throw runtime_error("Could not add filter tag to VCF header.");
+		}
 	}
 
 	void close() {
-		linked = NULL;
 		if (hf != NULL) {
+			flush();
+			linked = NULL;
 			hts_close(hf);
 			hf = NULL;
-		}
-		if (hdr != NULL) {
 			bcf_hdr_destroy(hdr);
 			hdr = NULL;
 		}
-	}
-
-	bool is_annotated () const {
-		return true;
 	}
 
 	~vcf_writer () {

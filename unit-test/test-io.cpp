@@ -8,6 +8,7 @@
 #include "htspan/io/snv_reader.hpp"
 #include "htspan/io/snv_writer.hpp"
 #include "htspan/orient_bias_data.hpp"
+#include "htspan/bayes_orient_bias_filter.hpp"
 
 #include "test.hpp"
 
@@ -41,11 +42,19 @@ void common_snvw_test (const char IN_SNVNAME[], const char OUT_SNVNAME[]) {
 		typeid(SnvWriter).name() << " and input path " << IN_SNVNAME);
 	SnvReader snvr(IN_SNVNAME);
 	SnvWriter snvw(OUT_SNVNAME, snvr);
+	hts::orient_bias_data foo (nuc_G, nuc_T, 0);
+	hts::bayes_orient_bias_filter_f bobfilter(foo);
 	hts::snv::record rec, recF, recL;
+	recL.pos = 1;
+	snvw.add_filter_tag(bobfilter);
 	snvr.next(recF);//discard first line
 	snvr.next(recF); // store second line (new first line)
 	do {
-		snvw.write(snvr.get_underlying());
+		if (recL.pos % 2) {
+			snvw.write(snvr.get_underlying());
+		} else {
+			snvw.write(snvr.get_underlying(), bobfilter.text_id);
+		}
 	} while (snvr.next(recL)); // store last line
 	snvw.close();
 	snvr.close();

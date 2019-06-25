@@ -177,6 +177,8 @@ struct base_orient_bias_filter_f {
 		} else {
 			return "damage artifact detected by other orientation bias filter";
 		}
+		// this point should not be reached but it makes the compiler happy
+		return NULL;
 	}
 
 
