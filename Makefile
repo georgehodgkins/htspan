@@ -38,12 +38,13 @@ MLATLIBS = -lmlat
 HTS = -L$(src)/htslib -I$(src)/htslib $(HTSLIBS)
 GSL = $(GSLLIBS)
 MLAT = -L$(src)/mlat/lib -I$(src)/mlat/include $(MTSLIBS)
+ALG = -L$(src)/alglib -lalg
 BOOST_TEST = -lboost_unit_test_framework
 
 
 #! Targets
 
-deps = $(src)/htslib/libhts.a
+deps = $(src)/htslib/libhts.a $(src)/alglib/libalg.a
 
 targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-pileup $(bin)/hts-orient-bias-stats
 
@@ -61,6 +62,8 @@ all: $(deps) $(targets)
 
 mlat: $(mlat_deps) $(mlat_targets)
 	
+$(src)/alglib/libalg.a: $(src)/alglib
+	cd $(src)/alglib && make
 
 $(src)/htslib/libhts.a: $(src)/htslib
 	cd $(src)/htslib && make
@@ -90,24 +93,24 @@ $(bin)/hts-count: $(src)/hts-count.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS)
 
 $(bin)/hts-orient-bias-stats: $(src)/hts-orient-bias-stats.cpp
-	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(ALG)
 
 $(bin)/hts-orient-bias: $(src)/hts-orient-bias.cpp
-	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL)
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(ALG)
 
 #! Unit test targets for orient-bias
 
 $(utest)/$(bin)/test-freq-orient-bias-filter: $(utest)/test-freq-orient-bias-filter.cpp
-	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST) $(ALG)
 
 $(utest)/$(bin)/test-orient-bias-quant: $(utest)/test-orient-bias-quant.cpp
-	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST) $(ALG)
 
 $(utest)/$(bin)/test-bayes-orient-bias-filter: $(utest)/test-bayes-orient-bias-filter.cpp
-	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST) $(ALG)
 
 $(utest)/$(bin)/test-io: $(utest)/test-io.cpp
-	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST)
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(GSL) $(BOOST_TEST) $(ALG)
 
 clean:
 	rm -f $(targets) $(utest_targets) $(mlat_targets)

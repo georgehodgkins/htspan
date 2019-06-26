@@ -1,8 +1,6 @@
 #ifndef _HTSPAN_FREQ_ORIENT_BIAS_HPP_
 #define _HTSPAN_FREQ_ORIENT_BIAS_HPP_
 
-#include <gsl/gsl_cdf.h>
-
 #include "math.hpp"
 #include "base_orient_bias_filter.hpp"
 #include "orient_bias_data.hpp"
@@ -89,7 +87,7 @@ struct freq_orient_bias_filter_f : public base_orient_bias_filter_f {
 			phi = theta_phi.phi;
 		}
 		double dev = deviance_theta(theta_hat, phi);
-		return 1 - gsl_cdf_chisq_P(dev, 1);
+		return 1 - chisq_cdf(dev,1);
 	}
 
 };

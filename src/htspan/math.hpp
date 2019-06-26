@@ -5,6 +5,8 @@
 
 #include "gamma.hpp"
 
+#include "alglib/specialfunctions.h"
+
 namespace hts {
 
 using namespace std;
@@ -65,8 +67,24 @@ double log_sum_exp(size_t n, double xs[]) {
 	}
 }
 
+/**
+* Returns the CDF of the chi-squared distribution
+* with n degrees of freedom at the value x.
+*/
+double chisq_cdf (double x, double n) {
+	if (x <= 0.0) {
+		return 0;
+	}
+	return alglib::chisquaredistribution(n, x);
+}
+
+/**
+* Returns the log of the beta function for 
+* parameters alpha and beta.
+*/
 double lbeta (double alpha, double beta) {
-	return math::lgamma(alpha) + math::lgamma(beta) - math::lgamma(alpha + beta);
+	double foo;
+	return alglib::lngamma(alpha, foo) + alglib::lngamma(beta, foo) - alglib::lngamma(alpha + beta, foo);
 }
 
 /**
