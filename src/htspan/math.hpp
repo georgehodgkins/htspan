@@ -3,8 +3,6 @@
 
 #include <cmath>
 
-#include "gamma.hpp"
-
 #include "alglib/specialfunctions.h"
 
 namespace hts {
