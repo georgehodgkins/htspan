@@ -126,7 +126,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 		// evaluates the function to be integrated
 		double operator() (double phi) const {
 			return exp(bobfilter.lp_bases_given(theta, phi) +
-				log(beta_pdf(phi, alpha, beta)));
+				log_beta_pdf(phi, alpha, beta));
 		}
 	};
 

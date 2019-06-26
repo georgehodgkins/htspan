@@ -5,6 +5,7 @@
 
 #include "functor.hpp"
 #include "de_integrator.hpp"
+#include "gamma.hpp"
 
 namespace hts {
 
@@ -82,37 +83,41 @@ struct beta_kernel_f : math::numeric_functor {
 	}
 };
 
+double lbeta (double alpha, double beta) {
+	return math::lgamma(alpha) + math::lgamma(beta) - math::lgamma(alpha + beta);
+}
+
 /**
-* The probability density of the beta distribution with the
+* The log probability density of the beta distribution with the
 * hyperparameters alpha and beta at x.
 *
 * PDF = x^(a-1)*(1-x)^(b-1)/B(a, b) where B is the beta fcn:
 * definite integral of t^(a-1)*(1-t)^(b-1) on (0, 1)
 *
-* The beta function (denominator) is computationally expensive,
-* so the hyperparameters are stored and it is only re-evaluated if 
+* Then the log PDF is: (a-1)/log(x) + (b-1)/log(1-x) - log(B(a,b))
+*
+* The log beta function (denominator) is computationally expensive,
+* so the hyperparameters are cached and it is only re-evaluated if 
 * they change.
 *
 * @param x Point at which to evaluate the pdf
 * @param alpha Alpha hyperparameter of the beta distribution
 * @param beta Beta hyperparameter of the beta distribution
-* @return The PDF at x for the beta dist defined by alpha and beta
+* @return The log PDF at x for the beta dist defined by alpha and beta
 */
-double beta_pdf (double x, double alpha, double beta) {
-	// cached parameters and Beta function value
+double log_beta_pdf (double x, double alpha, double beta) {
+	// cached parameters and log beta function value
 	static double alpha_cached = -1.0;
 	static double beta_cached = -1.0;
-	static double B_cached = -1.0;
-	// update Beta function (denominator) if parameters changed
+	static double lbeta_f_cached = -1.0;
+	// update log beta function value if parameters changed
 	if (alpha != alpha_cached || beta != beta_cached) {
-		beta_kernel_f f (alpha, beta);
-		math::tanh_sinh<math::numeric_functor> integrator;
-		B_cached = integrator.integrate(f, 0, 1, 1e-6);
+		lbeta_f_cached = lbeta(alpha, beta);
 		alpha_cached = alpha;
 		beta_cached = beta;
 	}
-	// evaluate PDF
-	return pow(x, alpha_cached - 1.0)*pow(1.0 - x, beta_cached - 1.0) / B_cached;
+	// evaluate log PDF
+	return (alpha_cached - 1.0)*log(x) + (beta_cached - 1.0)*log(1.0 - x) - lbeta_f_cached;
 }
 
 }  // namespace hts
