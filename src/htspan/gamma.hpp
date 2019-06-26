@@ -1,18 +1,30 @@
 #ifndef _HTSPAN_GAMMA_HPP_
 #define _HTSPAN_GAMMA_HPP_
 
-// John Cook's implementation of the gamma() and lgamma() functions
-// Visit http://www.johndcook.com/stand_alone_code.html for the source of this code and more like it.
-
+/**
+* This header includes John Cook's implementation
+* of the gamma() and lgamma() functions from
+* http://www.johndcook.com/stand_alone_code.html.
+*
+* It also includes John Burkardt's C++ implementation
+* of Chi Leung Lau's FORTRAN algorithm for calculation
+* of the lower incomplete gamma function, gamma_p().
+*
+* Both are slightly modified for compatibility with htspan
+* NB: gamma_p() depends on lgamma().
+*/ 
 
 namespace math {
 
 #include <cmath>
+#include <cfloat>
 #include <sstream>
 #include <stdexcept>
 
-// Note that the functions Gamma and LogGamma are mutually dependent.
+// forward declaration of lgamma() for use in gamma()
+double lgamma (double x);
 
+// NB: depends on lgamma()
 double gamma
 (
     double x    // We require x > 0
@@ -133,6 +145,7 @@ double gamma
     return exp(lgamma(x));
 }
 
+// NB: depends on gamma()
 double lgamma
 (
     double x    // x must be positive
@@ -178,6 +191,110 @@ double lgamma
     static const double halfLogTwoPi = 0.91893853320467274178032973640562;
     double logGamma = (x - 0.5)*log(x) - x + halfLogTwoPi + series;    
 	return logGamma;
+}
+
+double gamma_p ( double x, double p)
+
+//****************************************************************************80
+//
+//  Purpose:
+//
+//    gamma_p computes the regularized lower incomplete Gamma function.
+//
+//  Discussion:
+//
+//    The parameters must be positive.  An infinite series is used.
+//    This may not be the most efficient implementation but it's only lightly used in htspan.
+//    NB: This method depends on an external lgamma() implementation (comes with C99, or included above).
+//
+//  Licensing:
+//
+//    This code is distributed under the GNU LGPL license. 
+//
+//  Modified:
+//
+//    22 January 2008
+//
+//  Author:
+//
+//    Original FORTRAN77 version by Chi Leung Lau.
+//    C++ version by John Burkardt.
+//
+//  Reference:
+//
+//    Chi Leung Lau,
+//    Algorithm AS 147:
+//    A Simple Series for the Incomplete Gamma Integral,
+//    Applied Statistics,
+//    Volume 29, Number 1, 1980, pages 113-114.
+//
+//  Parameters:
+//
+//    Input, double X, P, the arguments of the incomplete
+//    Gamma integral.  X and P must be greater than 0.
+//
+//    Output, int *IFAULT, error flag.
+//    0, no errors.
+//    1, X <= 0 or P <= 0.
+//    2, underflow during the computation.
+//
+//    Output, double GAMMDS, the value of the incomplete
+//    Gamma integral.
+//
+{
+  double a;
+  double arg;
+  double c;
+  double e = 1.0E-09;
+  double f;
+  double uflo = 1.0E-37;
+  double value;
+//
+//  Check the input.
+//
+  if ( x <= 0.0  || p <= 0.0)
+  {
+   throw std::invalid_argument("Parameters to incomplete gamma function must be positive!");
+  }
+//
+//  LGAMMA is the natural logarithm of the gamma function.
+//
+  arg = p * log ( x ) - lgamma ( p + 1.0 ) - x;
+
+  if ( arg < log ( uflo ) )
+  {
+    throw std::runtime_error("Parameters to incomplete gamma function are too small, underflow occurred.");
+  }
+
+  f = exp ( arg );
+
+  if ( f == 0.0 )
+  {
+    throw std::runtime_error("Parameters to incomplete gamma function are too small, underflow occurred.");
+  }
+
+//
+//  Series begins.
+//
+  c = 1.0;
+  value = 1.0;
+  a = p;
+
+  for ( ; ; )
+  {
+    a = a + 1.0;
+    c = c * x / a;
+    value = value + c;
+
+    if ( c <= e * value )
+    {
+      break;
+    }
+  }
+
+  value = value * f;
+
+  return value;
 }
 
 } // namespace math
