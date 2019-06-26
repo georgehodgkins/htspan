@@ -4,3 +4,6 @@
 [submodule "src/mlat"]
 	path = src/mlat
 	url = https://github.com/djhshih/mlat
+[submodule "src/alglib"]
+	path = src/alglib
+	url = https://github.com/georgehodgkins/ALGLIB.git
