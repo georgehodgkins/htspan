@@ -67,22 +67,6 @@ double log_sum_exp(size_t n, double xs[]) {
 	}
 }
 
-/**
-* This functor represents the function that is integrated
-* when calculating the beta function: t^(a-1) * (1-t)^(b-1)
-*/
-struct beta_kernel_f : math::numeric_functor {
-	// hyperparameters
-	double alpha;
-	double beta;
-	// constructor which sets hyperparameters
-	beta_kernel_f (double a, double b) :
-		alpha(a), beta(b) {}
-	double operator() (double t) const {
-		return pow(t, alpha - 1.0)*pow(1.0 - t, beta - 1.0);
-	}
-};
-
 double lbeta (double alpha, double beta) {
 	return math::lgamma(alpha) + math::lgamma(beta) - math::lgamma(alpha + beta);
 }
