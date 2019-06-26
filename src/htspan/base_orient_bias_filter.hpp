@@ -36,6 +36,7 @@ struct theta_and_phi {
 */
 
 struct base_orient_bias_filter_f {
+	// Text filter identifier used in VCF annotation (ID field/filter name in column)
 	const char* text_id;// "orientation" set in constructor
 	//reference to externally initialized data object
 	const orient_bias_data& data;
@@ -164,7 +165,7 @@ struct base_orient_bias_filter_f {
 
 	/**
 	* Return a human-readable description of what this filter detects.
-	* Used for VCF annotation.
+	* Used for VCF annotation (Description field).
 	*/
 	const char* get_description () const {
 		if (data.r1_alt == nuc_T) {
@@ -181,7 +182,12 @@ struct base_orient_bias_filter_f {
 		return NULL;
 	}
 
+	//TODO: convert to positive functors and use argmax()
 
+	/**
+	* This functor returns the negative log probability of bases
+	* for a given theta and a fixed value of phi.
+	*/
 	struct nlp_bases_given_theta_f : public math::numeric_functor {
 		// reference to class containing lp_bases_given
 		base_orient_bias_filter_f &filter;
@@ -196,6 +202,10 @@ struct base_orient_bias_filter_f {
 		}
 	};
 
+	/**
+	* This functor returns the negative log probability of bases
+	* for a given phi and a fixed value of theta.
+	*/
 	struct nlp_bases_given_phi_f : public math::numeric_functor {
 		// reference to class containing lp_bases_given
 		base_orient_bias_filter_f &filter;

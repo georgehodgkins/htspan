@@ -62,7 +62,11 @@ struct tsv_reader : reader {
 	 	open(path);
 	}
 
-	 void open (const char* path) {
+	/**
+	* Opens the given path for reading as a TSV file.
+	* Throws exception if the path cannot be opened.
+	*/
+	void open (const char* path) {
 	 	f.open(path);
 
 	 	if (!f.is_open()) {
@@ -70,11 +74,14 @@ struct tsv_reader : reader {
 	 	}
 
 	 	// discard header line
+	 	// TODO: check header line
 	 	getline(f, line);
 	}
 
 	/**
-	 * Get next record.
+	 * Read next record and store it in the passed reference.
+	 * A copy will also be cached internally until the next call to next(),
+	 * accessible using get_underlying().
 	 */
 	bool next(record& r) {
 		// get next valid line
@@ -82,6 +89,7 @@ struct tsv_reader : reader {
 			if (f.eof()) return false;
 			getline(f, line);
 		} while (line.empty() || line[0] == '#');
+		// TODO: check for malformed lines
 
 		// process line
 		istringstream ss(line);
@@ -99,16 +107,18 @@ struct tsv_reader : reader {
 	}
 
 	/**
-	* Read cached record.
+	* Return cached record (most recently read).
 	*/
 	record get_underlying () const {
 		return cached;
 	}
 
+	// Closes the attached file handle
 	void close() {
 		f.close();
 	}
 
+	// Destructor alias for close()
 	~tsv_reader() {
 		close();
 	}
@@ -126,11 +136,16 @@ struct vcf_reader : reader {
 	// pointer to VCF record buffer to read to/from
 	bcf1_t *v;
 
-	// the second parameter is for compatibility with the above's constructor signature, not used
+	// constructor alias for open()
 	vcf_reader(const char* path) {
 		open(path);
 	}
 
+	/**
+	* Opens the given path for reading as a VCF file.
+	* Throws exception if the file cannot be opened
+	* or does not appear to be in VCF format.
+	*/
 	void open (const char* path) {
 		// open HTS file handle
 		hf = hts_open(path, "r");
@@ -148,6 +163,12 @@ struct vcf_reader : reader {
 		v = bcf_init();
 	}
 
+	/**
+	* Read next record and store data from it in the passed reference.
+	* A cached copy of the original bcf1_t object, which contains more fields
+	* than a snv::record, will be available until the next call to next(),
+	* accessible using get_underlying().
+	*/
 	bool next(record &r) {
 		// read in the record
 		int status = bcf_read1(hf, hdr, v);
@@ -174,22 +195,32 @@ struct vcf_reader : reader {
 		return true;
 	}
 
+	// Returns the last read bcf1_t object
 	bcf1_t* get_underlying () const {
 		return v;
 	}
 
+	/**
+	* Closes the attached file handle and 
+	* deallocates all memory allocated in open(),
+	* including the object cache.
+	*/
 	void close() {
 		if (hf != NULL) {
 			hts_close(hf);
+			hf = NULL;
 		}
 		if (v != NULL) {
 			bcf_destroy1(v);
+			v = NULL;
 		}
 		if (hdr != NULL) {
 			bcf_hdr_destroy(hdr);
+			hdr = NULL;
 		}
 	}
 
+	// destructor alias for close()
 	~vcf_reader() {
 		close();
 	}
