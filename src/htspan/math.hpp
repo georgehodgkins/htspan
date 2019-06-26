@@ -3,8 +3,6 @@
 
 #include <cmath>
 
-#include "functor.hpp"
-#include "de_integrator.hpp"
 #include "gamma.hpp"
 
 namespace hts {
