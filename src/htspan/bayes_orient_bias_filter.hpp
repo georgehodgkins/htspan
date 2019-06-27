@@ -5,9 +5,6 @@
 #include <cmath>
 #include <stdexcept>
 
-#include <gsl/gsl_cdf.h>
-#include <gsl/gsl_math.h>
-
 #include "de_integrator.hpp"
 #include "base_orient_bias_filter.hpp"
 #include "orient_bias_data.hpp"

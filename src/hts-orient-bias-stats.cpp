@@ -46,8 +46,6 @@ int main(int argc, char** argv) {
 	int min_mapq = atoi(argv[8]);
 	int min_baseq = atoi(argv[9]);
 
-	gsl_set_error_handler_off();
-
 	fetcher f;
 
 	// disable quality filters

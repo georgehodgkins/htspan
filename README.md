@@ -9,7 +9,6 @@ Collection of utilities for filtering high-throughput sequencing data:
 ## Dependencies
 
 * gcc >= 4.8
-* gsl >= 2.4.1
 
 ### Included dependencies
 
