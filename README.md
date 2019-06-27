@@ -10,6 +10,13 @@
 * htslib >= 1.8
 * mlat >= 0.1
 
+### Optional dependencies for testing and development
+
+* samtools >= 1.8
+* python3 >= 3.6
+* boost >= 1.69
+* bcftools >= 1.3.1
+
 ## Install
 
 ```{bash}
