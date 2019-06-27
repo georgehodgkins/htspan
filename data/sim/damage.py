@@ -90,8 +90,12 @@ if __name__ == "__main__":
     # set output file names
     if not args.out1:
         out1 = prepend_ext(args.r1, dtype)
+    else:
+        out1 = args.out1
     if not args.out2:
         out2 = prepend_ext(args.r2, dtype)
+    else:
+        out2 = args.out2
 
     # read input sequences and write damaged sequences
     with open(args.r1) as r1f, open(args.r2) as r2f, \
