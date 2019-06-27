@@ -7,3 +7,6 @@
 [submodule "src/alglib"]
 	path = src/alglib
 	url = https://github.com/georgehodgkins/ALGLIB.git
+[submodule "src/seqan"]
+	path = src/seqan
+	url = https://github.com/seqan/seqan.git
