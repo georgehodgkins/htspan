@@ -1,11 +1,14 @@
 
-ref=tp53_hg38.fasta
+ref=../tp53_hg38.fasta
 out=sim
 
 r1=$out.r1.fq
 r2=$out.r2.fq
 
+# Simulate reads
+
 # 2*100 bp reads * 10000 reads / 19149 bp seq = 104x coverage
+# SNV mutation rate of 0.05 and no indels
 wgsim -h -1 100 -2 100 -S 0 -e 0.05 -N 10000 -R 0 \
 	$ref $r1 $r2 | 
 	cut -f 1-4 > $out.snv
