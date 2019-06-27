@@ -2,12 +2,13 @@
 #define _HTSPAN_ORIENT_BIAS_DATA_HPP_
 
 #include <vector>
+#include <cstdlib>
 #include <stdint.h>
 
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include <gsl/gsl_randist.h>// for simulation
+#include <alglib/alglibmisc.h>// RNG for simulation
 
 #include "io/orient_bias_stats.hpp"
 #include "fetcher.hpp"
@@ -205,27 +206,36 @@ struct orient_bias_data {
 	* @param err_sd Std dev for normal distribution of error values
 	* @return none (populates class members with simulated values)
 	*/
-	void simulate(double theta, double phi, double err_mean, double err_sd) {
+	void simulate(double theta, double phi, double err_mean, double err_sd, int seed = 0) {
 		size_t count = bases.capacity();//set in constructor
 		clear();
 		reserve(count);//in case clearing resets allocation, which is implementation dependent
-		gsl_rng *rng = gsl_rng_alloc (gsl_rng_mt19937);
+		alglib::hqrndstate rng;
+		if (seed == 0) {
+			alglib::hqrndrandomize(rng);
+		} else {
+			srand(seed);
+			int s1 = rand();
+			int s2 = rand();
+			alglib::hqrndseed(s1, s2, rng);
+		}
 		//generate normally distributed error values with the input parameters
 		for (size_t n = 0; n < count; ++n) {
-			double z = gsl_ran_gaussian(rng, err_sd) + err_mean;
+			//N(mu, sigma) = Z*sigma + mu
+			double z = alglib::hqrndnormal(rng)*err_sd + err_mean;
 			if (z < 0) z = 0;
 			errors[n] = anti_phred(z);
 		}
 		//generate bases where prob of alt is theta and prob of ref is 1-theta
 		for (size_t n = 0; n < count; ++n) {
-			double z = gsl_ran_flat(rng, 0, 1);
-			bases[n] = (z < theta) ? 0 : 1;//0=ref, 1=alt
+			double z = alglib::hqrnduniformr(rng);// flat distribution on (0,1)
+			bases[n] = (z > theta) ? 0 : 1;//0=ref, 1=alt
 			//generate orients with equal probability
-			z = gsl_ran_flat(rng, 0, 1);
+			z = alglib::hqrnduniformr(rng);
 			orients[n] = (z < 0.5);
 			//for oriented reference bases, prob of damage (ref>alt) is phi
 			if (bases[n] == 0 && orients[n]) {
-				z = gsl_ran_flat(rng, 0, 1);
+				z = alglib::hqrnduniformr(rng);
 				if (z < phi) {
 					bases[n] = 1;
 				}
