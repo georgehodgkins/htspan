@@ -18,6 +18,6 @@ fname=${bam##*/}
 prefix=${fname%.*}
 
 bcftools mpileup -Ou -f $ref $bam |
-	bcftools call -mv -Ov -P $mut_rate |
-	./vcf2snv.sh > $prefix.calls.snv
+	bcftools call -mv -Ov -P $mut_rate -o $prefix.calls.vcf
+./vcf2snv.sh $prefix.calls.vcf $prefix.calls.snv
 
