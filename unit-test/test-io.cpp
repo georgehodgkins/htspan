@@ -12,28 +12,81 @@
 
 #include "test.hpp"
 
+// NB: this test is designed to work with specific files: test-io.tsv/vcf in data dir
 template <typename SnvReader>
-void common_snvr_test (const char SNVNAME[], const long int POS_F, const nuc_t REF_F, const nuc_t ALT_F,
-		const long int POS_L, const nuc_t REF_L, const nuc_t ALT_L) {
+void common_snvr_test (const char SNVNAME[]) {
 	BOOST_TEST_MESSAGE("Starting SNV reader test for type " << typeid(SnvReader).name() << " and path " << SNVNAME);
 	SnvReader snvr (SNVNAME);
-	hts::snv::record recF, recL;
-	snvr.next(recF);
-	while (snvr.next(recL)) {}
-	BOOST_TEST_MESSAGE("First Chrom= " << recF.chrom << ", Err= " << recF.err);
-	BOOST_CHECK_MESSAGE(recF.nt_ref == REF_F,
-		"First record ref nucleotide does not match.");
-	BOOST_CHECK_MESSAGE(recF.nt_alt == ALT_F, 
-		"First record alt nucleotide does not match.");
-	BOOST_CHECK_MESSAGE(recF.pos == POS_F-1,
-		"First record position does not match. Got: " << recF.pos << ", expected: " << POS_F-1);
-	BOOST_TEST_MESSAGE("Last Chrom= " << recL.chrom << ", Err= " << recL.err);
-	BOOST_CHECK_MESSAGE(recL.nt_ref == REF_L,
-		"Last record ref nucleotide does not match.");
-	BOOST_CHECK_MESSAGE(recL.nt_alt == ALT_L, 
-		"Last record alt nucleotide does not match.");
-	BOOST_CHECK_MESSAGE(recL.pos == POS_L-1,
-		"Last record position does not match. Got: " << recL.pos << ", expected: " << POS_L-1);
+	using hts::snv::record;
+	const record L1 ("19", 110, 'A', 'C');
+	const record L2A ("19", 111, 'A', 'G');
+	const record L2B ("19", 111, 'A', 'C');
+	const record L2C ("19", 111, 'A', 'T');
+	const int L3_ERR = 1;
+	const int L4_ERR = 1;
+	const int L5_ERR = 3;
+	const int L6_ERR = 3;
+	const int L7_ERR = 3;
+	record rec;
+	// LINE 1: A>C
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(rec == L1 && snvr.error() == 0,
+		"Record does not match or read error was encountered." << 
+		"\nGot: " << rec.to_string() <<
+		"\nExp: " << L1.to_string() << 
+		"\nErr: " << snvr.error());
+
+	// LINE 2: A>G,C,T; should split alts
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(rec == L2A && snvr.error() == 0,
+		"Record does not match or read error was encountered." << 
+		"\nGot: " << rec.to_string() <<
+		"\nExp: " << L2A.to_string() << 
+		"\nErr: " << snvr.error());
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(rec == L2B && snvr.error() == 0,
+		"Record does not match or read error was encountered." << 
+		"\nGot: " << rec.to_string() <<
+		"\nExp: " << L2B.to_string() << 
+		"\nErr: " << snvr.error());
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(rec == L2C && snvr.error() == 0,
+		"Record does not match or read error was encountered." << 
+		"\nGot: " << rec.to_string() <<
+		"\nExp: " << L2C.to_string() << 
+		"\nErr: " << snvr.error());
+
+	// LINE 3: N>A; expect error 1 (zero-len allele)
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(snvr.error() == L3_ERR,
+		"Did not get expected error." <<
+		"\nGot err: " << snvr.error() << " Exp err: " << L3_ERR <<
+		"\nGot rec: " << rec.to_string());
+
+	// LINE 4: T>N; expect error 1 (zero-len allele)
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(snvr.error() == L4_ERR,
+		"Did not get expected error." <<
+		"\nGot err: " << snvr.error() << " Exp err: " << L4_ERR <<
+		"\nGot rec: " << rec.to_string());
+	// LINE 5: A>GT; expect error 3 (multi-len allele)
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(snvr.error() == L5_ERR,
+		"Did not get expected error." <<
+		"\nGot err: " << snvr.error() << " Exp err: " << L5_ERR <<
+		"\nGot rec: " << rec.to_string());
+	// LINE 6: AT>G; expect error 3 (zero-len allele)
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(snvr.error() == L6_ERR,
+		"Did not get expected error." <<
+		"\nGot err: " << snvr.error() << " Exp err: " << L6_ERR <<
+		"\nGot rec: " << rec.to_string());
+	// LINE 7: G>GA,GAC; expect error 3 (zero-len allele)
+	snvr.next(rec);
+	BOOST_CHECK_MESSAGE(snvr.error() == L7_ERR,
+		"Did not get expected error." <<
+		"\nGot err: " << snvr.error() << " Exp err: " << L7_ERR <<
+		"\nGot rec: " << rec.to_string());
 }
 
 template <typename SnvReader, typename SnvWriter>
@@ -99,49 +152,25 @@ BOOST_AUTO_TEST_CASE (stat_reader) {
 		"199th member of errors vector does not match.");
 }
 
-BOOST_AUTO_TEST_CASE (tsv_snv) {
-	const char SNVNAME[] = "../../data/snv.tsv";
-	const long int POS_F = 7674420;
-	const nuc_t REF_F = nuc_C;
-	const nuc_t ALT_F = nuc_A;
-	const long int POS_L = 7674365;
-	const nuc_t REF_L = nuc_C;
-	const nuc_t ALT_L = nuc_A;
-	common_snvr_test<hts::snv::tsv_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
+BOOST_AUTO_TEST_CASE (tsv_snvr) {
+	const char SNVNAME[] = "../../data/test-io.tsv";
+	common_snvr_test<hts::snv::tsv_reader>(SNVNAME);
 
 }
 
 BOOST_AUTO_TEST_CASE (uncompressed_vcf_snvr) {
-	const char SNVNAME[] = "../../data/sample.vcf";
-	const long int POS_F = 111;
-	const nuc_t REF_F = nuc_A;
-	const nuc_t ALT_F = nuc_C;
-	const long int POS_L = 10;
-	const nuc_t REF_L = nuc_C;
-	const nuc_t ALT_L = nuc_G;
-	common_snvr_test<hts::snv::vcf_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
+	const char SNVNAME[] = "../../data/test-io.vcf";
+	common_snvr_test<hts::snv::vcf_reader>(SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (gzip_vcf_snvr) {
-	const char SNVNAME[] = "../../data/sample.vcf.gz";
-	const long int POS_F = 111;
-	const nuc_t REF_F = nuc_A;
-	const nuc_t ALT_F = nuc_C;
-	const long int POS_L = 10;
-	const nuc_t REF_L = nuc_C;
-	const nuc_t ALT_L = nuc_G;
-	common_snvr_test<hts::snv::vcf_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
+	const char SNVNAME[] = "../../data/test-io.vcf.gz";
+	common_snvr_test<hts::snv::vcf_reader>(SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (bgzip_vcf_snvr) {
-	const char SNVNAME[] = "../../data/sample.vcf.bgz";
-	const long int POS_F = 111;
-	const nuc_t REF_F = nuc_A;
-	const nuc_t ALT_F = nuc_C;
-	const long int POS_L = 10;
-	const nuc_t REF_L = nuc_C;
-	const nuc_t ALT_L = nuc_G;
-	common_snvr_test<hts::snv::vcf_reader>(SNVNAME, POS_F, REF_F, ALT_F, POS_L, REF_L, ALT_L);
+	const char SNVNAME[] = "../../data/test-io.vcf.bgz";
+	common_snvr_test<hts::snv::vcf_reader>(SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (tsv_snvw) {
