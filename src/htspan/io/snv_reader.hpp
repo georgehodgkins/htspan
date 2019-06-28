@@ -2,8 +2,10 @@
 #define _HTSPAN_SNV_READER_HPP_
 
 #include <fstream>
+#include <string>
 #include <sstream>
 #include <stdexcept>
+#include <algorithm>
 
 #include "htslib/hts.h"
 #include "htslib/vcf.h"
@@ -31,9 +33,9 @@ struct record {
 	/**
 	* Non-fatal error codes:
 	* 0=OK
-	* 1=could not find RID in BAM header (or VCF header, for VCFs)
+	* 1=zero-nucleotide sequence detected (either ref or alt)
 	* 2=could not unpack VCF 
-	* 3=multiple-nucleotide variant in VCF
+	* 3=multiple-nucleotide sequence detected (either ref or alt)
 	* -1=Externally set error (record was read correctly)
 	*/
 	// Note that since vcf_read() returns the same value for EOF and other read errors, we cannot easily catch errors there
@@ -57,6 +59,10 @@ struct tsv_reader : reader {
 	string line;
 
 	record cached;
+
+	bool more_nucs;
+
+	istringstream ss;
 
 	tsv_reader(const char* path) {
 	 	open(path);
@@ -84,25 +90,58 @@ struct tsv_reader : reader {
 	 * accessible using get_underlying().
 	 */
 	bool next(record& r) {
-		// get next valid line
-		do {
-			if (f.eof()) return false;
-			getline(f, line);
-		} while (line.empty() || line[0] == '#');
-		// TODO: check for malformed lines
+		// ss is a class member so its contents are preserved
+		// if not at EOF, more alt nucs to read
+		if (!cached.err && !ss.eof()) {
+			ss.ignore();// skip the comma
+			r = cached;
+			char nuc_alt;
+			ss >> nuc_alt;
+			r.nt_alt = char_to_nuc(nuc_alt);
+		} else {// get next valid line
+			r.err = 0;
+			do {
+				if (f.eof()) return false;
+				getline(f, line);
+			} while (line.empty() || line[0] == '#');
+			// TODO: check for malformed lines
 
-		// process line
-		istringstream ss(line);
-		char char_ref, char_alt;
-		ss >> r.chrom >> r.pos >> char_ref >> char_alt;
-		r.err = 0;
-		// convert from 1-based to 0-based
-		r.pos -= 1;
-		r.nt_ref = char_to_nuc(char_ref);
-		r.nt_alt = char_to_nuc(char_alt);
-
-		cached = r;
-
+			// process line
+			// alt_nucs is a class member
+			ss.str(line);
+			char char_ref, char_alt;
+			ss >> r.chrom >> r.pos >> char_ref;
+			// ref length < 1
+			if (char_ref == '-') {
+				r.err = 1;
+				cached = r;
+				return true;
+			}
+			// ref length > 1
+			if (ss.peek() != '\t') {
+				r.err = 3;
+				cached = r;
+				return true;
+			}
+			ss >> char_alt;
+			// alt length < 1
+			if (char_alt == '-') {
+				r.err = 1;
+				cached = r;
+				return true;
+			}
+			// convert from 1-based to 0-based
+			r.pos -= 1;
+			r.nt_ref = char_to_nuc(char_ref);
+			r.nt_alt = char_to_nuc(char_alt);
+			cached = r;
+			// alt length > 1
+			if (!ss.eof() && ss.peek() != ',') {
+				r.err = 3;
+				cached = r;
+				return true;
+			}
+		}
 		return true;
 	}
 
@@ -181,8 +220,8 @@ struct vcf_reader : reader {
 			r.err = 2;
 			return true;
 		}
-		// This class only handles /S/ NVs
-		if (v->rlen > 1) {
+		// Ref must be
+		if (v->rlen != 1) {
 			r.err = 3;
 			return true;
 		}
