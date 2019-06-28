@@ -30,21 +30,17 @@ struct record {
 	nuc_t nt_ref;
 	// Alternate nucleotide
 	nuc_t nt_alt;
-	/**
-	* Non-fatal error codes:
-	* 0=OK
-	* 1=zero-nucleotide sequence detected (either ref or alt)
-	* 2=could not unpack VCF 
-	* 3=multiple-nucleotide sequence detected (either ref or alt)
-	* -1=Externally set error (record was read correctly)
-	*/
-	// Note that since vcf_read() returns the same value for EOF and other read errors, we cannot easily catch errors there
-	int32_t err;
 };
 
 struct reader {
 
 	virtual bool next (record &r) = 0;
+
+	int err;
+
+	int error () const {
+		return err;
+	}
 
 };
 
@@ -92,14 +88,14 @@ struct tsv_reader : reader {
 	bool next(record& r) {
 		// ss is a class member so its contents are preserved
 		// if not at EOF, more alt nucs to read
-		if (!cached.err && !ss.eof()) {
+		if (!err && !ss.eof()) {
 			ss.ignore();// skip the comma
 			r = cached;
 			char nuc_alt;
 			ss >> nuc_alt;
 			r.nt_alt = char_to_nuc(nuc_alt);
 		} else {// get next valid line
-			r.err = 0;
+			err = 0;
 			do {
 				if (f.eof()) return false;
 				getline(f, line);
@@ -113,21 +109,18 @@ struct tsv_reader : reader {
 			ss >> r.chrom >> r.pos >> char_ref;
 			// ref length < 1
 			if (char_ref == '-') {
-				r.err = 1;
-				cached = r;
+				err = 1;
 				return true;
 			}
 			// ref length > 1
 			if (ss.peek() != '\t') {
-				r.err = 3;
-				cached = r;
+				err = 3;
 				return true;
 			}
 			ss >> char_alt;
 			// alt length < 1
 			if (char_alt == '-') {
-				r.err = 1;
-				cached = r;
+				err = 1;
 				return true;
 			}
 			// convert from 1-based to 0-based
@@ -137,8 +130,7 @@ struct tsv_reader : reader {
 			cached = r;
 			// alt length > 1
 			if (!ss.eof() && ss.peek() != ',') {
-				r.err = 3;
-				cached = r;
+				err = 3;
 				return true;
 			}
 		}
@@ -211,68 +203,78 @@ struct vcf_reader : reader {
 	* accessible using get_underlying().
 	*/
 	bool next(record &r) {
-		// stil alt alleles to read from the current record
+		// still alt alleles to read from the current record
 		if (rd_als < v->n_allele) {
 			size_t alen = strlen(v->d.alleles[rd_als]);
+			
 			// zero-nuc alt
 			if (alen < 1) {
-				r.err = 1;
+				err = 1;
 				return true;
 			}
+
 			// multi-nuc alt
 			if (alen > 1) {
-				r.err = 3;
+				err = 3;
 				return true;
 			}
+
 			// if checks pass, fill record fields
-			r.err = 0;
+			err = 0;
 			r.chrom = bcf_hdr_id2name(hdr, v->rid);
 			r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
 			r.nt_ref = char_to_nuc(v->d.allele[0][0]);
 			r.nt_alt = char_to_nuc(v->d.allele[rd_als][0]);
 			return true;
+
 		} else { // read a new record
 			rd_alts = 0;
+
 			// read in the record
 			int status = bcf_read1(hf, hdr, v);
 			if (status == -1) {// EOF or other fatal reading error
 				return false;
 			}
+
 			// unpack the record up to (including) the ALT field
 			status = bcf_unpack(v, BCF_UN_STR);
 			if (status < 0) {
-				r.err = 2;
+				err = 2;
 				return true;
 			}
+
 			// Zero-nuc ref
 			if (v->rlen < 1) {
-				r.err = 1;
+				err = 1;
 				return true;
 			}
 			// Multi-nuc ref
 			if (v->rlen > 1) {
-				r.err = 3;
+				err = 3;
 				return true;
 			}
+
 			// fill record fields
-			r.err = 0;
+			err = 0;
 			r.chrom = bcf_hdr_id2name(hdr, v->rid);
 			r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
 			r.nt_ref = char_to_nuc(v->d.allele[0][0]);
 			// length of alt
 			size_t alen = strlen(v->d.allele[1]);
+
 			// zero-nuc alt
 			if (alen < 1) {
-				r.err = 1;
+				err = 1;
 				return true;
 			}
 			// multi-nuc alt
 			if (alen > 1) {
-				r.err = 3;
+				err = 3;
 				return true;
 			}
+
 			r.nt_alt = char_to_nuc(v->d.allele[1][0]);
-			rd_als = 2; 
+			rd_als = 2;
 			return true;
 		}
 	}
