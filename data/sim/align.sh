@@ -24,4 +24,5 @@ bwa mem $ref $r1 $r2 |
 	samtools view -b > $prefix.raw.bam
 samtools sort $prefix.raw.bam -o $prefix.bam
 rm $prefix.raw.bam
+samtools index $prefix.bam
 

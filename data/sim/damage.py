@@ -62,7 +62,7 @@ if __name__ == "__main__":
     pr.add_argument("r2", help="fastq file containing R2 reads")
     pr.add_argument("--out1", help="output file name for R1 reads")
     pr.add_argument("--out2", help="output file name for R2 reads")
-    pr.add_argument("--phi", type=float, default=0.1, help="damage rate")
+    pr.add_argument("--phi", type=float, default=0.2, help="damage rate")
     pr.add_argument("--seed", type=int, default=0, help="random seed")
     pr.add_argument("--type", default="FFPE", help="damage type [FFPE or oxoG]")
 

@@ -1,8 +1,8 @@
 ref = ../tp53_hg38.fasta
-seed = 1
+seed = 3
 
 
-all: sim.orig.bam sim.ffpe.bam sim.oxog.bam
+all: sim.orig.calls.snv sim.ffpe.calls.snv sim.oxog.calls.snv
 	
 
 sim.orig.snv:
@@ -35,6 +35,21 @@ sim.oxog.r2.fq: sim.oxog.r1.fq
 sim.oxog.bam: sim.oxog.r1.fq sim.oxog.r2.fq
 	./align.sh sim.oxog $(ref)
 
+
+sim.orig.calls.snv: sim.orig.bam
+	./call.sh $< $(ref)
+
+sim.ffpe.calls.snv: sim.ffpe.bam
+	./call.sh $< $(ref)
+
+sim.oxog.calls.snv: sim.oxog.bam
+	./call.sh $< $(ref)
+
+diff:
+	diff sim.orig.snv sim.orig.calls.snv || true
+	diff sim.orig.snv sim.ffpe.calls.snv || true
+	diff sim.orig.snv sim.oxog.calls.snv || true
+
 clean:
-	rm -rf *.bam *.fq *.snv
+	rm -rf *.fq *.bam *.bai *.snv
 
