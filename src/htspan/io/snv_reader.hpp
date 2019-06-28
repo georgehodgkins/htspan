@@ -107,7 +107,7 @@ struct tsv_reader : reader {
 			// TODO: check for malformed lines
 
 			// process line
-			// alt_nucs is a class member
+			// ss is a class member
 			ss.str(line);
 			char char_ref, char_alt;
 			ss >> r.chrom >> r.pos >> char_ref;
@@ -174,6 +174,8 @@ struct vcf_reader : reader {
 	bcf_hdr_t *hdr;
 	// pointer to VCF record buffer to read to/from
 	bcf1_t *v;
+	// counter for reading multiple alleles from a single record
+	uint16_t rd_als;
 
 	// constructor alias for open()
 	vcf_reader(const char* path) {
@@ -209,29 +211,70 @@ struct vcf_reader : reader {
 	* accessible using get_underlying().
 	*/
 	bool next(record &r) {
-		// read in the record
-		int status = bcf_read1(hf, hdr, v);
-		if (status == -1) {// EOF or fatal reading error
-			return false;
-		}
-		// unpack the record up to (including) the ALT field
-		status = bcf_unpack(v, BCF_UN_STR);
-		if (status < 0) {
-			r.err = 2;
+		// stil alt alleles to read from the current record
+		if (rd_als < v->n_allele) {
+			size_t alen = strlen(v->d.alleles[rd_als]);
+			// zero-nuc alt
+			if (alen < 1) {
+				r.err = 1;
+				return true;
+			}
+			// multi-nuc alt
+			if (alen > 1) {
+				r.err = 3;
+				return true;
+			}
+			// if checks pass, fill record fields
+			r.err = 0;
+			r.chrom = bcf_hdr_id2name(hdr, v->rid);
+			r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
+			r.nt_ref = char_to_nuc(v->d.allele[0][0]);
+			r.nt_alt = char_to_nuc(v->d.allele[rd_als][0]);
+			return true;
+		} else { // read a new record
+			rd_alts = 0;
+			// read in the record
+			int status = bcf_read1(hf, hdr, v);
+			if (status == -1) {// EOF or other fatal reading error
+				return false;
+			}
+			// unpack the record up to (including) the ALT field
+			status = bcf_unpack(v, BCF_UN_STR);
+			if (status < 0) {
+				r.err = 2;
+				return true;
+			}
+			// Zero-nuc ref
+			if (v->rlen < 1) {
+				r.err = 1;
+				return true;
+			}
+			// Multi-nuc ref
+			if (v->rlen > 1) {
+				r.err = 3;
+				return true;
+			}
+			// fill record fields
+			r.err = 0;
+			r.chrom = bcf_hdr_id2name(hdr, v->rid);
+			r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
+			r.nt_ref = char_to_nuc(v->d.allele[0][0]);
+			// length of alt
+			size_t alen = strlen(v->d.allele[1]);
+			// zero-nuc alt
+			if (alen < 1) {
+				r.err = 1;
+				return true;
+			}
+			// multi-nuc alt
+			if (alen > 1) {
+				r.err = 3;
+				return true;
+			}
+			r.nt_alt = char_to_nuc(v->d.allele[1][0]);
+			rd_als = 2; 
 			return true;
 		}
-		// Ref must be
-		if (v->rlen != 1) {
-			r.err = 3;
-			return true;
-		}
-		// fill record fields
-		r.err = 0;
-		r.chrom = bcf_hdr_id2name(hdr, v->rid);
-		r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
-		r.nt_ref = char_to_nuc(v->d.allele[0][0]);
-		r.nt_alt = char_to_nuc(v->d.allele[1][0]);
-		return true;
 	}
 
 	// Returns the last read bcf1_t object
