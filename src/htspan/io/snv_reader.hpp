@@ -6,6 +6,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
+#include <ostream>
 
 #include "htslib/hts.h"
 #include "htslib/vcf.h"
@@ -30,7 +31,32 @@ struct record {
 	nuc_t nt_ref;
 	// Alternate nucleotide
 	nuc_t nt_alt;
+
+	record (const char* c, int32_t p, char r, char a)
+		: chrom(c), pos(p), nt_ref(char_to_nuc(r)), nt_alt(char_to_nuc(a)) {}
+
+	record () {
+		clear();
+	}	
+
+	string to_string () const {
+		ostringstream ss;
+		ss << "Chrom: " << chrom << " Pos: " << pos << " Ref: " << nuc_to_char(nt_ref) << " Alt: " << nuc_to_char(nt_alt);
+		return ss.str();
+	}
+
+	void clear () {
+		chrom = "";
+		pos = -1337;
+		nt_ref = nuc_N;
+		nt_alt = nuc_N;
+	}
 };
+
+// == overload for records, mostly for unit testing
+bool operator== (const record a, const record b) {
+	return a.chrom == b.chrom && a.pos == b.pos && a.nt_ref == b.nt_ref && a.nt_alt == b.nt_alt;
+}
 
 struct reader {
 
@@ -55,10 +81,8 @@ struct tsv_reader : reader {
 	string line;
 
 	record cached;
-
-	bool more_nucs;
-
-	istringstream ss;
+	// index to look for the next alt at, for multiple alts
+	size_t alt_i;
 
 	tsv_reader(const char* path) {
 	 	open(path);
@@ -78,24 +102,41 @@ struct tsv_reader : reader {
 	 	// discard header line
 	 	// TODO: check header line
 	 	getline(f, line);
+	 	err = -2;
 	}
 
 	/**
 	 * Read next record and store it in the passed reference.
 	 * A copy will also be cached internally until the next call to next(),
 	 * accessible using get_underlying().
+	 *
+	 * Return value indicates whether the EOF was reached.
+	 * Errors return true and set the error flag instead.
 	 */
 	bool next(record& r) {
 		// ss is a class member so its contents are preserved
 		// if not at EOF, more alt nucs to read
-		if (!err && !ss.eof()) {
-			ss.ignore();// skip the comma
+		if (!err && alt_i < line.size()) {
 			r = cached;
-			char nuc_alt;
-			ss >> nuc_alt;
+			char nuc_alt = line[alt_i];
+			// check for multi-nuc alt
+			if (alt_i < line.size() - 1 && line[alt_i + 1] != ',') {
+				err = 3;
+				return true;
+			}
 			r.nt_alt = char_to_nuc(nuc_alt);
+			// check for zero-nuc alt/invalid character
+			if (!nuc_is_canonical(r.nt_alt)) {
+				err = 1;
+				return false;
+			}
+			// skip the comma
+			alt_i += 2;
+			return true;
 		} else {// get next valid line
 			err = 0;
+			r.clear();
+			// skip empty lines and comments
 			do {
 				if (f.eof()) return false;
 				getline(f, line);
@@ -104,11 +145,11 @@ struct tsv_reader : reader {
 
 			// process line
 			// ss is a class member
-			ss.str(line);
+			istringstream ss(line);
 			char char_ref, char_alt;
 			ss >> r.chrom >> r.pos >> char_ref;
 			// ref length < 1
-			if (char_ref == '-') {
+			if (char_ref == '-' || char_ref == '.') {
 				err = 1;
 				return true;
 			}
@@ -117,22 +158,25 @@ struct tsv_reader : reader {
 				err = 3;
 				return true;
 			}
-			ss >> char_alt;
-			// alt length < 1
-			if (char_alt == '-') {
-				err = 1;
-				return true;
-			}
 			// convert from 1-based to 0-based
 			r.pos -= 1;
 			r.nt_ref = char_to_nuc(char_ref);
+			// account for multiple alts
+			alt_i = line.find_last_of("\t") + 1;
+			char_alt = line[alt_i];
 			r.nt_alt = char_to_nuc(char_alt);
-			cached = r;
+			// alt length < 1 (or invalid character)
+			if (!nuc_is_canonical(r.nt_alt)) {
+				err = 1;
+				return true;
+			}
 			// alt length > 1
-			if (!ss.eof() && ss.peek() != ',') {
+			if (alt_i < line.size() - 1 && line[alt_i + 1] != ',') {
 				err = 3;
 				return true;
 			}
+			alt_i += 2; // skip the comma
+			cached = r;
 		}
 		return true;
 	}
@@ -204,8 +248,8 @@ struct vcf_reader : reader {
 	*/
 	bool next(record &r) {
 		// still alt alleles to read from the current record
-		if (rd_als < v->n_allele) {
-			size_t alen = strlen(v->d.alleles[rd_als]);
+		if (!err && rd_als < v->n_allele) {
+			size_t alen = strlen(v->d.allele[rd_als]);
 			
 			// zero-nuc alt
 			if (alen < 1) {
@@ -220,16 +264,16 @@ struct vcf_reader : reader {
 			}
 
 			// if checks pass, fill record fields
-			err = 0;
 			r.chrom = bcf_hdr_id2name(hdr, v->rid);
 			r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
 			r.nt_ref = char_to_nuc(v->d.allele[0][0]);
 			r.nt_alt = char_to_nuc(v->d.allele[rd_als][0]);
+			++rd_als;
 			return true;
 
 		} else { // read a new record
-			rd_alts = 0;
-
+			rd_als = 0;
+			err = 0;
 			// read in the record
 			int status = bcf_read1(hf, hdr, v);
 			if (status == -1) {// EOF or other fatal reading error
@@ -244,10 +288,10 @@ struct vcf_reader : reader {
 			}
 
 			// Zero-nuc ref
-			if (v->rlen < 1) {
-				err = 1;
-				return true;
-			}
+			//if (v->rlen < 1) {
+			//	err = 1;
+			//	return true;
+			//}
 			// Multi-nuc ref
 			if (v->rlen > 1) {
 				err = 3;
@@ -255,10 +299,14 @@ struct vcf_reader : reader {
 			}
 
 			// fill record fields
-			err = 0;
 			r.chrom = bcf_hdr_id2name(hdr, v->rid);
 			r.pos = v->pos;// HTSlib internally converts from 1-based to 0-based
 			r.nt_ref = char_to_nuc(v->d.allele[0][0]);
+			// catch zero-length ref and misc invalid chars
+			if (!nuc_is_canonical(r.nt_ref)) {
+				err = 1;
+				return true;
+			}
 			// length of alt
 			size_t alen = strlen(v->d.allele[1]);
 
