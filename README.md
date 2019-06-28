@@ -18,6 +18,13 @@ Collection of utilities for filtering high-throughput sequencing data:
 * Lean Mean C++ Option Parser 1.7
 * tanh-sinh quadrature method from https://www.codeproject.com/Articles/31550/Fast-Numerical-Integration
 
+### Optional dependencies for testing and development
+
+* samtools >= 1.8
+* python3 >= 3.6
+* boost >= 1.69
+* bcftools >= 1.3.1
+
 ## Install
 
 ```{bash}
