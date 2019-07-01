@@ -175,25 +175,25 @@ BOOST_AUTO_TEST_CASE (bgzip_vcf_snvr) {
 
 BOOST_AUTO_TEST_CASE (tsv_snvw) {
 	const char IN_SNVNAME[] = "../../data/snv.tsv";
-	const char OUT_SNVNAME[] = "../../data/test_out.tsv";
+	const char OUT_SNVNAME[] = "../../data/out/test_out.tsv";
 	common_snvw_test<hts::snv::tsv_reader, hts::snv::tsv_writer>(IN_SNVNAME, OUT_SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (uncompressed_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf";
-	const char OUT_SNVNAME[] = "../../data/test_out.vcf";
+	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf";
 	common_snvw_test<hts::snv::vcf_reader, hts::snv::vcf_writer>(IN_SNVNAME, OUT_SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (gzip_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf.gz";
-	const char OUT_SNVNAME[] = "../../data/test_out.vcf.gz";
+	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf.gz";
 	common_snvw_test<hts::snv::vcf_reader, hts::snv::vcf_writer>(IN_SNVNAME, OUT_SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (bgzip_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf.bgz";
-	const char OUT_SNVNAME[] = "../../data/test_out.vcf.bgz";
+	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf.bgz";
 	common_snvw_test<hts::snv::vcf_reader, hts::snv::vcf_writer>(IN_SNVNAME, OUT_SNVNAME);
 }
 
