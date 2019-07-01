@@ -100,23 +100,23 @@ void common_snvw_test (const char IN_SNVNAME[], const char OUT_SNVNAME[]) {
 	hts::snv::record rec, recF, recL;
 	recL.pos = 1;
 	snvw.add_filter_tag(bobfilter);
-	snvr.next(recF);//discard first line
+	snvr.next(recF); // discard first line
 	snvr.next(recF); // store second line (new first line)
 	do {
 		if (recL.pos % 2) {
-			snvw.write(snvr.get_underlying());
+			snvw.write(snvr.get_cached());
 		} else {
-			snvw.write(snvr.get_underlying(), bobfilter.text_id);
+			snvw.write_filter_failed(snvr.get_cached(), bobfilter);
 		}
 	} while (snvr.next(recL)); // store last line
 	snvw.close();
 	snvr.close();
 	snvr.open(OUT_SNVNAME);// read SNVs back in for checking
 	snvr.next(rec);// get first record
-	BOOST_CHECK_MESSAGE(rec.pos == recF.pos,
+	BOOST_CHECK_MESSAGE(rec == recF,
 		"First record in written SNV does not match.");
 	while (snvr.next(rec)) {}// get last record
-	BOOST_CHECK_MESSAGE(rec.pos == recL.pos,
+	BOOST_CHECK_MESSAGE(rec == recL,
 		"Last record in written SNV does not match.");
 }
 

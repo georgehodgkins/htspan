@@ -18,7 +18,7 @@ namespace snv {
 
 using namespace std;
 
-// TODO: add base class for dummy methods
+// TODO: add base class for dummy m
 
 /**
 * This snv_writer is used to write SNV records to a TSV file.
@@ -47,9 +47,13 @@ struct tsv_writer {
 	}
 
 	// Write one record to the file (direct, immediate write)
-	void write (record r, const char* filter_tag = NULL) {
+	void write (const record &r) {
 		f << r.chrom << '\t' << r.pos+1 << '\t' << nuc_to_char(r.nt_ref) << '\t' << nuc_to_char(r.nt_alt) << endl;
 	}
+
+	// in this class, this method intentionally does nothing,
+	// since record should not be written back if filter fails
+	void write_filter_failed (const record &r, const base_orient_bias_filter_f &filter) {}
 
 	// Close the underlying file stream
 	void close() {
@@ -58,7 +62,7 @@ struct tsv_writer {
 
 	// This function does nothing, here for compatibilty
 	// Will be moved to the base class when it is created
-	void add_filter_tag (base_orient_bias_filter_f& filter) {}
+	void add_filter_tag (const base_orient_bias_filter_f &filter) {}
 
 	// Destructor alias for close()
 	~tsv_writer() {
@@ -70,6 +74,11 @@ struct tsv_writer {
 * This snv_writer is used to write SNV records to a VCF file (or related).
 * Note that unlike the TSV writer, this class caches the header and written records
 * and only writes them on a call to flush().
+* TODO: change to immediate write
+*
+* The class must be linked to a header read from an existing BCF file, 
+* from which it copies file format data and header fields.
+* TODO: make this optional
 */
 struct vcf_writer {
 	// Pointer to VCF file
@@ -114,20 +123,22 @@ struct vcf_writer {
 	}
 
 	// cache one VCF record for writing, adding a filter tag to it if requested
-	void write(bcf1_t* rec, const char* filter_tag = NULL) {
-		sync_header();// have to sync in case new contigs were added by a read
-		if (filter_tag != NULL) {
-			int filter_id = bcf_hdr_id2int(hdr, BCF_DT_ID, filter_tag);
-			if (filter_id < 0) {
-				throw runtime_error("Filter tag not found in header! Add the filter to the header first.");
-			}
-			int status = bcf_add_filter(hdr, rec, filter_id);
-			if (status < 0) {
-				throw runtime_error("Could not add filter tag to selected record.");
-			}
+	void write_filter_failed(const record &rec, const base_orient_bias_filter_f &filter) {
+		int filter_id = bcf_hdr_id2int(hdr, BCF_DT_ID, filter.text_id);
+		if (filter_id < 0) {
+			throw runtime_error("Filter tag not found in header! Add the filter to the header first with add_filter_tag.");
 		}
-		// allocate a copy of the record (since the reader does not preserve records) and store a pointer to it
-		write_queue.push(bcf_dup(rec));
+		int status = bcf_add_filter(hdr, rec.v, filter_id);
+		if (status < 0) {
+			throw runtime_error("Could not add filter tag to selected record.");
+		}
+		// cache record for writing
+		write(rec);
+	}
+
+	void write(const record &rec) {
+		sync_header();
+		write_queue.push(bcf_dup(rec.v));
 	}
 
 	// updates the writeout header with new contigs added to the linked header
@@ -144,19 +155,19 @@ struct vcf_writer {
 			throw runtime_error("Error writing header to VCF file.");
 		}
 		while (!write_queue.empty()) {
-			bcf1_t* twr = write_queue.front();
+			bcf1_t *twr = write_queue.front();
 			status = bcf_write(hf, hdr, twr);
 			if (status < 0) {
 				throw runtime_error("Error writing record to VCF file.");
 			}
 			write_queue.pop();
-			// deallocate copy of record
+			// deallocate copy of record just written
 			bcf_destroy(twr);
 		}
 	}
 
 	// Adds the tag from the given filter to the file header
-	void add_filter_tag (base_orient_bias_filter_f& filter) {
+	void add_filter_tag (base_orient_bias_filter_f &filter) {
 		sync_header();
 		int status = bcf_hdr_printf(hdr, "##FILTER=<ID=%s,Description=\"%s\">", filter.text_id, filter.get_description());
 		if (status < 0) {
