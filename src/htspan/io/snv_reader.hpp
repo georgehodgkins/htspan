@@ -14,6 +14,8 @@
 #include "htspan/nucleotide.hpp"
 #include "htspan/bam.hpp"
 
+#include "snv.hpp"
+
 //TODO: Documentation
 
 namespace hts {
@@ -21,77 +23,6 @@ namespace hts {
 using namespace std;
 
 namespace snv {
-
-struct record {
-	// Human-readable name of reference sequence
-	string chrom;
-	// Read reference position
-	int32_t pos;
-	// Reference nucleotide
-	nuc_t nt_ref;
-	// Alternate nucleotide
-	nuc_t nt_alt;
-	// pointer to a corresponding BCF record (NULL if not present)
-	// NB: must be unpacked with bcf_unpack for most data to be accesible
-	bcf1_t *v;
-
-	record (const char* c, int32_t p, char r, char a)
-		: chrom(c), pos(p), nt_ref(char_to_nuc(r)), nt_alt(char_to_nuc(a)) {
-			v = NULL;
-		}
-
-	record () {
-		v = NULL; // must be set here to indicate it is not allocated for clear()
-		clear();
-	}	
-
-	// used for debugging
-	string to_string () const {
-		ostringstream ss;
-		ss << "Chrom: " << chrom << " Pos: " << pos << " Ref: " << nuc_to_char(nt_ref) << " Alt: " << nuc_to_char(nt_alt);
-		return ss.str();
-	}
-
-	void clear (bool preserve_bcf = false) {
-		chrom = "";
-		pos = -1337;
-		nt_ref = nuc_N;
-		nt_alt = nuc_N;
-		if (v != NULL && !preserve_bcf) {
-			bcf_destroy1(v);
-			v = NULL;
-		}
-	}
-
-	void operator= (const record &p) {
-		if (p.v == NULL) {
-			clear();
-		} else {
-			clear(true);// do not deallocate bcf record
-		}
-		chrom = p.chrom;
-		pos = p.pos;
-		nt_ref = p.nt_ref;
-		nt_alt = p.nt_alt;
-		if (p.v != NULL) {
-			v = bcf_dup(p.v);
-		}
-	}
-
-	~record () {
-		clear();
-	}
-
-	bool operator== (const record &p) const {
-		return chrom == p.chrom && pos == p.pos && nt_ref == p.nt_ref && nt_alt == p.nt_alt;
-	}
-
-	bool operator!= (const record &p) const {
-		return !(operator==(p));
-	}
-
-};
-
 
 struct reader {
 
@@ -102,6 +33,18 @@ struct reader {
 	int error () const {
 		return err;
 	}
+
+	reader () {
+		err = -2;
+	}
+
+	virtual FMTFLAGS_T get_format () const = 0;
+
+	virtual void open (const char* path) = 0;
+
+	virtual const record& get_cached () const = 0;
+
+	virtual void close () = 0;
 
 };
 
@@ -119,7 +62,7 @@ struct tsv_reader : reader {
 	// index to look for the next alt at, for multiple alts
 	size_t alt_i;
 
-	tsv_reader(const char* path) {
+	tsv_reader(const char* path) : reader() {
 	 	open(path);
 	}
 
@@ -137,7 +80,6 @@ struct tsv_reader : reader {
 	 	// discard header line
 	 	// TODO: check header line
 	 	getline(f, line);
-	 	err = -2;
 	}
 
 	/**
@@ -149,7 +91,6 @@ struct tsv_reader : reader {
 	 * Errors return true and set the error flag instead.
 	 */
 	bool next(record& rec) {
-		// ss is a class member so its contents are preserved
 		// if not at EOF, more alt nucs to read
 		if (!err && alt_i < line.size()) {
 			char nuc_alt = line[alt_i];
@@ -171,17 +112,17 @@ struct tsv_reader : reader {
 			return true;
 		} else {// get next valid line
 			err = 0;
-			rec.clear();
-			cached.clear();
 			// skip empty lines and comments
 			do {
 				if (f.eof()) return false;
 				getline(f, line);
 			} while (line.empty() || line[0] == '#');
 			// TODO: check for malformed lines
+			// clear previous
+			rec.clear();
+			cached.clear();
 
 			// process line
-			// ss is a class member
 			istringstream ss(line);
 			char char_ref, char_alt;
 			ss >> cached.chrom >> cached.pos >> char_ref;
@@ -200,7 +141,7 @@ struct tsv_reader : reader {
 			cached.nt_ref = char_to_nuc(char_ref);
 			// account for multiple alts:
 			// index starts at the last whitespace char + 1,
-			// assumed to be the first alt nuc
+			// should be the first alt nuc
 			alt_i = line.find_last_of("\t ") + 1;
 			char_alt = line[alt_i];
 			cached.nt_alt = char_to_nuc(char_alt);
@@ -224,6 +165,10 @@ struct tsv_reader : reader {
 		return true;
 	}
 
+	FMTFLAGS_T get_format () const {
+		return F_SNV;
+	}
+
 	/**
 	* Return a reference to cached record (most recently read).
 	*/
@@ -234,6 +179,7 @@ struct tsv_reader : reader {
 	// Closes the attached file handle
 	void close() {
 		f.close();
+		err = -2;
 	}
 
 	// Destructor alias for close()
@@ -258,7 +204,7 @@ struct vcf_reader : reader {
 	uint16_t rd_als;
 
 	// constructor alias for open()
-	vcf_reader(const char* path) {
+	vcf_reader(const char* path) : reader() {
 		open(path);
 	}
 
@@ -302,29 +248,27 @@ struct vcf_reader : reader {
 			// zero-nuc alt
 			if (alen < 1) {
 				err = 1;
+				r.clear();
 				return true;
 			}
 
 			// multi-nuc alt
 			if (alen > 1) {
 				err = 3;
+				r.clear();
 				return true;
 			}
 
 			// if checks pass, fill record fields
-			r.chrom = bcf_hdr_id2name(hdr, cached.v->rid);
-			r.pos = cached.v->pos;// HTSlib internally converts from 1-based to 0-based
-			r.nt_ref = char_to_nuc(cached.v->d.allele[0][0]);
-			r.nt_alt = char_to_nuc(cached.v->d.allele[rd_als][0]);
-			if (r.v == NULL) {
-				r.v = bcf_dup(cached.v);
-			}
+			cached.chrom = bcf_hdr_id2name(hdr, cached.v->rid);
+			cached.pos = cached.v->pos;// HTSlib internally converts from 1-based to 0-based
+			cached.nt_ref = char_to_nuc(cached.v->d.allele[0][0]);
+			cached.nt_alt = char_to_nuc(cached.v->d.allele[rd_als][0]);
+			r = cached;
 			++rd_als;
 			return true;
 
 		} else { // read a new record
-			r.clear();
-			cached.clear(true); // do not deallocate buffer
 			rd_als = 0;
 			err = 0;
 
@@ -333,6 +277,8 @@ struct vcf_reader : reader {
 			if (status == -1) {// EOF or other fatal reading error
 				return false;
 			}
+
+			r.clear();
 
 			// unpack the record up to (including) the ALT field
 			status = bcf_unpack(cached.v, BCF_UN_STR);
@@ -383,6 +329,14 @@ struct vcf_reader : reader {
 		}
 	}
 
+	FMTFLAGS_T get_format () const {
+		if (hf->is_bgzf) {
+			return static_cast<FMTFLAGS_T>(F_BGZF | F_VCF);
+		} else {
+			return F_VCF;
+		}
+	}
+
 	// Returns a reference to the last read bcf1_t object
 	const record& get_cached () const {
 		return cached;
@@ -404,6 +358,7 @@ struct vcf_reader : reader {
 			bcf_hdr_destroy(hdr);
 			hdr = NULL;
 		}
+		err = -2;
 	}
 
 	// destructor alias for close()
