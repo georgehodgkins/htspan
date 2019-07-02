@@ -16,7 +16,9 @@
 
 #include "snv.hpp"
 
-//TODO: Documentation
+// TODO: Documentation
+
+// TODO: Make readers uniformly follow the path of 1) validate data 2) store in cache 3) copy to output record
 
 namespace hts {
 

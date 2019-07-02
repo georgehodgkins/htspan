@@ -89,12 +89,9 @@ void common_snvr_test (const char SNVNAME[]) {
 		"\nGot rec: " << rec.to_string());
 }
 
-template <typename SnvReader, typename SnvWriter>
-void common_snvw_test (const char IN_SNVNAME[], const char OUT_SNVNAME[]) {
-	BOOST_TEST_MESSAGE("Starting SNV writer test for reader/writer types " << typeid(SnvReader).name() << '/' <<
-		typeid(SnvWriter).name() << " and input path " << IN_SNVNAME);
-	SnvReader snvr(IN_SNVNAME);
-	SnvWriter snvw(OUT_SNVNAME, snvr);
+void common_snvw_test (hts::snv::reader &snvr, hts::snv::writer &snvw, const char OUT_SNVNAME[]) {
+	BOOST_TEST_MESSAGE("Starting SNV writer test for reader/writer types " << typeid(snvr).name() << '/' <<
+		typeid(snvw).name() << " and output path " << OUT_SNVNAME);
 	hts::orient_bias_data foo (nuc_G, nuc_T, 0);
 	hts::bayes_orient_bias_filter_f bobfilter(foo);
 	hts::snv::record rec, recF, recL;
@@ -103,21 +100,22 @@ void common_snvw_test (const char IN_SNVNAME[], const char OUT_SNVNAME[]) {
 	snvr.next(recF); // discard first line
 	snvr.next(recF); // store second line (new first line)
 	do {
-		if (recL.pos % 2) {
-			snvw.write(snvr.get_cached());
-		} else {
-			snvw.write_filter_failed(snvr.get_cached(), bobfilter);
-		}
+		snvw.write(snvr.get_cached());
 	} while (snvr.next(recL)); // store last line
+	int fmt_stored = static_cast<int>(snvr.get_format());
 	snvw.close();
 	snvr.close();
 	snvr.open(OUT_SNVNAME);// read SNVs back in for checking
+	BOOST_CHECK_MESSAGE(fmt_stored == static_cast<int>(snvr.get_format()),
+		"Read format does not match written format.");
 	snvr.next(rec);// get first record
 	BOOST_CHECK_MESSAGE(rec == recF,
-		"First record in written SNV does not match.");
+		"First record in written SNV does not match.\n" <<
+		"Got " << rec.to_string() << " Exp: " << recF.to_string());
 	while (snvr.next(rec)) {}// get last record
 	BOOST_CHECK_MESSAGE(rec == recL,
-		"Last record in written SNV does not match.");
+		"Last record in written SNV does not match.\n" <<
+		"Got " << rec.to_string() << " Exp: " << recL.to_string());
 }
 
 
@@ -176,25 +174,44 @@ BOOST_AUTO_TEST_CASE (bgzip_vcf_snvr) {
 BOOST_AUTO_TEST_CASE (tsv_snvw) {
 	const char IN_SNVNAME[] = "../../data/snv.tsv";
 	const char OUT_SNVNAME[] = "../../data/out/test_out.tsv";
-	common_snvw_test<hts::snv::tsv_reader, hts::snv::tsv_writer>(IN_SNVNAME, OUT_SNVNAME);
+	hts::snv::tsv_reader tsvr (IN_SNVNAME);
+	hts::snv::tsv_writer tsvw (OUT_SNVNAME, tsvr.get_format());
+	hts::snv::reader &snvr = tsvr;
+	hts::snv::writer &snvw = tsvw;
+	common_snvw_test(snvr, snvw, OUT_SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (uncompressed_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf";
 	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf";
-	common_snvw_test<hts::snv::vcf_reader, hts::snv::vcf_writer>(IN_SNVNAME, OUT_SNVNAME);
+	hts::snv::vcf_reader vcfr (IN_SNVNAME);
+	hts::snv::vcf_writer vcfw (OUT_SNVNAME, vcfr.get_format());
+	vcfw.copy_header(vcfr.hdr);
+	hts::snv::reader &snvr = vcfr;
+	hts::snv::writer &snvw = vcfw;
+	common_snvw_test(snvr, snvw, OUT_SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (gzip_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf.gz";
 	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf.gz";
-	common_snvw_test<hts::snv::vcf_reader, hts::snv::vcf_writer>(IN_SNVNAME, OUT_SNVNAME);
+	hts::snv::vcf_reader vcfr (IN_SNVNAME);
+	hts::snv::vcf_writer vcfw (OUT_SNVNAME, vcfr.get_format());
+	vcfw.copy_header(vcfr.hdr);
+	hts::snv::reader &snvr = vcfr;
+	hts::snv::writer &snvw = vcfw;
+	common_snvw_test(snvr, snvw, OUT_SNVNAME);
 }
 
 BOOST_AUTO_TEST_CASE (bgzip_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf.bgz";
 	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf.bgz";
-	common_snvw_test<hts::snv::vcf_reader, hts::snv::vcf_writer>(IN_SNVNAME, OUT_SNVNAME);
+	hts::snv::vcf_reader vcfr (IN_SNVNAME);
+	hts::snv::vcf_writer vcfw (OUT_SNVNAME, vcfr.get_format());
+	vcfw.copy_header(vcfr.hdr);
+	hts::snv::reader &snvr = vcfr;
+	hts::snv::writer &snvw = vcfw;
+	common_snvw_test(snvr, snvw, OUT_SNVNAME);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

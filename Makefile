@@ -6,7 +6,7 @@ ifndef DEBUG
 	CXXFLAGS = -O2 -Wall -std=c++98 -Isrc
 	bin = bin
 else
-	CXXFLAGS = -O0 -ggdb3 -Wall -std=c++98 -Isrc
+	CXXFLAGS = -ggdb3 -frecord-gcc-switches -Wall -std=c++98 -Isrc -O0
 	bin = debug
 endif
 
