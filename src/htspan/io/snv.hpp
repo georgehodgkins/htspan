@@ -12,6 +12,14 @@ enum FMTFLAGS_T {
 	F_BGZF = 0x04
 };
 
+/**
+* This class represents a single-nucleotide variant,
+* storing its human-readable name (usually a chromosome number),
+* reference position, and reference and alternative nucleotides.
+* If the record was read from a VCF/BCF file, it will also contain a pointer
+* to a copy of the HTSlib bcf1_t datatype, which contains much more information
+* about the variant.
+*/
 struct record {
 	// Human-readable name of reference sequence
 	string chrom;
@@ -25,17 +33,19 @@ struct record {
 	// NB: must be unpacked with bcf_unpack for most data to be accesible
 	bcf1_t *v;
 
+	// parameter constructor ( v must be set directly)
 	record (const char* c, int32_t p, char r, char a)
 		: chrom(c), pos(p), nt_ref(char_to_nuc(r)), nt_alt(char_to_nuc(a)) {
 			v = NULL;
 		}
 
+	// constructs a null instance of the class (calls clear())
 	record () {
 		v = NULL; // must be set here to indicate it is not allocated for clear()
 		clear();
 	}	
 
-	// used for debugging
+	// Prints a human-readable string describing the SNV
 	string to_string () const {
 		if (is_null()) {
 			return "EMPTY";
@@ -45,6 +55,12 @@ struct record {
 		return ss.str();
 	}
 
+	/*
+	* Nulls the object, setting all fields to dummy values.
+	* If bool true is passed as an argument, it will not
+	* deallocate the internal bcf record (but will still
+	* clear its data).
+	*/
 	void clear (bool preserve_bcf = false) {
 		chrom = "";
 		pos = -1337;
@@ -60,6 +76,10 @@ struct record {
 		}
 	}
 
+	/*
+	* Deep copy operator for the class.
+	*/
+	// TODO: fix allocation in this method
 	void operator= (const record &p) {
 		if (p.v == NULL) {
 			clear();
@@ -80,6 +100,7 @@ struct record {
 		nt_alt = p.nt_alt;
 	}
 
+	// Returns whether the object is null.
 	bool is_null () const {
 		// default constructor constructs the null case
 		return operator==( record() );
@@ -89,6 +110,7 @@ struct record {
 		clear();
 	}
 
+	// Comparison overloads. Note that they do not consider the internal BCF record.
 	bool operator== (const record &p) const {
 		return chrom == p.chrom && pos == p.pos && nt_ref == p.nt_ref && nt_alt == p.nt_alt;
 	}

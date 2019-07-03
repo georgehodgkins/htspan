@@ -18,20 +18,29 @@ namespace snv {
 
 using namespace std;
 
+/**
+* Base class for SNV writers; exposes the methods used in calling code.
+*/
 struct writer {
-
+	// Adds the tag from the passed filter to the tag list, if the reader supports annotation
 	virtual void add_filter_tag(const base_orient_bias_filter_f &filter) {};
 
+	// Writes a record to the file, or caches it for writing
 	virtual void write(const record &rec) {
 		if (rec.is_null()) {
 			throw invalid_argument("Invalid SNV record passed to writer! Aborting.");
 		}
 	}
 
+	// Writes a record, noting that it failed the filter
+	// Depending on the behavior of the writer, this may not actually write the record
 	virtual void write_filter_failed (const record &r, const base_orient_bias_filter_f &filter) = 0;
 
+	// Open a file at the given path with the given format
+	// FMTFLAGS_T is defined in snv.hpp
 	virtual void open(const char* path, const FMTFLAGS_T fmt) = 0;
 
+	// Close the attached file
 	virtual void close() = 0;
 
 };
@@ -84,13 +93,17 @@ struct tsv_writer : writer {
 	~tsv_writer() {
 		close();
 	}
+
 };
 
 /*
 * This snv_writer is used to write SNV records to a VCF file (or related).
 * Note that unlike the TSV writer, this class caches the header and written records
 * and only writes them on a call to flush().
-* TODO: change to immediate write
+*
+* This is necessary because the header may change (added contigs and samples) when writing 
+* records, and in order to write the header first in the file with HTSlib it must be the
+* first thing written.
 *
 * The class must be linked to a header read from an existing BCF file, 
 * from which it copies file format data and header fields.
@@ -126,7 +139,7 @@ struct vcf_writer : writer {
 		else {
 			mode[1] = 'u';
 		}
-		mode[3] = '\0';
+		mode[2] = '\0';
 		hdr = bcf_hdr_init("w");
 		if (!hdr) {
 			throw runtime_error("Error initializing VCF header.");
@@ -151,6 +164,7 @@ struct vcf_writer : writer {
 		write(rec);
 	}
 
+	// Caches a record for writing
 	void write(const record &rec) {
 		writer::write(rec);
 		bcf1_t *twr = bcf_dup(rec.v);
@@ -182,16 +196,24 @@ struct vcf_writer : writer {
 		}
 	}
 
+	/**
+	* Copies the header and sample data from the given header.
+	*
+	* This is necessary if you are going to be copying
+	* records from an existing file, to avoid fatal
+	* sample/contig mismatch errors.
+	*/
 	void copy_header (const bcf_hdr_t *src) {
 		// adds header lines from source header
 		bcf_hdr_merge(hdr, src);
 		// copy over samples manually
-		for (size_t n = 0; n < bcf_hdr_nsamples(src); ++n) {
+		for (int n = 0; n < bcf_hdr_nsamples(src); ++n) {
 			bcf_hdr_add_sample(hdr, src->samples[n]);
 		}
 	}
 
 	// Adds the tag from the given filter to the file header
+	// This must be done before marking records with that filter.
 	void add_filter_tag (base_orient_bias_filter_f &filter) {
 		int status = bcf_hdr_printf(hdr, "##FILTER=<ID=%s,Description=\"%s\">", filter.text_id, filter.get_description());
 		if (status < 0) {

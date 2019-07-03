@@ -16,8 +16,6 @@
 
 #include "snv.hpp"
 
-// TODO: Documentation
-
 // TODO: Make readers uniformly follow the path of 1) validate data 2) store in cache 3) copy to output record
 
 namespace hts {
@@ -26,12 +24,36 @@ using namespace std;
 
 namespace snv {
 
+/*
+* Base class for SNV readers; exposes the methods used in calling code.
+*/
 struct reader {
 
+	/**
+	* Read the next record from the file and 
+	* fill the corresponding fields of the passed
+	* snv::record.
+	*
+	* Returns true if there is more data, and false otherwise.
+	* The error() method indicates whether an error occurred during
+	* the most recent read (see below); in addition, the record will be
+	* set to null (test with is_null()) if an error occurred. If EOF was reached,
+	* the record will /not/ be set to null.
+	*/
 	virtual bool next (record &r) = 0;
 
 	int err;
 
+	/**
+	* Get the error code from the last read.
+	* Codes:
+	* -2: Reader is unininitialized (has not read a record since being opened)
+	* -1: Externally set error (no problem with read)
+	*  0: No error
+	*  1: Read alternate allele was invalid or zero-length (deletion)
+	*  2: Could not unpack BCF record
+	*  3: Read alternate allele was greater than one nucleotide in length
+	*/
 	int error () const {
 		return err;
 	}
@@ -40,12 +62,28 @@ struct reader {
 		err = -2;
 	}
 
+	/**
+	* Returns the format of the read file as a 
+	* FMTFLAGS_T enum (defined in snv.hpp).
+	*/
 	virtual FMTFLAGS_T get_format () const = 0;
 
+	/**
+	* Opens the file at the given path for reading.
+	* The VCF reader will throw an exception if attempting to open an
+	* incompatible format, but the TSV reader will not.
+	*/
 	virtual void open (const char* path) = 0;
 
+	/**
+	* Returns a const reference to the
+	* cached copy of the last read record.
+	*/
 	virtual const record& get_cached () const = 0;
 
+	/**
+	* Closes the attached file handle.
+	*/
 	virtual void close () = 0;
 
 };
@@ -56,8 +94,9 @@ struct reader {
 * It must contain a header line.
 */
 struct tsv_reader : reader {
+	// underlying file stream
 	ifstream f;
-
+	// last line read from stream
 	string line;
 	// cached last-read record
 	record cached;
@@ -348,8 +387,8 @@ struct vcf_reader : reader {
 	* Closes the attached file handle and 
 	* deallocates all memory allocated in open().
 	*
-	* Note that snv::record has a destructor and
-	* does not need to be destroyed explicitly.
+	* Note that snv::record has a destructor and so
+	* `cached` does not need to be destroyed explicitly.
 	*/
 	void close() {
 		if (hf != NULL) {
