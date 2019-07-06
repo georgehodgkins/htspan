@@ -44,6 +44,8 @@ struct reader {
 
 	int err;
 
+	size_t S;
+
 	/**
 	* Get the error code from the last read.
 	* Codes:
@@ -60,6 +62,7 @@ struct reader {
 
 	reader () {
 		err = -2;
+		S = 0;
 	}
 
 	/**
@@ -85,6 +88,8 @@ struct reader {
 	* Closes the attached file handle.
 	*/
 	virtual void close () = 0;
+
+	virtual ~reader();
 
 };
 
@@ -117,7 +122,7 @@ struct tsv_reader : reader {
 	 	if (!f.is_open()) {
 	 		throw runtime_error("Error: could not open input TSV file.");
 	 	}
-
+	 	
 	 	// discard header line
 	 	// TODO: check header line
 	 	getline(f, line);
@@ -207,7 +212,7 @@ struct tsv_reader : reader {
 	}
 
 	FMTFLAGS_T get_format () const {
-		return F_SNV;
+		return F_TSV;
 	}
 
 	/**

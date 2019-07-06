@@ -22,7 +22,7 @@ using namespace std;
 * Base class for SNV writers; exposes the methods used in calling code.
 */
 struct writer {
-	// Adds the tag from the passed filter to the tag list, if the reader supports annotation
+	// Adds the tag from the passed filter or filter type to the tag list, if the reader supports annotation
 	virtual void add_filter_tag(const base_orient_bias_filter_f &filter) {};
 
 	// Writes a record to the file, or caches it for writing
@@ -42,6 +42,8 @@ struct writer {
 
 	// Close the attached file
 	virtual void close() = 0;
+
+	virtual ~writer() {}
 
 };
 
@@ -63,8 +65,8 @@ struct tsv_writer : writer {
 	// Open the file at the given path for writing
 	// NB: opening the file will destroy its former contents, if any
 	void open (const char* path, const FMTFLAGS_T fmt) {
-		if (!(fmt & F_SNV)) {// if F_SNV is not set
-			throw runtime_error("TSV writer format must be F_SNV.");
+		if (!(fmt & F_TSV)) {// if F_SNV is not set
+			throw runtime_error("TSV writer format must be F_TSV.");
 		}
 		f.open(path, ios::trunc);
 		if (!f.is_open()) {

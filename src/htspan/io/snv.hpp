@@ -1,16 +1,88 @@
 #ifndef _HTSPAN_SNV_HPP_
 #define _HTSPAN_SNV_HPP_
 
+#include "frontend/cstring.hpp"
+
 namespace hts {
 
 namespace snv {
 
 enum FMTFLAGS_T {
 	F_NULL = 0x00,
-	F_SNV = 0x01,//TODO: change to F_TSV
+	F_TSV = 0x01,
 	F_VCF = 0x02,
 	F_BGZF = 0x04
 };
+
+FMTFLAGS_T operator| (FMTFLAGS_T a, FMTFLAGS_T b) {
+	return static_cast<FMTFLAGS_T>(a | b);
+}
+
+FMTFLAGS_T operator& (FMTFLAGS_T a, FMTFLAGS_T b) {
+	return static_cast<FMTFLAGS_T>(a & b);
+}
+
+/**
+* Converts command-line option strings to a FMTFLAGS_T enum.
+* Uses typearg if it is not null; otherwise, attempts to deduce
+* type from filename extension, returns F_NULL on failure to deduce.
+* 
+* @param filename Filename passed on command line
+* @param typearg Type argument passed on command line
+* @return Appropriate format flag, or F_NULL for invalid inputs
+*/
+FMTFLAGS_T opts_to_fmt (const char* filename, const char* typearg) {
+	if (typearg) {
+		if (strcmpi(typearg, "tsv") == 0) {
+			return F_TSV;
+		} else if (strcmpi(typearg, "vcf") == 0) {
+			return F_VCF;
+		} else if (strcmpi(typearg, "vcf-bgz") == 0) {
+			return (F_VCF | F_BGZF);
+		} else { // invalid type argument
+			return F_NULL;
+		}
+	} else if (filename) {
+		const char* xtn = strrchr(filename, '.');
+		if (xtn) {
+			++xtn;
+			if (strcmpi(xtn, "snv") == 0 ||
+					strcmpi(xtn, "tsv") == 0) {
+				return F_TSV;
+			} else if (strcmpi(xtn, "vcf") == 0 ||
+					strcmpi(xtn, "bcf") == 0) {
+				return F_VCF;
+			} else if (strcmpi(xtn, "gz") ||
+					strcmpi(xtn, "bgz")) {
+				return (F_VCF | F_BGZF);
+			} else { // unrecognized extension on filename
+				return F_NULL;
+			}
+		} else { // no '.' in filename
+			return F_NULL;
+		}
+	} else { // null extension and filename
+		return F_NULL;
+	}
+}
+
+/**
+* Return the file extension corresponding to the
+* passed FMTFLAGS_T enum.
+*/
+const char* fmt_to_xtn (FMTFLAGS_T fmt) {
+	if (fmt & F_VCF) {
+		if (fmt & F_BGZF) {
+			return ".vcf.gz";
+		} else {
+			return ".vcf";
+		}
+	} else if (fmt & F_TSV) {
+		return ".snv";
+	} else { // F_NULL
+		return "";
+	}
+}
 
 /**
 * This class represents a single-nucleotide variant,
@@ -43,6 +115,12 @@ struct record {
 	record () {
 		v = NULL; // must be set here to indicate it is not allocated for clear()
 		clear();
+	}
+
+	// copy constructor (calls operator=())
+	// TODO: this should really be the other way around
+	record (const record &r) {
+		operator=(r);
 	}	
 
 	// Prints a human-readable string describing the SNV
@@ -79,7 +157,6 @@ struct record {
 	/*
 	* Deep copy operator for the class.
 	*/
-	// TODO: fix allocation in this method
 	void operator= (const record &p) {
 		if (p.v == NULL) {
 			clear();
@@ -87,12 +164,8 @@ struct record {
 			clear();
 			v = bcf_dup(p.v);
 		} else {
-			// do not deallocate bcf record unless it differs
-			clear(true);
-			if (p.v->rid != v->rid || p.v->pos != v->pos) {
-				bcf_destroy(v);
-				v = bcf_dup(p.v);
-			}
+			clear(true); // clears but does not deallocate bcf record
+			bcf_copy(v, p.v);
 		}
 		chrom = p.chrom;
 		pos = p.pos;

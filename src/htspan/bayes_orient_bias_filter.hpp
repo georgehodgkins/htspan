@@ -36,14 +36,14 @@ struct evidences {
 struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 
 	// parameters for the beta distribution
-	double alpha_phi, beta_phi;
+	//double alpha_phi, beta_phi;
 
 	// pass through extra parameters to the base class
 	bayes_orient_bias_filter_f (orient_bias_data &dref, 
 		double lb = -15.0, double ub = 15.0, double eps = 1e-6)
-		: base_orient_bias_filter_f(dref, lb, ub, eps),
-			alpha_phi(0.0),
-			beta_phi(0.0)
+		: base_orient_bias_filter_f(dref, lb, ub, eps)
+			//alpha_phi(0.0),
+			//beta_phi(0.0)
 	{
 	}
 
@@ -129,7 +129,7 @@ struct bayes_orient_bias_filter_f : public base_orient_bias_filter_f {
 
 
 	/**
-	* Numerical integration of phi_integrand across a given phi space.
+	* Numerical integration of lp_bases_theta_phi_f on (0, 1) for a given theta.
 	*/
 	struct lp_bases_theta_f : public math::numeric_functor {
 		// pointer to class containing the lp_bases_given fcn
