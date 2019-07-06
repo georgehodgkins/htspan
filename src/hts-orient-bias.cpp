@@ -120,7 +120,7 @@ int main (int argc, char** argv) {
 	// disable verbosity on result output
 	global_out.set_verbosity(-1);
 	if (!use_stdout && !results_to_file) {
-		global_log <<
+		global_log.v(1) <<
 		"Warning: There is no set output method for the results; results will not be accessible.\n";
 	}
 

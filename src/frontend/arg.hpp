@@ -350,7 +350,7 @@ struct Arg: public option::Arg {
 	}
 
 	static ArgStatus SnvFType (const Option& opt, bool msg) {
-		const char* str[] = {"tsv", "vcf", "bcf"};
+		const char* str[] = {"tsv", "vcf", "vcf-bgz"};
 		return MatchingString(opt, msg, str, sizeof(str)/sizeof(char*));
 	}
 

@@ -109,7 +109,7 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 
 		} else { // SNV is not damage-consistent
 			frontend::global_log.v(1) << "Warning: Variant " << nuc_to_char(rec.nt_ref) << '>' <<
-				nuc_to_char(rec.nt_alt) << "is not consistent with selected damage type, ignoring.";
+				nuc_to_char(rec.nt_alt) << " is not consistent with selected damage type, ignoring.\n";
 			snvr.err = -1;
 		}
 		return true;// not at EOF yet
@@ -148,20 +148,23 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	vector<double> pvals;
 	list<snv::record> cached_records;
 	// table header
-	frontend::global_out << "p\ttheta_hat" << '\n';
+	frontend::global_out << "snv\tpval\tsig" << '\n';
 	// note that fetch_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
 	while (fetch_next_snv(snvr, f, data, rec)) {
+		frontend::global_log.v(3) << "Fetched " << rec.to_string() << ';';
 		// check for non-fatal errors in SNV reading/piling and
 		// skip this record if an error was encountered
 		// (fetch_next_snv should print the appropriate warning)
 		if (snvr.error()) {
+			frontend::global_log.v(3) << " (skipped)\n";
 			continue;
 		}
 		// run filter
 		double pval = fobfilter(phi);
 		pvals.push_back(pval);
 		cached_records.push_back(rec);
+		frontend::global_log.v(3) << " pval: " << pval << '\n';
 	}
 	// Test recorded pvals and write back to the filter accordingly
 	vector<bool> is_significant;
@@ -171,8 +174,10 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	for (n = 0, it = cached_records.begin();
 			n < pvals.size(); ++n, ++it) {
 		if (is_significant[n]) {
+			frontend::global_out << it->to_string() << '\t' << pvals[n] << '\t' << "X\n"; 
 			snvw.write(*it);
 		} else {
+			frontend::global_out << it->to_string() << '\t' << pvals[n] << '\t' << "\n";
 			snvw.write_filter_failed(*it, fobfilter);
 		}
 	}
@@ -211,18 +216,21 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 	vector<double> lposteriors;
 	list<snv::record> cached_records;
 	// table header
-	frontend::global_out << "log posterior prob. of non-zero theta" << '\n';
+	frontend::global_out << "snv\tlpos\tsig" << '\n';
 	// note that fetch_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
 	while (fetch_next_snv(snvr, f, data, rec)) {
+			frontend::global_log.v(3) << "Fetched " << rec.to_string() << ';';
 			// check for non-fatal errors in SNV reading/piling
 			if (snvr.error()) {
+				frontend::global_log.v(3) << " (skipped)\n";
 				continue;
 			}
 			// run filter
 			double lposterior = bobfilter(prior_alt, alpha, beta);
 			lposteriors.push_back(lposterior);
 			cached_records.push_back(rec);
+			frontend::global_log.v(3) << " lpos: " << lposterior << '\n';
 	}
 
 	vector<bool> is_significant;
@@ -232,8 +240,10 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 	for (n = 0, it = cached_records.begin();
 			n < lposteriors.size(); ++n, ++it) {
 		if (is_significant[n]) {
+			frontend::global_out << it->to_string() << '\t' << lposteriors[n] << '\t' << "X\n"; 
 			snvw.write(*it);
 		} else {
+			frontend::global_out << it->to_string() << '\t' << lposteriors[n] << '\t' << "\n";
 			snvw.write_filter_failed(*it, bobfilter);
 		}
 	}

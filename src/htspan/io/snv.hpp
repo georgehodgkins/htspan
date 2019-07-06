@@ -15,11 +15,11 @@ enum FMTFLAGS_T {
 };
 
 FMTFLAGS_T operator| (FMTFLAGS_T a, FMTFLAGS_T b) {
-	return static_cast<FMTFLAGS_T>(a | b);
+	return static_cast<FMTFLAGS_T>(static_cast<int>(a) | static_cast<int>(b));
 }
 
 FMTFLAGS_T operator& (FMTFLAGS_T a, FMTFLAGS_T b) {
-	return static_cast<FMTFLAGS_T>(a & b);
+	return static_cast<FMTFLAGS_T>(static_cast<int>(a) & static_cast<int>(b));
 }
 
 /**
@@ -120,6 +120,7 @@ struct record {
 	// copy constructor (calls operator=())
 	// TODO: this should really be the other way around
 	record (const record &r) {
+		v = NULL;
 		operator=(r);
 	}	
 
@@ -129,7 +130,10 @@ struct record {
 			return "EMPTY";
 		}
 		ostringstream ss;
-		ss << "Chrom: " << chrom << " Pos: " << pos << " Ref: " << nuc_to_char(nt_ref) << " Alt: " << nuc_to_char(nt_alt);
+		ss << nuc_to_char(nt_ref) << '>' << nuc_to_char(nt_alt) << " @ " << chrom << ':' << pos;
+		if (v != NULL) {
+			ss << " [vcf]";
+		}
 		return ss.str();
 	}
 

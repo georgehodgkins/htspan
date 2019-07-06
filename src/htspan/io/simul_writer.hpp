@@ -8,6 +8,8 @@
 #ifndef _HTSPAN_SIMUL_HPP_
 #define _HTSPAN_SIMUL_HPP_
 
+// TODO: make this a conforming ostream
+
 namespace hts {
 
 namespace frontend {
@@ -49,6 +51,7 @@ simul_writer::simul_writer () {
 	u_cerr = false;
 	u_cout = false;
 	verbosity = 1;
+	curr_vth = -1;
 }
 
 simul_writer::~simul_writer () {
