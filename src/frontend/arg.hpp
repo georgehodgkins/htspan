@@ -312,8 +312,8 @@ struct Arg: public option::Arg {
 		return InputFile(opt, msg, xtns, sizeof(xtns)/sizeof(char*));
 	}
 
-	static ArgStatus SnvFile (const Option& opt, bool msg) {
-		const char* xtns[] = {"tsv", "snv"};
+	static ArgStatus InSnvFile (const Option& opt, bool msg) {
+		const char* xtns[] = {"tsv", "snv", "vcf", "gz", "bgz"};
 		return InputFile(opt, msg, xtns, sizeof(xtns)/sizeof(char*));
 	}
 

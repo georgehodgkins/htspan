@@ -32,28 +32,17 @@ namespace hts {
 * @param keep_dup Whether to exclude duplicated reads from consideration
 * @param max_qreads Maximum number of (passing) reads to analyze
 */
-bool orient_bias_quantify(nuc_t ref, nuc_t alt, const char* align_fname, const char* ref_fname,
-		double min_mapq, double min_baseq, bool keep_dup, size_t max_qreads) {
+bool orient_bias_quantify(nuc_t ref, nuc_t alt, double min_mapq, double min_baseq, bool keep_dup,
+		 size_t max_qreads, piler &p, faidx_reader &faidx) {
 	// Initialize objects
 	orient_bias_quant_f obquant (ref, alt);
-	piler p;
-	faidx_reader faidx;
 	//set quality filter theresholds
 	p.qfilter.min_mapq = min_mapq;
 	p.qfilter.min_baseq = min_baseq;
 	if (keep_dup) {
 		p.qfilter.disable_excl_flags(BAM_FDUP);
 	}
-	// open BAM data file
-	if (!p.open(align_fname)) {
-		std::cerr << "Error: could not open BAM file \'" << align_fname << "\'.\n";
-		return false;
-	}
-	// open reference sequence file
-	if (!faidx.open(ref_fname)) {
-		std::cerr << "Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
-		return false;
-	}
+	
 	//process reads up to max_reads
 	size_t n_reads = 0;
 

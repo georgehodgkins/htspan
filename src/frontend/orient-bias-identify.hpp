@@ -3,6 +3,7 @@
 #include <vector>
 #include <cassert>
 #include <cstdlib>
+#include <utility>
 using namespace std;
 
 #include <htslib/hts.h>
@@ -14,25 +15,52 @@ using namespace std;
 #include "htspan/nucleotide.hpp"
 
 #include "htspan/io/snv_reader.hpp"
+#include "htspan/io/snv_writer.hpp"
+#include "htspan/io/snv.hpp"
 #include "htspan/io/simul_writer.hpp"
+#include "htspan/io/streamer.hpp"
 
-
+// TODO: update method documentation
 namespace hts {
 
 // Disambiguate non-fatal error codes from SNV reading (defined in snv.hpp)
-inline void print_snvr_err(snv::record &rec) {
-	switch(rec.err) {
+inline void print_snvr_err(snv::reader &snvr) {
+	switch(snvr.error()) {
+	case -2:
+		frontend::global_log.v(1) << "Warning: Reader has not been initialized.";
+		return;
 	case 1:
-		frontend::global_log.v(1) << "Warning: could not find " << rec.chrom;
+		frontend::global_log.v(1) << "Warning: ignoring zero-nucleotide/invalid variant read.";
 		return;
 	case 2:
 		frontend::global_log.v(1) << "Warning: could not unpack VCF/BCF record.";
 		return;
 	case 3:
-		frontend::global_log.v(1) << "Warning: ignoring multiple-nucleotide variant read from VCF/BCF.";
+		frontend::global_log.v(1) << "Warning: ignoring multiple-nucleotide variant read.";
+		return;
+	case 0:
+	default:
 		return;
 	}
 }
+
+void call_snvs_pval (const vector<double> &pvals, double sig_level, vector<bool> &results) {
+	results.clear();
+	results.reserve(pvals.size());
+	for (size_t n = 0; n < pvals.size(); ++n) {
+		results.push_back(pvals[n] < sig_level);
+	}
+}
+
+void call_snvs_lposterior (const vector<double> &lposteriors, double posterior_threshold, vector<bool> &results) {
+	results.clear();
+	results.reserve(lposteriors.size());
+	double lpos_th = log(posterior_threshold);
+	for (size_t n = 0; n < lposteriors.size(); ++n) {
+		results.push_back(lposteriors[n] > lpos_th);
+	}
+}
+
 
 /**
 * This function reads the next SNV from the given SNV reader,
@@ -52,8 +80,8 @@ inline void print_snvr_err(snv::record &rec) {
 bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::record &rec) {
 	if (snvr.next(rec)) {
 		// check for non-fatal errors
-		if (rec.err != 0) {
-			print_snvr_err(rec);
+		if (snvr.error() != 0) {
+			print_snvr_err(snvr);
 			return true;
 		}
 		// check that the SNV is consistent with damage
@@ -69,7 +97,7 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 			f.clear();
 			if (!f.fetch(rid, rec.pos)) {
 				frontend::global_log.v(1) << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << '\n';
-				rec.err = -1;
+				snvr.err = -1;
 				return true;
 			}
 			frontend::global_log.v(2) << "Info: fetched " << f.pile.queries.size() << " reads" << '\n';
@@ -82,7 +110,7 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 		} else { // SNV is not damage-consistent
 			frontend::global_log.v(1) << "Warning: Variant " << nuc_to_char(rec.nt_ref) << '>' <<
 				nuc_to_char(rec.nt_alt) << "is not consistent with selected damage type, ignoring.";
-			rec.err = -1;
+			snvr.err = -1;
 		}
 		return true;// not at EOF yet
 	}
@@ -104,36 +132,50 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 * @param phi Estimate of global damage rate
 * @return whether the operation succeeded.
 */
-template <typename SnvReader>
 bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bound,
-		 const char* snv_fname, const char* align_fname, double phi) {
-	fetcher f;
-	orient_bias_data data(ref, alt, 0);
-	// Open BAM file
-	if (!f.open(align_fname)) {
-		std::cerr <<
-			"Error: Could not open BAM file \'" << align_fname << "\'.";
-		return false;
-	}
-	// open SNV file (TSV or VCF)
-	SnvReader snvr_obj(snv_fname); // throws an exception if opening fails
-	snv::reader &snvr = snvr_obj; // assign a base class reference to the derived class object
+		 double phi, double sig_level, fetcher &f, snv::streamer &s) {
 
+	orient_bias_data data(ref, alt, 0);
 	snv::record rec;
+	snv::reader &snvr = *s.snvr_pt;
+	snv::writer &snvw = *s.snvw_pt;
+
+	// intialize filter
+	// note that the filter is tied to the data object by reference, so it updates for new data
+	freq_orient_bias_filter_f fobfilter(data, -minz_bound, minz_bound, eps);
+	snvw.add_filter_tag(fobfilter);
+
+	vector<double> pvals;
+	list<snv::record> cached_records;
 	// table header
 	frontend::global_out << "p\ttheta_hat" << '\n';
-	// note that pile_next_snv modifies all of the objects passed to it
+	// note that fetch_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
 	while (fetch_next_snv(snvr, f, data, rec)) {
-			// check for non-fatal errors in SNV reading/piling
-			if (rec.err) {
-				continue;
-			}
-			// run filter
-			freq_orient_bias_filter_f fobfilter(data, -minz_bound, minz_bound, eps);
-			frontend::global_out << fobfilter(phi) << '\t'
-				<< fobfilter.estimate_theta_given(phi) << '\n';
+		// check for non-fatal errors in SNV reading/piling and
+		// skip this record if an error was encountered
+		// (fetch_next_snv should print the appropriate warning)
+		if (snvr.error()) {
+			continue;
 		}
+		// run filter
+		double pval = fobfilter(phi);
+		pvals.push_back(pval);
+		cached_records.push_back(rec);
+	}
+	// Test recorded pvals and write back to the filter accordingly
+	vector<bool> is_significant;
+	call_snvs_pval(pvals, sig_level, is_significant);
+	list<snv::record>::iterator it;
+	size_t n;
+	for (n = 0, it = cached_records.begin();
+			n < pvals.size(); ++n, ++it) {
+		if (is_significant[n]) {
+			snvw.write(*it);
+		} else {
+			snvw.write_filter_failed(*it, fobfilter);
+		}
+	}
 	return true;
 }
 
@@ -154,33 +196,46 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 * @param prior_alt Prior probability of the alternate model (theta != 0)
 * @return whether the operation succeeded.
 */
-template <typename SnvReader>
-bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bound, const char* snv_fname,
-		const char* align_fname, double alpha, double beta, double prior_alt) {
-	fetcher f;
+bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bound, 
+		double alpha, double beta, double prior_alt, double posterior_threshold, fetcher &f, snv::streamer &s) {
 	orient_bias_data data (ref, alt, 0);
-	// Open BAM file
-	if (!f.open(align_fname)) {
-		std::cerr <<
-			"Error: Could not open BAM file \'" << align_fname << "\'.";
-		return false;
-	}
-	// open SNV file (TSV or VCF)
-	SnvReader snvr_obj(snv_fname);// throws exception on failure to open
-	snv::reader &snvr = snvr_obj;
 	snv::record rec;
+	snv::reader &snvr = *s.snvr_pt;
+	snv::writer &snvw = *s.snvw_pt;
+
+	// intialize filter
+	// note that the filter is tied to the data object by reference, so it updates for new data
+	bayes_orient_bias_filter_f bobfilter(data, -minz_bound, minz_bound, eps);
+	snvw.add_filter_tag(bobfilter);
+
+	vector<double> lposteriors;
+	list<snv::record> cached_records;
 	// table header
 	frontend::global_out << "log posterior prob. of non-zero theta" << '\n';
-	// note that pile_next_snv modifies all of the objects passed to it
+	// note that fetch_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
 	while (fetch_next_snv(snvr, f, data, rec)) {
 			// check for non-fatal errors in SNV reading/piling
-			if (rec.err) {
+			if (snvr.error()) {
 				continue;
 			}
 			// run filter
-			bayes_orient_bias_filter_f bobfilter(data, -minz_bound, minz_bound, eps);
-			frontend::global_out << bobfilter(prior_alt, alpha, beta);
+			double lposterior = bobfilter(prior_alt, alpha, beta);
+			lposteriors.push_back(lposterior);
+			cached_records.push_back(rec);
+	}
+
+	vector<bool> is_significant;
+	call_snvs_lposterior(lposteriors, posterior_threshold, is_significant);
+	size_t n;
+	list<snv::record>::iterator it;
+	for (n = 0, it = cached_records.begin();
+			n < lposteriors.size(); ++n, ++it) {
+		if (is_significant[n]) {
+			snvw.write(*it);
+		} else {
+			snvw.write_filter_failed(*it, bobfilter);
+		}
 	}
 	return true;
 }

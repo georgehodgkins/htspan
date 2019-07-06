@@ -7,7 +7,6 @@
 // The goal is for this file to be mostly self-documenting
 // via the help texts in the array.
 
-// TODO: Remove unused minimizer options
 
 namespace hts {
 	
@@ -15,11 +14,12 @@ namespace frontend {
 
 // These indices uniquely identify options
 // They are signed so the print_selected_usages function in print-help.hpp works correctly
+// TODO: add pval threshold option
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
-	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, SNVFILE=10, PHI=11, STDOUT=12,
-	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, EPS=18,
-	THETA_SIM=19, PHI_SIM=20, ERR_MEAN_SIM=21, ERR_SD_SIM=22, DAMAGE_TYPE=23, ALPHA=24, BETA=25,
-	ALTPRI=26, MODEL=27, SNVFTYPE=28, HELP=29};
+	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, IN_SNVFILE=10, OUT_SNVFILE=11, PHI=12, STDOUT=13,
+	MIN_MAPQ=14, MIN_BASEQ=15, KEEP_DUP=16, MAX_QREADS=17, MINZ_BOUND=18, EPS=19,
+	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, ALPHA=25, BETA=26,
+	ALTPRI=27, MODEL=28, IN_SNVFTYPE=29, OUT_SNVFTYPE=30, HELP=31};
 
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
@@ -36,15 +36,15 @@ const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
-const OptionIndex ident_only_args[] = {SNVFILE, SNVFTYPE, PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI};
+const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI};
 const size_t ident_arg_count = sizeof(ident_only_args)/sizeof(OptionIndex);
 
 const OptionIndex intsim_only_args[] = {THETA_SIM, PHI_SIM, ERR_MEAN_SIM, ERR_SD_SIM};
 const size_t sim_arg_count = sizeof(intsim_only_args)/sizeof(OptionIndex);
 
 /**
-* Main array of options passed to the parser
-* This array must stay ordered least to greatest index for help printing to work
+* Main array of options passed to the parser.
+* This array must stay ordered least to greatest index for help printing to work.
 * Note that in help descrs, \r feeds a newline + indentation for all subsequent lines in that description
 * All option checks are in arg.hpp.
 */
@@ -109,12 +109,11 @@ const option::Descriptor usage[] = {
 	},{
 		RESFILE,
 		t_OTHER,
-		"o",
+		"",
 		"result-file",
 		Arg::OutputFile,
-		"-o, --result-file\rPath to write results to. "
-		"Runtime output and results on stdout are controlled by the -O/x flags. "
-		"Passing a '-' to this argument has the same effect as the -O flag."
+		"--result-file\rPath to write numerical results to. If this argument is not specified, "
+		"results will be written to stdout."
 	},{
 		BAMFILE,
 		t_OTHER,
@@ -132,13 +131,22 @@ const option::Descriptor usage[] = {
 		"-f, --reference-file\rPath for the reference genome (FASTA or FASTQ) "
 		"to compare against in damage quantification."
 	},{
-		SNVFILE,
+		IN_SNVFILE,
 		t_OTHER,
 		"V",
-		"snv-file",
-		Arg::SnvFile,
+		"in-snv-file",
+		Arg::InSnvFile,
 		"-V, --snv-file\rPath for the list of SNVs to be examined in damage identification.\n"
-		"Valid formats are plain TSV or VCF/BCF (can be compressed with gzip or bgzip)."
+		"Valid formats are plain TSV or VCF/BCF (can be compressed with gzip or bgzip).\n"
+		"Valid extensions are:\'snv\', \'tsv\', \'vcf\', \'bcf\', \'gz\', or \'bgz\'."
+	},{
+		OUT_SNVFILE,
+		t_OTHER,
+		"o",
+		"out-snv-file",
+		Arg::OutputFile,
+		"-o, --out-snv-file\rPath for the output list of filtered SNVs.\n"
+		"If the -O flag is not set, output file type will be deduced from the extension of this file.\n"
 	},{
 		PHI,
 		t_OTHER,
@@ -149,19 +157,19 @@ const option::Descriptor usage[] = {
 	},{
 		STDOUT,
 		t_ON,
-		"O",
+		"",
 		"stdout",
 		Arg::None,
-		"-O, --stdout\rTurns on printing runtime output and results to stdout, "
+		"--stdout\rTurns on printing runtime output and results to stdout, "
 		"in addition to any log or result files specified "
 		"(default behavior)."
 	},{
 		STDOUT,
 		t_OFF,
-		"x",
+		"",
 		"no-stdout",
 		Arg::None,
-		"-x, --no-stdout\rTurns off printing runtime output and results to stdout.\n"
+		"--no-stdout\rTurns off printing runtime output and results to stdout.\n"
 		"Note that if you use this flag and do not specify a result file (-o), "
 		"you will not be able to see your results."
 	},{
@@ -276,14 +284,24 @@ const option::Descriptor usage[] = {
 		"-M, --model [bayes]\rModel to use for identification or quantification. "
 		"Choices are \'freq\' or \'bayes\'."
 	},{
-		SNVFTYPE,
+		IN_SNVFTYPE,
 		t_OTHER,
-		"",
-		"snv-type",
+		"I",
+		"in-snv-type",
 		Arg::SnvFType,
-		"--snv-type [auto]\rFormat of SNV file selecting variants for damage identification.\n"
-		"Choices are \'tsv\', \'vcf\', or \'bcf\'. If this option is not provided, type will be deduced from the file extension.\n"
-		"NB: The \'vcf\' and \'bcf\' arguments are synonymous."
+		"-I, --in-snv-type [auto]\rFormat of SNV input file selecting variants for damage identification.\n"
+		"Choices are \'tsv\' or \'vcf\'. If this option is not provided, type will be deduced from the file extension.\n"
+		"For input files, compression is supported and autodetected.\n"
+		"NB: The \'vcf\' argument also supports BCF files."
+	},{
+		OUT_SNVFTYPE,
+		t_OTHER,
+		"O",
+		"out-snv-type",
+		Arg::SnvFType,
+		"-O, --out-snv-type [auto]\rFormat of SNV output file containing filtered variants.\n"
+		"Choices are \'tsv\', \'vcf\', or \'vcf-bgz\'. If this option is not provided, type will be deduced from the file extension, "
+		"with the .gz and .bgz extensions both indicating BGZF compression."
 	},{
 		HELP,
 		t_OTHER,

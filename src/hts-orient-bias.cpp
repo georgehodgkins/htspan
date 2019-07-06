@@ -16,18 +16,17 @@
 #include "htspan/print.hpp"
 
 #include "htspan/io/faidx_reader.hpp"
-#include "htspan/io/snv_reader.hpp"
+#include "htspan/io/snv.hpp"
 #include "htspan/io/simul_writer.hpp"
 
 using namespace hts::frontend;
 
-// TODO Update classes to use proper logging and verbosity
 // TODO Eliminate string/cstr juggling
+// TODO Add appropriate help messages to errors
 
 int main (int argc, char** argv) {
 	// used for clarity when setting model and integrator options
 	enum ModelType {BAYES, FREQ};
-	enum SnvFileType {TSV, VCF};
 
 	//
 	// Process input arguments
@@ -167,14 +166,36 @@ int main (int argc, char** argv) {
 	} else {
 		align_fname = options[BAMFILE].arg;
 	}
+
 	std::string ref_fname;
 	if (options[REFFILE]) {
 		ref_fname = options[REFFILE].arg;
 	}
-	std::string snv_fname;
-	SnvFileType snv_xtn;
-	if (options[SNVFILE]) {
-		snv_fname = options[SNVFILE].arg;
+
+	// SNV file flags
+	std::string snv_in_fname;
+	snv::FMTFLAGS_T snv_in_fmt = snv::F_NULL;
+	if (options[IN_SNVFILE]) {
+		snv_in_fname = options[IN_SNVFILE].arg;
+		if (options[IN_SNVFTYPE]) {
+			snv_in_fmt = hts::snv::opts_to_fmt(snv_in_fname.c_str(), options[IN_SNVFTYPE].arg);
+		} else {
+			snv_in_fmt = hts::snv::opts_to_fmt(snv_in_fname.c_str(), NULL);
+		}
+	}
+
+	std::string snv_out_fname = "out";
+	snv::FMTFLAGS_T snv_out_fmt = snv::F_NULL;
+	if (options[OUT_SNVFILE]) {
+		snv_out_fname = options[OUT_SNVFILE].arg;
+		if (options[OUT_SNVFTYPE]) {
+			snv_out_fmt = hts::snv::opts_to_fmt(snv_out_fname.c_str(), options[OUT_SNVFTYPE].arg);
+		} else {
+			snv_out_fmt = hts::snv::opts_to_fmt(snv_out_fname.c_str(), NULL);
+		}
+	} else if (options[OUT_SNVFTYPE]) {
+		snv_out_fmt = hts::snv::opts_to_fmt(NULL, options[OUT_SNVFTYPE].arg);
+		snv_out_fname += fmt_to_xtn(snv_out_fmt);
 	}
 
 	// get statistical model (default is bayes)
@@ -185,15 +206,17 @@ int main (int argc, char** argv) {
 			model = FREQ;
 		}
 	}
-	
-
-	// argument checks for specific commands
+	//
+	// Command-specific argument checks
+	//
 	if (quantifying) {
+
 		if (ref_fname.empty()) {
 			std::cerr <<
 				"Error: reference sequence argument (-f, --reference-file) is mandatory for damage quantification.\n";
 			success = false;
 		}
+
 		// Warn about ignored arguments
 		// Array and counter defined in options.hpp
 		for (size_t n = 0; n < ident_arg_count; ++n) {
@@ -201,36 +224,21 @@ int main (int argc, char** argv) {
 				global_log.v(1) << "Warning: option [-/--]" << options[ident_only_args[n]].name << " only applies to damage identification. Ignored.\n";
 			}
 		}
+
 	} else if (identifying) {
-		if (snv_fname.empty()) {
+
+		if (snv_in_fname.empty()) {
 			std::cerr <<
 				"Error: SNV file argument (-V, --snv-file) is mandatory for damage identification.\n";
 			success = false;
-		} else {
-			// check if SNV file type is set manually
-			if (options[SNVFTYPE]) {
-				if (strcmpi(options[SNVFTYPE].arg, "tsv") == 0) {
-					snv_xtn = TSV;
-				} else {// VCF or BCF
-					snv_xtn = VCF;
-				}
-			} else { // deduce type if it is not set manually
-				const char* xtn = strrchr(snv_fname.c_str(), '.');
-				if (xtn != NULL) {
-					if (strcmpi(&xtn[1], "tsv") == 0) {
-						snv_xtn = TSV;
-					} else if (strcmpi(&xtn[1], "vcf") == 0 ||
-							strcmpi(&xtn[1], "bcf") == 0) {
-						snv_xtn = VCF;
-					} else {
-						std::cerr << "Could not deduce SNV file type from extension. Please specify a type with --snv-type.";
-						success = false;
-					}
-				} else { // no extension on filename
-					std::cerr << "Could not deduce SNV file type from extension. Please specify a type with --snv-type.";
-					success = false;
-				}
-			}
+		} else if (snv_in_fmt == snv::F_NULL) {
+			std::cerr << 
+				"Error: Input SNV file type not given and could not deduce type from given filename. Use -I to specify type.\n";
+			success = false;
+		} else if (snv_out_fmt == snv::F_NULL) {
+			std::cerr <<
+				"Error: Output SNV file type not given and could not deduce type from given filename (if any). Use -O to specify type.\n";
+			success = false;
 		}
 
 		// Warn about ignored arguments
@@ -267,7 +275,7 @@ int main (int argc, char** argv) {
 			prior_alt = strtod(options[ALTPRI].arg, NULL);
 		} else {
 			global_log.v(1) <<
-				"Warning: no estimate of beta was supplied. Default value of .1 will be used.\n";
+				"Warning: no alternative prior probability was supplied. Default value of .5 will be used.\n";
 		}
 	} else if (model == FREQ) {
 		// phi estimate
@@ -275,7 +283,7 @@ int main (int argc, char** argv) {
 			phi = strtod(options[PHI].arg, NULL);
 		} else {
 			global_log.v(1) <<
-				"Warning: no alternative prior probability was supplied. Default value of .5 will be used.\n";
+				"Warning: no estimate of phi was supplied. Default value of .01 will be used.\n";
 		}
 	}
 	int min_mapq = 5;
@@ -346,6 +354,8 @@ int main (int argc, char** argv) {
 	// Direct the program according to parsed options
 	//
 	using namespace hts;
+
+	
 	//
 	// Damage quantification block
 	//
@@ -354,17 +364,31 @@ int main (int argc, char** argv) {
 			global_log.v(1) << "Warning: Quantification internal sim code does not exist yet.\n";
 			return 0;
 		} else if (external_sim) {
-			global_log.v(1) << "Warning: Quantification eternal sim code does not exist yet.\n"; 
+			global_log.v(1) << "Warning: Quantification external sim code does not exist yet.\n"; 
 			return 0;
 		} else {
 			global_log.v(1) << "Starting quantification...\n";
-			success = orient_bias_quantify(ref, alt, align_fname.c_str(), ref_fname.c_str(), min_mapq, min_baseq, keep_dup, max_qreads);
+			// open BAM data file
+			piler p;
+			faidx_reader faidx;
+			if (!p.open(align_fname.c_str())) {
+				std::cerr <<
+					"Error: could not open BAM file \'" << align_fname << "\'.\n";
+				return 1;
+			}
+			// open reference sequence file
+			if (!faidx.open(ref_fname.c_str())) {
+				std::cerr <<
+					"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
+				return 1;
+			}
+			success = orient_bias_quantify(ref, alt, min_mapq, min_baseq, keep_dup, max_qreads, p, faidx);
 			if (!success) {
 				global_log.v(1) << "Quantification process failed.\n";
 				return 1;
 			}
 		}
-	} // Quantification block
+	} // End quantification block
 	//
 	// Damage identification block
 	// 
@@ -378,22 +402,18 @@ int main (int argc, char** argv) {
 			//obfilter.read(ext_sim_fname.c_str());
 		} else {
 			global_log.v(1) << "Starting identification...\n";
+			fetcher alignment_file;
+			if (!alignment_file.open(align_fname.c_str())) {
+				std::cerr <<
+					"Error: Could not open BAM file \'" << align_fname << "\'.";
+				return 1;
+			}
+			snv::streamer snv_files (snv_in_fname.c_str(), snv_out_fname.c_str(), snv_in_fmt, snv_out_fmt);
+
 			if (model == BAYES) {
-				if (snv_xtn == TSV) {
-					success = orient_bias_identify_bayes<snv::tsv_reader>(ref, alt, eps, minz_bound,
-						snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
-				} else if (snv_xtn == VCF) {
-					success = orient_bias_identify_bayes<snv::vcf_reader>(ref, alt, eps, minz_bound,
-						snv_fname.c_str(), align_fname.c_str(), alpha, beta, prior_alt);
-				}
+				success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta, prior_alt, .95, alignment_file, snv_files);
 			} else if (model == FREQ) {
-				if (snv_xtn == TSV) {
-					success = orient_bias_identify_freq<snv::tsv_reader>(ref, alt, eps, minz_bound,
-						snv_fname.c_str(), align_fname.c_str(), phi);
-				} else if (snv_xtn == VCF) {
-					success = orient_bias_identify_freq<snv::vcf_reader>(ref, alt, eps, minz_bound,
-						snv_fname.c_str(), align_fname.c_str(), phi);
-				}
+				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi, .05, alignment_file, snv_files);
 			}
 			if (!success) {
 				global_log.v(1) << "Identification process failed.";
