@@ -64,7 +64,7 @@ struct tsv_writer : writer {
 
 	// Open the file at the given path for writing
 	// NB: opening the file will destroy its former contents, if any
-	void open (const char* path, const FMTFLAGS_T fmt) {
+	void open (const char* path, const FMTFLAGS_T fmt) override {
 		if (!(fmt & F_TSV)) {// if F_SNV is not set
 			throw runtime_error("TSV writer format must be F_TSV.");
 		}
@@ -77,14 +77,14 @@ struct tsv_writer : writer {
 	}
 
 	// Write one record to the file (direct, immediate write)
-	void write (const record &r) {
+	void write (const record &r) override {
 		writer::write(r);
 		f << r.chrom << '\t' << r.pos+1 << '\t' << nuc_to_char(r.nt_ref) << '\t' << nuc_to_char(r.nt_alt) << endl;
 	}
 
 	// in this class, this method intentionally does nothing,
 	// since record should not be written back if filter fails
-	void write_filter_failed (const record &r, const base_orient_bias_filter_f &filter) {}
+	void write_filter_failed (const record &r, const base_orient_bias_filter_f &filter) override {}
 
 	// Close the underlying file stream
 	void close() {
@@ -126,7 +126,7 @@ struct vcf_writer : writer {
 
 	// Opens a the given path for writing with the same format and compression mode as that
 	// in the given htsFile; also links to the given vcf_header (needed to define contigs) 
-	void open(const char* path, FMTFLAGS_T fmt) {
+	void open(const char* path, FMTFLAGS_T fmt) override {
 		if (!(fmt & F_VCF)) {
 			throw runtime_error("VCF writer format must be F_VCF.");
 		}
@@ -153,7 +153,7 @@ struct vcf_writer : writer {
 	}
 
 	// cache one VCF record for writing after adding a filter tag to it
-	void write_filter_failed(const record &rec, const base_orient_bias_filter_f &filter) {
+	void write_filter_failed(const record &rec, const base_orient_bias_filter_f &filter) override {
 		int filter_id = bcf_hdr_id2int(hdr, BCF_DT_ID, filter.text_id);
 		if (filter_id < 0) {
 			throw runtime_error("Filter tag not found in header! Add the filter to the header first with add_filter_tag.");
@@ -167,7 +167,7 @@ struct vcf_writer : writer {
 	}
 
 	// Caches a record for writing
-	void write(const record &rec) {
+	void write(const record &rec) override {
 		writer::write(rec);
 		bcf1_t *twr = bcf_dup(rec.v);
 		// check that a corresponding contig exists
@@ -216,7 +216,7 @@ struct vcf_writer : writer {
 
 	// Adds the tag from the given filter to the file header
 	// This must be done before marking records with that filter.
-	void add_filter_tag (base_orient_bias_filter_f &filter) {
+	void add_filter_tag (const base_orient_bias_filter_f &filter) override {
 		int status = bcf_hdr_printf(hdr, "##FILTER=<ID=%s,Description=\"%s\">", filter.text_id, filter.get_description());
 		if (status < 0) {
 			throw runtime_error("Could not add filter tag to VCF header.");
@@ -224,7 +224,7 @@ struct vcf_writer : writer {
 	}
 
 	// flushes the file and then closes it
-	void close() {
+	void close() override {
 		if (hf != NULL) {
 			flush();
 			hts_close(hf);

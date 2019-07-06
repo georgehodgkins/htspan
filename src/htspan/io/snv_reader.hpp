@@ -89,7 +89,7 @@ struct reader {
 	*/
 	virtual void close () = 0;
 
-	virtual ~reader();
+	virtual ~reader() {}
 
 };
 
