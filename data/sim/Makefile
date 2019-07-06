@@ -51,5 +51,5 @@ diff:
 	diff sim.orig.snv sim.oxog.calls.snv || true
 
 clean:
-	rm -rf *.fq *.bam *.bai *.snv
+	rm -rf *.fq *.fa *.bam *.bai *.fai *.snv *.vcf out/*
 
