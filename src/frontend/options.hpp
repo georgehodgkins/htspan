@@ -252,14 +252,14 @@ const option::Descriptor usage[] = {
 		"",
 		"alpha",
 		Arg::PositiveDouble,
-		"--alpha [.1]\rAlpha hyperparameter for beta distribution used in Bayesian identification."
+		"--alpha [1]\rAlpha hyperparameter for beta distribution used in Bayesian identification."
 	},{
 		BETA,
 		t_OTHER,
 		"",
 		"beta",
 		Arg::PositiveDouble,
-		"--beta [.1]\rBeta hyperparameter for beta distribution used in Bayesian identification."
+		"--beta [1]\rBeta hyperparameter for beta distribution used in Bayesian identification."
 	},{
 		ALTPRI,
 		t_OTHER,

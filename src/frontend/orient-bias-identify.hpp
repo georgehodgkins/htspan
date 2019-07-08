@@ -44,24 +44,6 @@ inline void print_snvr_err(snv::reader &snvr) {
 	}
 }
 
-void call_snvs_pval (const vector<double> &pvals, double sig_level, vector<bool> &results) {
-	results.clear();
-	results.reserve(pvals.size());
-	for (size_t n = 0; n < pvals.size(); ++n) {
-		results.push_back(pvals[n] < sig_level);
-	}
-}
-
-void call_snvs_lposterior (const vector<double> &lposteriors, double posterior_threshold, vector<bool> &results) {
-	results.clear();
-	results.reserve(lposteriors.size());
-	double lpos_th = log(posterior_threshold);
-	for (size_t n = 0; n < lposteriors.size(); ++n) {
-		results.push_back(lposteriors[n] > lpos_th);
-	}
-}
-
-
 /**
 * This function reads the next SNV from the given SNV reader,
 * fetches corresponding reads from the given fetcher, and piles
@@ -146,51 +128,38 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	freq_orient_bias_filter_f fobfilter(data, -minz_bound, minz_bound, eps);
 	snvw.add_filter_tag(fobfilter);
 
-	vector<double> pvals;
-	list<snv::record> cached_records;
+	// table header
+	frontend::global_log.v(1) << "snv\tpval\tfilter\n";
+	size_t n_sig = 0;
+	size_t n = 0;
+
 	// note that fetch_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
 	while (fetch_next_snv(snvr, f, data, rec)) {
-		frontend::global_log.v(3) << "Fetched " << rec.to_string() << ';';
 		// check for non-fatal errors in SNV reading/piling and
 		// skip this record if an error was encountered
 		// (fetch_next_snv should print the appropriate warning)
 		if (snvr.error()) {
+			if (snvr.error() == -1) { // successful read, inconsistent variant
+				snvw.write(rec);
+			}
 			frontend::global_log.v(3) << " (skipped)\n";
 			continue;
 		}
+
 		// run filter
 		double pval = fobfilter(phi, fixed_phi);
-		pvals.push_back(pval);
-		cached_records.push_back(rec);
-	}
-	// Test recorded pvals and write back to the filter accordingly
-	vector<bool> is_significant;
-	call_snvs_pval(pvals, sig_level, is_significant);
-	list<snv::record>::iterator it;
-	size_t n;
-	size_t n_sig = 0;
-	double avg_sig_pval = 0.0, avg_non_sig_pval = 0.0;
-	// table header
-	frontend::global_log.v(1) << "snv\tpval\tfilter" << '\n';
-	for (n = 0, it = cached_records.begin();
-			n < pvals.size(); ++n, ++it) {
-		if (is_significant[n]) {
-			frontend::global_log.v(2) << it->to_string() << '\t' << pvals[n] << '\t' << "\n";
-			avg_sig_pval += pvals[n];
+		if (pval < sig_level) {
 			++n_sig;
-			snvw.write(*it);
+			frontend::global_log.v(2) << rec.to_string() << '\t' << pval << '\n';
+			snvw.write(rec);
 		} else {
-			frontend::global_log.v(1) << it->to_string() << '\t' << pvals[n] << "\t[fail]\n";
-			avg_non_sig_pval += pvals[n];
-			snvw.write_filter_failed(*it, fobfilter);
+			frontend::global_log.v(1) << rec.to_string() << '\t' << pval << "\t[fail]\n";
+			snvw.write_filter_failed(rec, fobfilter);
 		}
+		++n;
 	}
-	avg_sig_pval /= n_sig;
-	avg_non_sig_pval /= (pvals.size() - n_sig);
-	frontend::global_log.v(1) << "\nSummary: Variants filtered with frequentist model: " << pvals.size() << 
-		"\nn(p<" << sig_level << "): " << n_sig << " Avg p for (p<" << sig_level << "): " << avg_sig_pval <<
-		"\nn(p>" << sig_level << "): " << pvals.size() - n_sig << " Avg p for (p>" << sig_level << "): " << avg_non_sig_pval << '\n';
+	frontend::global_log.v(1) << "\nTotal: " << n << " Passed: " << n_sig << " Failed: " << n - n_sig << '\n';
 	return true;
 }
 
@@ -223,49 +192,38 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 	bayes_orient_bias_filter_f bobfilter(data, -minz_bound, minz_bound, eps);
 	snvw.add_filter_tag(bobfilter);
 
-	vector<double> lposteriors;
-	list<snv::record> cached_records;
+	// table header
+	frontend::global_log.v(1) << "snv\tprob\tfilter" << '\n';
+	size_t n_sig = 0;
+	size_t n = 0;
+
 	// note that fetch_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
 	while (fetch_next_snv(snvr, f, data, rec)) {
-			frontend::global_log.v(3) << "Fetched " << rec.to_string() << ';';
 			// check for non-fatal errors in SNV reading/piling
 			if (snvr.error()) {
-				frontend::global_log.v(3) << " (skipped)\n";
+				if (snvr.error() == -1) {// read suceeded, inconsistent variants
+					snvw.write(rec);
+				}
 				continue;
 			}
+
 			// run filter
 			double lposterior = bobfilter(prior_alt, alpha, beta);
-			lposteriors.push_back(lposterior);
-			cached_records.push_back(rec);
+			double posterior = exp(lposterior);
+			if (posterior > posterior_threshold) {
+				++n_sig;
+				frontend::global_log.v(2) << rec.to_string() << '\t' << posterior << '\n';
+				snvw.write(rec);
+			} else {
+				frontend::global_log.v(1) << rec.to_string() << '\t' << posterior << "\t[fail]\n";
+				snvw.write_filter_failed(rec, bobfilter);
+			}
+			++n;
 	}
 
-	vector<bool> is_significant;
-	call_snvs_lposterior(lposteriors, posterior_threshold, is_significant);
-	size_t n;
-	list<snv::record>::iterator it;
-	size_t n_sig = 0;
-	double avg_sig_post = 0.0, avg_non_sig_post = 0.0;
-	// table header
-	frontend::global_log.v(1) << "snv\tprob\tfilter" << '\n';
-	for (n = 0, it = cached_records.begin();
-			n < lposteriors.size(); ++n, ++it) {
-		if (is_significant[n]) {
-			avg_sig_post += exp(lposteriors[n]);
-			++n_sig;
-			frontend::global_log.v(2) << it->to_string() << '\t' << exp(lposteriors[n]) << "\t\n"; 
-			snvw.write(*it);
-		} else {
-			avg_non_sig_post += exp(lposteriors[n]);
-			frontend::global_log.v(1) << it->to_string() << '\t' << exp(lposteriors[n]) << "\t[fail]\n";
-			snvw.write_filter_failed(*it, bobfilter);
-		}
-	}
-	avg_sig_post /= n_sig;
-	avg_non_sig_post /= (lposteriors.size() - n_sig);
-	frontend::global_log.v(1) << "\nSummary: Variants filtered with Bayes model: " << lposteriors.size() << 
-		"\nn(P>" << posterior_threshold << "): " << n_sig << " Mean P for (P>" << posterior_threshold << "): " << avg_sig_post <<
-		"\nn(P<" << posterior_threshold << "): " << lposteriors.size() - n_sig << " Mean P for (P<" << posterior_threshold << "): " << avg_non_sig_post << '\n';
+	frontend::global_log.v(1) << "\nSummary: Total: " << n << " Passed: " << n_sig << " Failed: " << n - n_sig << '\n';
+
 	return true;
 }
 
