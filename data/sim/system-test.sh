@@ -2,8 +2,6 @@
 
 BIN="../../bin"
 
-#cd ../.. && make clean && make && cd data/sim
-
 # Control (testing undamaged BAM for damage)
 ${BIN}/hts-orient-bias identify -t oxog -M freq -b sim.orig.bam -V sim.oxog.calls.snv -o out/orig.oxog.freq.snv --result-file out/orig.oxog.freq.vals
 ${BIN}/hts-orient-bias identify -t oxog -M bayes -b sim.orig.bam -V sim.oxog.calls.snv -o out/orig.oxog.bayes.snv --result-file out/orig.oxog.bayes.vals

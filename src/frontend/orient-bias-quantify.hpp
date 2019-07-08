@@ -79,7 +79,7 @@ bool orient_bias_quantify(nuc_t ref, nuc_t alt, double min_mapq, double min_base
 	//calculate the phi estimator
 	double phi = obquant();
 	//output the estimator
-	frontend::global_out << "Phi estimator: " << phi << '\n';
+	frontend::global_log.v(1) << "Phi estimator: " << phi << '\n';
 	return true;
 }
 

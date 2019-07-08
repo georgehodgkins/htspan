@@ -27,16 +27,16 @@ namespace hts {
 inline void print_snvr_err(snv::reader &snvr) {
 	switch(snvr.error()) {
 	case -2:
-		frontend::global_log.v(1) << "Warning: Reader has not been initialized.";
+		frontend::global_log.v(1) << "Warning: Reader has not been initialized.\n";
 		return;
 	case 1:
-		frontend::global_log.v(1) << "Warning: ignoring zero-nucleotide/invalid variant read.";
+		frontend::global_log.v(1) << "Warning: ignoring zero-nucleotide/invalid variant read.\n";
 		return;
 	case 2:
-		frontend::global_log.v(1) << "Warning: could not unpack VCF/BCF record.";
+		frontend::global_log.v(1) << "Warning: could not unpack VCF/BCF record.\n";
 		return;
 	case 3:
-		frontend::global_log.v(1) << "Warning: ignoring multiple-nucleotide variant read.";
+		frontend::global_log.v(1) << "Warning: ignoring multiple-nucleotide variant read.\n";
 		return;
 	case 0:
 	default:
@@ -90,17 +90,17 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 			// get ref ID from chromosome string
 			int rid = bam_name_to_id(f.hdr, rec.chrom);
 			if (rid == -1) {
-				frontend::global_log.v(1) << "Warning: could not find " << rec.chrom;
+				frontend::global_log.v(1) << "Warning: could not find " << rec.chrom << '\n';
 				return true;
 			}
 			// fetch reads at target position
 			f.clear();
 			if (!f.fetch(rid, rec.pos)) {
-				frontend::global_log.v(1) << "Warning: could not fetch reads for: " << rec.chrom << ':' << rec.pos << '\n';
+				frontend::global_log.v(1) << "Warning: could not fetch reads for " << rec.to_string() << '\n';
 				snvr.err = -1;
 				return true;
 			}
-			frontend::global_log.v(2) << "Info: fetched " << f.pile.queries.size() << " reads" << '\n';
+			frontend::global_log.v(3) << "Info: fetched " << f.pile.queries.size() << " reads" << '\n';
 
 			// read in data
 			data.clear();
@@ -108,7 +108,7 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 			data.push(f.pile.queries, rec.pos, rec.nt_ref, rec.nt_alt);
 
 		} else { // SNV is not damage-consistent
-			frontend::global_log.v(1) << "Warning: Variant " << nuc_to_char(rec.nt_ref) << '>' <<
+			frontend::global_log.v(3) << "Warning: Variant " << nuc_to_char(rec.nt_ref) << '>' <<
 				nuc_to_char(rec.nt_alt) << " is not consistent with selected damage type, ignoring.\n";
 			snvr.err = -1;
 		}
@@ -147,8 +147,6 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 
 	vector<double> pvals;
 	list<snv::record> cached_records;
-	// table header
-	frontend::global_out << "snv\tpval\tsig" << '\n';
 	// note that fetch_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
 	while (fetch_next_snv(snvr, f, data, rec)) {
@@ -171,16 +169,28 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	call_snvs_pval(pvals, sig_level, is_significant);
 	list<snv::record>::iterator it;
 	size_t n;
+	size_t n_sig = 0;
+	double avg_sig_pval = 0.0, avg_non_sig_pval = 0.0;
+	// table header
+	frontend::global_log.v(2) << "snv\tpval\tfilter" << '\n';
 	for (n = 0, it = cached_records.begin();
 			n < pvals.size(); ++n, ++it) {
 		if (is_significant[n]) {
-			frontend::global_out << it->to_string() << '\t' << pvals[n] << '\t' << "X\n"; 
+			frontend::global_out << it->to_string() << '\t' << pvals[n] << '\t' << "\n";
+			avg_sig_pval += pvals[n];
+			++n_sig;
 			snvw.write(*it);
 		} else {
-			frontend::global_out << it->to_string() << '\t' << pvals[n] << '\t' << "\n";
+			frontend::global_log.v(2) << it->to_string() << '\t' << pvals[n] << "\t[fail]\n";
+			avg_non_sig_pval += pvals[n];
 			snvw.write_filter_failed(*it, fobfilter);
 		}
 	}
+	avg_sig_pval /= n_sig;
+	avg_non_sig_pval /= (pvals.size() - n_sig);
+	frontend::global_log.v(1) << "\nSummary: Records analyzed: " << pvals.size() << 
+		"\nn(p<" << sig_level << "): " << n_sig << " Avg p for (p<" << sig_level << "): " << avg_sig_pval <<
+		"\nn(p>" << sig_level << "): " << pvals.size() - n_sig << " Avg p for (p>" << sig_level << "): " << avg_non_sig_pval << '\n';
 	return true;
 }
 
@@ -215,8 +225,6 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 
 	vector<double> lposteriors;
 	list<snv::record> cached_records;
-	// table header
-	frontend::global_out << "snv\tlpos\tsig" << '\n';
 	// note that fetch_next_snv modifies all of the objects passed to it
 	// In particular, data is populated with a new set of data for the read SNV
 	while (fetch_next_snv(snvr, f, data, rec)) {
@@ -230,23 +238,34 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 			double lposterior = bobfilter(prior_alt, alpha, beta);
 			lposteriors.push_back(lposterior);
 			cached_records.push_back(rec);
-			frontend::global_log.v(3) << " lpos: " << lposterior << '\n';
 	}
 
 	vector<bool> is_significant;
 	call_snvs_lposterior(lposteriors, posterior_threshold, is_significant);
 	size_t n;
 	list<snv::record>::iterator it;
+	size_t n_sig = 0;
+	double avg_sig_post = 0.0, avg_non_sig_post = 0.0;
+	// table header
+	frontend::global_log.v(2) << "snv\tprob\tfilter" << '\n';
 	for (n = 0, it = cached_records.begin();
 			n < lposteriors.size(); ++n, ++it) {
 		if (is_significant[n]) {
-			frontend::global_out << it->to_string() << '\t' << lposteriors[n] << '\t' << "X\n"; 
+			avg_sig_post += exp(lposteriors[n]);
+			++n_sig;
+			frontend::global_log.v(2) << it->to_string() << '\t' << exp(lposteriors[n]) << "\t\n"; 
 			snvw.write(*it);
 		} else {
-			frontend::global_out << it->to_string() << '\t' << lposteriors[n] << '\t' << "\n";
+			avg_non_sig_post += exp(lposteriors[n]);
+			frontend::global_log.v(2) << it->to_string() << '\t' << exp(lposteriors[n]) << "\t[fail]\n";
 			snvw.write_filter_failed(*it, bobfilter);
 		}
 	}
+	avg_sig_post /= n_sig;
+	avg_non_sig_post /= (lposteriors.size() - n_sig);
+	frontend::global_log.v(1) << "\nSummary: Records filtered with Bayes model: " << lposteriors.size() << 
+		"\nn(P>" << posterior_threshold << "): " << n_sig << " Mean P for (P>" << posterior_threshold << "): " << avg_sig_post <<
+		"\nn(P<" << posterior_threshold << "): " << lposteriors.size() - n_sig << " Mean P for (P<" << posterior_threshold << "): " << avg_non_sig_post << '\n';
 	return true;
 }
 
