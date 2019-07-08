@@ -249,8 +249,8 @@ int main (int argc, char** argv) {
 
 	// Numeric parameter flags
 	double phi = .01;
-	double alpha = .1;
-	double beta = .1;
+	double alpha = 1.0;
+	double beta = 1.0;
 	double prior_alt = .5;
 	if (model == BAYES) {
 		if (identifying) {
@@ -259,21 +259,21 @@ int main (int argc, char** argv) {
 				alpha = strtod(options[ALPHA].arg, NULL);
 			} else {
 				global_log.v(1) <<
-					"Warning: no estimate of alpha was supplied. Default value of .1 will be used.\n";
+					"Warning: no estimate of alpha was supplied. Default value of " << alpha << " will be used.\n";
 			}
 			// beta hyperparameter
 			if (options[BETA]) {
 				beta = strtod(options[BETA].arg, NULL);
 			} else {
 				global_log.v(1) <<
-					"Warning: no estimate of beta was supplied. Default value of .1 will be used.\n";
+					"Warning: no estimate of beta was supplied. Default value of " << beta << " will be used.\n";
 			}
 			// alt prior prob
 			if (options[ALTPRI]) {
 				prior_alt = strtod(options[ALTPRI].arg, NULL);
 			} else {
 				global_log.v(1) <<
-					"Warning: no alternative prior probability was supplied. Default value of .5 will be used.\n";
+					"Warning: no alternative prior probability was supplied. Default value of " << prior_alt << " will be used.\n";
 			}
 		}
 	} else if (model == FREQ) {
@@ -283,7 +283,7 @@ int main (int argc, char** argv) {
 				phi = strtod(options[PHI].arg, NULL);
 			} else {
 				global_log.v(1) <<
-					"Warning: no estimate of phi was supplied. Default value of .01 will be used.\n";
+					"Warning: no estimate of phi was supplied. Default value of " << phi << " will be used.\n";
 			}
 		}
 	}
