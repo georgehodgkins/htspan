@@ -14,12 +14,11 @@ namespace frontend {
 
 // These indices uniquely identify options
 // They are signed so the print_selected_usages function in print-help.hpp works correctly
-// TODO: add pval threshold option
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, IN_SNVFILE=10, OUT_SNVFILE=11, PHI=12, STDOUT=13,
 	MIN_MAPQ=14, MIN_BASEQ=15, KEEP_DUP=16, MAX_QREADS=17, MINZ_BOUND=18, EPS=19,
 	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, ALPHA=25, BETA=26,
-	ALTPRI=27, MODEL=28, IN_SNVFTYPE=29, OUT_SNVFTYPE=30, HELP=31};
+	ALTPRI=27, MODEL=28, IN_SNVFTYPE=29, OUT_SNVFTYPE=30, SIGLEVEL=31, HELP=32};
 
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
@@ -36,7 +35,7 @@ const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
-const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI};
+const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI, SIGLEVEL};
 const size_t ident_arg_count = sizeof(ident_only_args)/sizeof(OptionIndex);
 
 const OptionIndex intsim_only_args[] = {THETA_SIM, PHI_SIM, ERR_MEAN_SIM, ERR_SD_SIM};
@@ -302,6 +301,15 @@ const option::Descriptor usage[] = {
 		"-O, --out-snv-type [auto]\rFormat of SNV output file containing filtered variants.\n"
 		"Choices are \'tsv\', \'vcf\', or \'vcf-bgz\'. If this option is not provided, type will be deduced from the file extension, "
 		"with the .gz and .bgz extensions both indicating BGZF compression."
+	},{
+		SIGLEVEL,
+		t_OTHER,
+		"g",
+		"sig-level",
+		Arg::Probability,
+		"-g, --sig-level [.05 freq/.95 bayes]\rThreshold for a variant to be considered damaged by the filter.\n"
+		"Specifically, a variant with a p-val /above/ (freq model) or a posterior probability /below/ (bayes model) "
+		"this threshold is flagged as damaged by the filter."
 	},{
 		HELP,
 		t_OTHER,

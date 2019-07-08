@@ -199,11 +199,22 @@ int main (int argc, char** argv) {
 	}
 
 	// get statistical model (default is bayes)
-	// 0 = bayes, 1 = freq
 	ModelType model = BAYES;
 	if(options[MODEL]) {
 		if (strcmpi(options[MODEL].arg, "freq") == 0) {
 			model = FREQ;
+		}
+	}
+
+	// get significance level, if set
+	double sig_level;
+	if (options[SIGLEVEL]) {
+		sig_level = strtod(options[SIGLEVEL].arg, NULL);
+	} else {// set defaults
+		if (model == BAYES) {
+			sig_level = .95;
+		} else if (model == FREQ) {
+			sig_level = .05;
 		}
 	}
 	//
@@ -411,9 +422,9 @@ int main (int argc, char** argv) {
 			snv::streamer snv_files (snv_in_fname.c_str(), snv_out_fname.c_str(), snv_in_fmt, snv_out_fmt);
 
 			if (model == BAYES) {
-				success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta, prior_alt, .95, alignment_file, snv_files);
+				success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta, prior_alt, sig_level, alignment_file, snv_files);
 			} else if (model == FREQ) {
-				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi, .05, alignment_file, snv_files);
+				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi, sig_level, alignment_file, snv_files);
 			}
 			if (!success) {
 				global_log.v(1) << "Identification process failed.";
