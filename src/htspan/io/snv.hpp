@@ -118,19 +118,18 @@ struct record {
 	}
 
 	// copy constructor (calls operator=())
-	// TODO: this should really be the other way around
 	record (const record &r) {
 		v = NULL;
 		operator=(r);
 	}	
 
-	// Prints a human-readable string describing the SNV
+	// Prints a human-readable string describing the SNV (1-indexed position)
 	string to_string () const {
 		if (is_null()) {
 			return "EMPTY";
 		}
 		ostringstream ss;
-		ss << nuc_to_char(nt_ref) << '>' << nuc_to_char(nt_alt) << " @ " << chrom << ':' << pos;
+		ss << nuc_to_char(nt_ref) << '>' << nuc_to_char(nt_alt) << " @ " << chrom << ':' << pos+1;
 		if (v != NULL) {
 			ss << " [vcf]";
 		}

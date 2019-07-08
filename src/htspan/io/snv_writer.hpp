@@ -18,6 +18,8 @@ namespace snv {
 
 using namespace std;
 
+// TODO: make multiple alt allele split write back to VCF correctly
+
 /**
 * Base class for SNV writers; exposes the methods used in calling code.
 */
@@ -109,7 +111,6 @@ struct tsv_writer : writer {
 *
 * The class must be linked to a header read from an existing BCF file, 
 * from which it copies file format data and header fields.
-* TODO: make this optional
 */
 struct vcf_writer : writer {
 	// Pointer to VCF file

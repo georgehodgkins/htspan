@@ -108,8 +108,9 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 			data.push(f.pile.queries, rec.pos, rec.nt_ref, rec.nt_alt);
 
 		} else { // SNV is not damage-consistent
-			frontend::global_log.v(3) << "Warning: Variant " << nuc_to_char(rec.nt_ref) << '>' <<
-				nuc_to_char(rec.nt_alt) << " is not consistent with selected damage type, ignoring.\n";
+			frontend::global_log.v(3) << "Warning: Variant " << rec.to_string() <<
+				" is not consistent with artifact type " << nuc_to_char(data.r1_ref) << '>' << nuc_to_char(data.r1_alt) <<
+				'/' << nuc_to_char(data.r2_ref) << '>' << nuc_to_char(data.r2_alt) << ", ignoring.\n";
 			snvr.err = -1;
 		}
 		return true;// not at EOF yet
@@ -162,7 +163,6 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 		double pval = fobfilter(phi);
 		pvals.push_back(pval);
 		cached_records.push_back(rec);
-		frontend::global_log.v(3) << " pval: " << pval << '\n';
 	}
 	// Test recorded pvals and write back to the filter accordingly
 	vector<bool> is_significant;
@@ -176,12 +176,12 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	for (n = 0, it = cached_records.begin();
 			n < pvals.size(); ++n, ++it) {
 		if (is_significant[n]) {
-			frontend::global_out << it->to_string() << '\t' << pvals[n] << '\t' << "\n";
+			frontend::global_log.v(2) << it->to_string() << '\t' << pvals[n] << '\t' << "\n";
 			avg_sig_pval += pvals[n];
 			++n_sig;
 			snvw.write(*it);
 		} else {
-			frontend::global_log.v(2) << it->to_string() << '\t' << pvals[n] << "\t[fail]\n";
+			frontend::global_log.v(1) << it->to_string() << '\t' << pvals[n] << "\t[fail]\n";
 			avg_non_sig_pval += pvals[n];
 			snvw.write_filter_failed(*it, fobfilter);
 		}
@@ -257,7 +257,7 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 			snvw.write(*it);
 		} else {
 			avg_non_sig_post += exp(lposteriors[n]);
-			frontend::global_log.v(2) << it->to_string() << '\t' << exp(lposteriors[n]) << "\t[fail]\n";
+			frontend::global_log.v(1) << it->to_string() << '\t' << exp(lposteriors[n]) << "\t[fail]\n";
 			snvw.write_filter_failed(*it, bobfilter);
 		}
 	}
