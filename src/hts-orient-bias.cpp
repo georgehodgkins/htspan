@@ -83,7 +83,7 @@ int main (int argc, char** argv) {
 	// 
 	bool success = true;
 
-	// Set up logging and result output
+	// Set up logging output
 	// TODO: update so '-' redirects to stdout
 	bool use_stdout = true;
 	if (options[STDOUT]) {
@@ -98,11 +98,6 @@ int main (int argc, char** argv) {
 	if (log_to_file) {
 		log_fname = options[LOGFILE].arg;
 	}
-	bool results_to_file = (bool) options[RESFILE];
-	std::string result_fname;
-	if (results_to_file) {
-		result_fname = options[RESFILE].arg;
-	}
 
 	// Direct file and result output appropriately
 	// Note that fatal errors will go to stdout regardless either by
@@ -113,16 +108,6 @@ int main (int argc, char** argv) {
 	global_log.use_cerr(use_stdout);
 	// Verbosity levels: 0=silent, 1=warnings only 2=some runtime info 3=too much runtime info
 	global_log.set_verbosity(verbosity);
-	if (results_to_file) {
-		global_out.add_file(result_fname);
-	}
-	global_out.use_cout(use_stdout);
-	// disable verbosity on result output
-	global_out.set_verbosity(-1);
-	if (!use_stdout && !results_to_file) {
-		global_log.v(1) <<
-		"Warning: There is no set output method for the results; results will not be accessible.\n";
-	}
 
 	// Set reference and alternative nucleotides and check that they differ
 	nuc_t ref = nuc_N;
@@ -205,6 +190,7 @@ int main (int argc, char** argv) {
 			model = FREQ;
 		}
 	}
+	bool fixed_phi = (bool) options[FIXED_PHI];
 
 	// get significance level, if set
 	double sig_level;
@@ -267,34 +253,38 @@ int main (int argc, char** argv) {
 	double beta = .1;
 	double prior_alt = .5;
 	if (model == BAYES) {
-		// alpha hyperparameter
-		if (options[ALPHA]) {
-			alpha = strtod(options[ALPHA].arg, NULL);
-		} else {
-			global_log.v(1) <<
-				"Warning: no estimate of alpha was supplied. Default value of .1 will be used.\n";
-		}
-		// beta hyperparameter
-		if (options[BETA]) {
-			beta = strtod(options[BETA].arg, NULL);
-		} else {
-			global_log.v(1) <<
-				"Warning: no estimate of beta was supplied. Default value of .1 will be used.\n";
-		}
-		// alt prior prob
-		if (options[ALTPRI]) {
-			prior_alt = strtod(options[ALTPRI].arg, NULL);
-		} else {
-			global_log.v(1) <<
-				"Warning: no alternative prior probability was supplied. Default value of .5 will be used.\n";
+		if (identifying) {
+			// alpha hyperparameter
+			if (options[ALPHA]) {
+				alpha = strtod(options[ALPHA].arg, NULL);
+			} else {
+				global_log.v(1) <<
+					"Warning: no estimate of alpha was supplied. Default value of .1 will be used.\n";
+			}
+			// beta hyperparameter
+			if (options[BETA]) {
+				beta = strtod(options[BETA].arg, NULL);
+			} else {
+				global_log.v(1) <<
+					"Warning: no estimate of beta was supplied. Default value of .1 will be used.\n";
+			}
+			// alt prior prob
+			if (options[ALTPRI]) {
+				prior_alt = strtod(options[ALTPRI].arg, NULL);
+			} else {
+				global_log.v(1) <<
+					"Warning: no alternative prior probability was supplied. Default value of .5 will be used.\n";
+			}
 		}
 	} else if (model == FREQ) {
-		// phi estimate
-		if (options[PHI]) {
-			phi = strtod(options[PHI].arg, NULL);
-		} else {
-			global_log.v(1) <<
-				"Warning: no estimate of phi was supplied. Default value of .01 will be used.\n";
+		if (identifying) {
+			// phi estimate
+			if (options[PHI]) {
+				phi = strtod(options[PHI].arg, NULL);
+			} else {
+				global_log.v(1) <<
+					"Warning: no estimate of phi was supplied. Default value of .01 will be used.\n";
+			}
 		}
 	}
 	int min_mapq = 5;
@@ -424,7 +414,7 @@ int main (int argc, char** argv) {
 			if (model == BAYES) {
 				success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta, prior_alt, sig_level, alignment_file, snv_files);
 			} else if (model == FREQ) {
-				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi, sig_level, alignment_file, snv_files);
+				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi, sig_level, alignment_file, snv_files, fixed_phi);
 			}
 			if (!success) {
 				global_log.v(1) << "Identification process failed.";

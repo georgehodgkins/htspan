@@ -7,6 +7,7 @@
 // The goal is for this file to be mostly self-documenting
 // via the help texts in the array.
 
+// TODO: unknown option handling
 
 namespace hts {
 	
@@ -15,16 +16,16 @@ namespace frontend {
 // These indices uniquely identify options
 // They are signed so the print_selected_usages function in print-help.hpp works correctly
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
-	VERBOSITY=5, LOGFILE=6, RESFILE=7, BAMFILE=8, REFFILE=9, IN_SNVFILE=10, OUT_SNVFILE=11, PHI=12, STDOUT=13,
-	MIN_MAPQ=14, MIN_BASEQ=15, KEEP_DUP=16, MAX_QREADS=17, MINZ_BOUND=18, EPS=19,
-	THETA_SIM=20, PHI_SIM=21, ERR_MEAN_SIM=22, ERR_SD_SIM=23, DAMAGE_TYPE=24, ALPHA=25, BETA=26,
-	ALTPRI=27, MODEL=28, IN_SNVFTYPE=29, OUT_SNVFTYPE=30, SIGLEVEL=31, HELP=32};
+	VERBOSITY=5, LOGFILE=6, BAMFILE=7, REFFILE=8, IN_SNVFILE=9, OUT_SNVFILE=10, PHI=11, STDOUT=12,
+	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, EPS=18,
+	THETA_SIM=19, PHI_SIM=20, ERR_MEAN_SIM=21, ERR_SD_SIM=22, DAMAGE_TYPE=23, ALPHA=24, BETA=25,
+	ALTPRI=26, MODEL=27, IN_SNVFTYPE=28, OUT_SNVFTYPE=29, SIGLEVEL=30, FIXED_PHI=31, HELP=32};
 
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
 // These arrays track arguments that apply to both commands, for printing help texts
 // common_args help will be printed before args unique to the command
-const OptionIndex common_args[] = {DAMAGE_TYPE, BAMFILE, RESFILE, REF, ALT, MODEL, INT_SIM, EXT_SIM, KEEP_DUP, MIN_MAPQ, MIN_BASEQ};
+const OptionIndex common_args[] = {DAMAGE_TYPE, BAMFILE, REF, ALT, MODEL, INT_SIM, EXT_SIM, KEEP_DUP, MIN_MAPQ, MIN_BASEQ};
 const size_t common_arg_count = sizeof(common_args)/sizeof(OptionIndex);
 
 const OptionIndex utility_args[] = {VERBOSITY, LOGFILE, STDOUT, HELP};
@@ -35,7 +36,7 @@ const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
-const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI, SIGLEVEL};
+const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, PHI, FIXED_PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI, SIGLEVEL};
 const size_t ident_arg_count = sizeof(ident_only_args)/sizeof(OptionIndex);
 
 const OptionIndex intsim_only_args[] = {THETA_SIM, PHI_SIM, ERR_MEAN_SIM, ERR_SD_SIM};
@@ -105,14 +106,6 @@ const option::Descriptor usage[] = {
 		Arg::OutputFile,
 		"-l, --log-file\rPath to write runtime output (not results) to.\n"
 		"Note: Runtime output and results on stdout are controlled by the -O flag."
-	},{
-		RESFILE,
-		t_OTHER,
-		"",
-		"result-file",
-		Arg::OutputFile,
-		"--result-file\rPath to write numerical results to. If this argument is not specified, "
-		"results will be written to stdout."
 	},{
 		BAMFILE,
 		t_OTHER,
@@ -310,6 +303,14 @@ const option::Descriptor usage[] = {
 		"-g, --sig-level [.05 freq/.95 bayes]\rThreshold for a variant to be considered damaged by the filter.\n"
 		"Specifically, a variant with a p-val /above/ (freq model) or a posterior probability /below/ (bayes model) "
 		"this threshold is flagged as damaged by the filter."
+	},{
+		FIXED_PHI,
+		t_OTHER,
+		"",
+		"fixed-phi",
+		Arg::None,
+		"--fixed-phi\rIn the frequentist model, fix phi to the supplied value "
+		"(or the default if none was supplied) rather than estimating it."
 	},{
 		HELP,
 		t_OTHER,

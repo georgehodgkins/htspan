@@ -134,7 +134,7 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 * @return whether the operation succeeded.
 */
 bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bound,
-		 double phi, double sig_level, fetcher &f, snv::streamer &s) {
+		 double phi, double sig_level, fetcher &f, snv::streamer &s, bool fixed_phi) {
 
 	orient_bias_data data(ref, alt, 0);
 	snv::record rec;
@@ -160,7 +160,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 			continue;
 		}
 		// run filter
-		double pval = fobfilter(phi);
+		double pval = fobfilter(phi, fixed_phi);
 		pvals.push_back(pval);
 		cached_records.push_back(rec);
 	}
@@ -172,7 +172,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	size_t n_sig = 0;
 	double avg_sig_pval = 0.0, avg_non_sig_pval = 0.0;
 	// table header
-	frontend::global_log.v(2) << "snv\tpval\tfilter" << '\n';
+	frontend::global_log.v(1) << "snv\tpval\tfilter" << '\n';
 	for (n = 0, it = cached_records.begin();
 			n < pvals.size(); ++n, ++it) {
 		if (is_significant[n]) {
@@ -188,7 +188,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	}
 	avg_sig_pval /= n_sig;
 	avg_non_sig_pval /= (pvals.size() - n_sig);
-	frontend::global_log.v(1) << "\nSummary: Records analyzed: " << pvals.size() << 
+	frontend::global_log.v(1) << "\nSummary: Variants filtered with frequentist model: " << pvals.size() << 
 		"\nn(p<" << sig_level << "): " << n_sig << " Avg p for (p<" << sig_level << "): " << avg_sig_pval <<
 		"\nn(p>" << sig_level << "): " << pvals.size() - n_sig << " Avg p for (p>" << sig_level << "): " << avg_non_sig_pval << '\n';
 	return true;
@@ -247,7 +247,7 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 	size_t n_sig = 0;
 	double avg_sig_post = 0.0, avg_non_sig_post = 0.0;
 	// table header
-	frontend::global_log.v(2) << "snv\tprob\tfilter" << '\n';
+	frontend::global_log.v(1) << "snv\tprob\tfilter" << '\n';
 	for (n = 0, it = cached_records.begin();
 			n < lposteriors.size(); ++n, ++it) {
 		if (is_significant[n]) {
@@ -263,7 +263,7 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 	}
 	avg_sig_post /= n_sig;
 	avg_non_sig_post /= (lposteriors.size() - n_sig);
-	frontend::global_log.v(1) << "\nSummary: Records filtered with Bayes model: " << lposteriors.size() << 
+	frontend::global_log.v(1) << "\nSummary: Variants filtered with Bayes model: " << lposteriors.size() << 
 		"\nn(P>" << posterior_threshold << "): " << n_sig << " Mean P for (P>" << posterior_threshold << "): " << avg_sig_post <<
 		"\nn(P<" << posterior_threshold << "): " << lposteriors.size() - n_sig << " Mean P for (P<" << posterior_threshold << "): " << avg_non_sig_post << '\n';
 	return true;

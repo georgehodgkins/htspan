@@ -156,7 +156,6 @@ simul_writer& simul_writer::v (int v_lev) {
 // so any function can easily write to them
 // initially defined inactive
 simul_writer global_log;// logging output
-simul_writer global_out;// result output
 
 }// namespace frontend
 
