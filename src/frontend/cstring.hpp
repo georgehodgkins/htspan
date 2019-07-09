@@ -33,6 +33,19 @@ int strcmpi (const char* s1, const char* s2) {
 	return *s1 - *s2;
 }
 
+/**
+* Counts the occurences of a character in a string.
+*/
+size_t str_count_char (const char* s, char c) {
+	size_t r = 0;
+	for (; *s != '\0'; ++s) {
+		if (*s == c) {
+			++r;
+		}
+	}
+	return r;
 }
+
+} // namespace hts
 
 #endif // _HTSPAN_CSTRING_HPP_
