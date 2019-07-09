@@ -208,7 +208,7 @@ struct vcf_writer : writer {
 			throw runtime_error("Could not add filter tag to selected record.");
 		}
 		// cache record for writing
-		write(rec);
+		write(rec, info_name, info_val);
 	}
 
 	// Caches a record for writing
