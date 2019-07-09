@@ -3,7 +3,7 @@
 #include <vector>
 #include <cassert>
 #include <cstdlib>
-#include <utility>
+#include <limits>
 using namespace std;
 
 #include <htslib/hts.h>
@@ -82,7 +82,7 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 				snvr.err = -1;
 				return true;
 			}
-			frontend::global_log.v(3) << "Info: fetched " << f.pile.queries.size() << " reads" << '\n';
+			//frontend::global_log.v(3) << "Info: fetched " << f.pile.queries.size() << " reads" << '\n';
 
 			// read in data
 			data.clear();
@@ -90,9 +90,6 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 			data.push(f.pile.queries, rec.pos, rec.nt_ref, rec.nt_alt);
 
 		} else { // SNV is not damage-consistent
-			frontend::global_log.v(3) << "Warning: Variant " << rec.to_string() <<
-				" is not consistent with artifact type " << nuc_to_char(data.r1_ref) << '>' << nuc_to_char(data.r1_alt) <<
-				'/' << nuc_to_char(data.r2_ref) << '>' << nuc_to_char(data.r2_alt) << ", ignoring.\n";
 			snvr.err = -1;
 		}
 		return true;// not at EOF yet
@@ -123,13 +120,18 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	snv::reader &snvr = *s.snvr_pt;
 	snv::writer &snvw = *s.snvw_pt;
 
+	// add a data field for p-values
+	snvw.add_numeric_info("FOBP", "P-value for genuine variant from hts-orient-bias filter");
+
 	// intialize filter
 	// note that the filter is tied to the data object by reference, so it updates for new data
 	freq_orient_bias_filter_f fobfilter(data, -minz_bound, minz_bound, eps);
 	snvw.add_filter_tag(fobfilter);
 
 	// table header
-	frontend::global_log.v(1) << "snv\tpval\tfilter\n";
+	frontend::global_log.v(1) << "snv\tpval\tfilter";
+	frontend::global_log.v(2) << "\t#reads";
+	frontend::global_log.v(1) << "\n";
 	size_t n_sig = 0;
 	size_t n = 0;
 
@@ -142,8 +144,8 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 		if (snvr.error()) {
 			if (snvr.error() == -1) { // successful read, inconsistent variant
 				snvw.write(rec);
+				frontend::global_log.v(3) << rec.to_string() << "\tN/A\t[nc]\tN/A\n";
 			}
-			frontend::global_log.v(3) << " (skipped)\n";
 			continue;
 		}
 
@@ -151,11 +153,13 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 		double pval = fobfilter(phi, fixed_phi);
 		if (pval < sig_level) {
 			++n_sig;
-			frontend::global_log.v(2) << rec.to_string() << '\t' << pval << '\n';
-			snvw.write(rec);
+			frontend::global_log.v(2) << rec.to_string() << '\t' << pval << "\t[pass]\t" << f.pile.queries.size() << '\n';
+			snvw.write(rec, "FOBP", pval);
 		} else {
-			frontend::global_log.v(1) << rec.to_string() << '\t' << pval << "\t[fail]\n";
-			snvw.write_filter_failed(rec, fobfilter);
+			frontend::global_log.v(1) << rec.to_string() << '\t' << pval << "\t[fail]";
+			frontend::global_log.v(2) << '\t' <<  f.pile.queries.size();
+			frontend::global_log.v(1) << '\n';
+			snvw.write_filter_failed(rec, fobfilter, "FOBP", pval);
 		}
 		++n;
 	}
@@ -192,8 +196,13 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 	bayes_orient_bias_filter_f bobfilter(data, -minz_bound, minz_bound, eps);
 	snvw.add_filter_tag(bobfilter);
 
+	// add info field for posterior probabilities
+	snvw.add_numeric_info("BOBP", "Log posterior probability of a genuine variant from hts-orient-bias filter");
+
 	// table header
-	frontend::global_log.v(1) << "snv\tprob\tfilter" << '\n';
+	frontend::global_log.v(1) << "snv\tprob\tfilter";
+	frontend::global_log.v(2) << "\t#reads";
+	frontend::global_log.v(1) << '\n';
 	size_t n_sig = 0;
 	size_t n = 0;
 
@@ -203,24 +212,29 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 			// check for non-fatal errors in SNV reading/piling
 			if (snvr.error()) {
 				if (snvr.error() == -1) {// read suceeded, inconsistent variants
+					frontend::global_log.v(3) << rec.to_string() << "\tN/A\t[nc]\tN/A\n";
 					snvw.write(rec);
 				}
 				continue;
 			}
-
 			// run filter
 			double lposterior = bobfilter(prior_alt, alpha, beta);
 			double posterior = exp(lposterior);
 			if (posterior > posterior_threshold) {
 				++n_sig;
-				frontend::global_log.v(2) << rec.to_string() << '\t' << posterior << '\n';
-				snvw.write(rec);
+				frontend::global_log.v(2) << rec.to_string() << '\t' << posterior << "\t[pass]\t" << f.pile.queries.size() << '\n';
+				snvw.write(rec, "BOBP", lposterior);
 			} else {
-				frontend::global_log.v(1) << rec.to_string() << '\t' << posterior << "\t[fail]\n";
-				snvw.write_filter_failed(rec, bobfilter);
+				frontend::global_log.v(1) << rec.to_string() << '\t' << posterior << "\t[fail]";
+				frontend::global_log.v(3) << '\t' <<  f.pile.queries.size();
+				frontend::global_log.v(1) << '\n';
+				snvw.write_filter_failed(rec, bobfilter, "BOBP", lposterior);
 			}
 			++n;
 	}
+	//table footer
+	frontend::global_log.v(1) << "NOTE 1: posterior probabilities are not adjusted for false discovery.\n";
+	frontend::global_log.v(1) << "NOTE 2: Values are only accurate to within " << numeric_limits<double>::epsilon() << '\n';
 
 	frontend::global_log.v(1) << "\nSummary: Total: " << n << " Passed: " << n_sig << " Failed: " << n - n_sig << '\n';
 

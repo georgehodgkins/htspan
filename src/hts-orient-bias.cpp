@@ -105,7 +105,7 @@ int main (int argc, char** argv) {
 	if (log_to_file) {
 		global_log.add_file(log_fname);
 	}
-	global_log.use_cerr(use_stdout);
+	global_log.use_cout(use_stdout);
 	// Verbosity levels: 0=silent, 1=warnings only 2=some runtime info 3=too much runtime info
 	global_log.set_verbosity(verbosity);
 
