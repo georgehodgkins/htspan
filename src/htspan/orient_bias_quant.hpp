@@ -21,6 +21,10 @@ namespace hts {
 
 using namespace std;
 
+struct alpha_beta {
+	double alpha;
+	double beta;
+}
 
 struct orient_bias_quant_f {
 
@@ -38,6 +42,7 @@ struct orient_bias_quant_f {
 	
 	// oxoG-inconsistent total count
 	long int ni;
+
 	
 
 	/**
@@ -152,6 +157,51 @@ struct orient_bias_quant_f {
 
 };
 
+
+struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
+
+	// vector of consistent alt counts, by site
+	vector<long int> xc_vec;
+
+	// vector of inconsistent alt counts, by site
+	vector<long int> xi_vec;
+
+	// vector of consistent total counts, by site
+	vector<long int> nc_vec;
+
+	//vector of inconsistent total counts, by site
+	vector<long int> ni_vec;
+
+	size_t vector_push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
+		xc = 0;
+		xi = 0;
+		nc = 0;
+		ni = 0;
+		size_t success = 0;
+		for (size_t i = 0; i < n; ++i) {
+			if (push(pile[i].b, pos)) {
+				++success;
+			}
+		}
+		xc_vec.push_back(xc);
+		xi_vec.push_back(xi);
+		nc_vec.push_back(nc);
+		ni_vec.push_back(ni);
+	}
+
+	static double lp_xij_given_hparams (const long int xij, const long int nij, double alpha_theta, double beta_theta) {
+		return lbeta(alpha_theta + xij, beta_theta + nij - xij) + lchoose(nij, xij); 
+	}
+
+	double lp_xi_given_hparams (const double alpha_theta, const double beta_theta) {
+		// xi_vec and ni_vec are class members
+		double sum_lp_xij = 0.0;
+		for (size_t j = 0; j < size(); ++j) {
+			sum_lp_xij += lp_xij_given_hparams(xi_vec[j], ni_vec[j], alpha_theta, beta_theta);
+		}
+		return sum_lp_xj - lbeta(alpha_theta, beta_theta)*nobs();
+	}
+};
 
 }  // namespace hts
 
