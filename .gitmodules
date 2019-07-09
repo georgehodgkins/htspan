@@ -7,3 +7,6 @@
 [submodule "src/alglib"]
 	path = src/alglib
 	url = https://github.com/georgehodgkins/ALGLIB.git
+[submodule "src/stograd"]
+	path = src/stograd
+	url = https://github.com/djhshih/stograd
