@@ -80,10 +80,45 @@ double chisq_cdf (double x, double n) {
 * Returns the log of the beta function for 
 * parameters alpha and beta.
 */
-double lbeta (double alpha, double beta) {
+double lbeta (const double alpha, const double beta) {
 	double foo;
 	return alglib::lngamma(alpha, foo) + alglib::lngamma(beta, foo) - alglib::lngamma(alpha + beta, foo);
 }
+
+// log(n!/(k!(n-k)!))
+double lchoose (const int n, const int k) {
+	double nfac_log = 0.0;//log(n!)
+	double kfac_log = 0.0;//log(k!)
+	double nkdfac_log = 0.0;//log((n-k)!)
+	int G; // max(k, n-k)
+	if (n-k >= k) {
+		G = n-k;
+		for (int x = 2; x <= k; ++x) {
+			kfac_log += log(x);
+		}
+		nkdfac_log = kfac_log;
+		for (int x = k+1; x <= n-k; ++x) {
+			nkdfac_log += log(x);
+		}
+		nfac_log = nkdfac_log;
+	} else {
+		G = k;
+		for (int x = 2; x <= n-k; ++x) {
+			nkdfac_log += log(x);
+		}
+		kfac_log = nkdfac_log;
+		for (int x = n-k+1; x <= k; ++x) {
+			kfac_log += log(x);
+		}
+		nfac_log = kfac_log;
+	}
+	for (int x = G+1; x <= n; ++x) {
+		nfac_log += log(x);
+	}
+	return nfac_log - kfac_log - nkdfac_log;
+}
+
+
 
 /**
 * The log probability density of the beta distribution with the
