@@ -12,20 +12,24 @@ else
 	exit 1
 fi
 
+PASS_ARGS=""
+
+
 if [ $# -ge 4 ]; then
-	PASS_ARGS=$4
-else
-	PASS_ARGS=""
+	while [ "$4" != "" ]; do
+		PASS_ARGS="$PASS_ARGS $4"
+		shift
+	done
 fi
 
-${BIN}/hts-orient-bias identify --stdout -t ${DTYPE} -b ${SIM}/sim.${SRC}.bam -V ${SIM}/sim.${SRC}.calls.snv -o ${SIM}/out/${SRC}.${DTYPE}.${MODEL}.snv --log-file ${SIM}/out/${SRC}.${DTYPE}.${MODEL}.out -M ${MODEL} ${PASS_ARGS}
+rm -f ${SIM}/out/${SRC}.${DTYPE}.${MODEL}.*
 
-if [ -e ${SIM}/out/${SRC}.${DTYPE}.${MODEL}.snv ]; then
-	echo -e -n "\nFalse positives: "
-	echo $(diff ${SIM}/sim.orig.snv ${SIM}/out/${SRC}.${DTYPE}.${MODEL}.snv | grep "^>" | wc -l)
+${BIN}/hts-orient-bias identify --stdout -t ${DTYPE} -b ${SIM}/sim.${SRC}.bam -V ${SIM}/sim.${SRC}.calls.snv -o out/${SRC}.${DTYPE}.${MODEL}.snv --log-file out/${SRC}.${DTYPE}.${MODEL}.out -M ${MODEL} ${PASS_ARGS}
 
-	echo -n "False negatives: "
-	echo $(diff ${SIM}/sim.orig.snv ${SIM}/out/${SRC}.${DTYPE}.${MODEL}.snv | grep "^<" | wc -l)
+if [ -e out/${SRC}.${DTYPE}.${MODEL}.snv ]; then
+	echo -n $(diff ${SIM}/sim.orig.snv <(cut -f -4 out/${SRC}.${DTYPE}.${MODEL}.snv) | grep "^>" | wc -l) #false positives
+	echo -n " "
+	echo $(diff ${SIM}/sim.orig.snv <(cut -f -4 out/${SRC}.${DTYPE}.${MODEL}.snv) | grep "^<" | wc -l) #false negatives
 	exit 0
 else
 	exit 1
