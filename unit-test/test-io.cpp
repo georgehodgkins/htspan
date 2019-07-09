@@ -97,10 +97,11 @@ void common_snvw_test (hts::snv::reader &snvr, hts::snv::writer &snvw, const cha
 	hts::snv::record rec, recF, recL;
 	recL.pos = 1;
 	snvw.add_filter_tag(bobfilter);
+	snvw.add_numeric_info("Foo", "Foo count data");
 	snvr.next(recF); // discard first line
 	snvr.next(recF); // store second line (new first line)
 	do {
-		snvw.write(snvr.get_cached());
+		snvw.write(snvr.get_cached(), "Foo", 1.337);
 	} while (snvr.next(recL)); // store last line
 	int fmt_stored = static_cast<int>(snvr.get_format());
 	snvw.close();
@@ -173,7 +174,7 @@ BOOST_AUTO_TEST_CASE (bgzip_vcf_snvr) {
 
 BOOST_AUTO_TEST_CASE (tsv_snvw) {
 	const char IN_SNVNAME[] = "../../data/snv.tsv";
-	const char OUT_SNVNAME[] = "../../data/out/test_out.tsv";
+	const char OUT_SNVNAME[] = "out/test_out.tsv";
 	hts::snv::tsv_reader tsvr (IN_SNVNAME);
 	hts::snv::tsv_writer tsvw (OUT_SNVNAME, tsvr.get_format());
 	hts::snv::reader &snvr = tsvr;
@@ -183,7 +184,7 @@ BOOST_AUTO_TEST_CASE (tsv_snvw) {
 
 BOOST_AUTO_TEST_CASE (uncompressed_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf";
-	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf";
+	const char OUT_SNVNAME[] = "out/test_out.vcf";
 	hts::snv::vcf_reader vcfr (IN_SNVNAME);
 	hts::snv::vcf_writer vcfw (OUT_SNVNAME, vcfr.get_format());
 	vcfw.copy_header(vcfr.hdr);
@@ -194,7 +195,7 @@ BOOST_AUTO_TEST_CASE (uncompressed_vcf_snvw) {
 
 BOOST_AUTO_TEST_CASE (gzip_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf.gz";
-	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf.gz";
+	const char OUT_SNVNAME[] = "out/test_out.vcf.gz";
 	hts::snv::vcf_reader vcfr (IN_SNVNAME);
 	hts::snv::vcf_writer vcfw (OUT_SNVNAME, vcfr.get_format());
 	vcfw.copy_header(vcfr.hdr);
@@ -205,7 +206,7 @@ BOOST_AUTO_TEST_CASE (gzip_vcf_snvw) {
 
 BOOST_AUTO_TEST_CASE (bgzip_vcf_snvw) {
 	const char IN_SNVNAME[] = "../../data/sample.vcf.bgz";
-	const char OUT_SNVNAME[] = "../../data/out/test_out.vcf.bgz";
+	const char OUT_SNVNAME[] = "out/test_out.vcf.bgz";
 	hts::snv::vcf_reader vcfr (IN_SNVNAME);
 	hts::snv::vcf_writer vcfw (OUT_SNVNAME, vcfr.get_format());
 	vcfw.copy_header(vcfr.hdr);

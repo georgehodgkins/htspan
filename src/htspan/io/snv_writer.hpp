@@ -27,8 +27,11 @@ struct writer {
 	// Adds the tag from the passed filter or filter type to the tag list, if the reader supports annotation
 	virtual void add_filter_tag(const base_orient_bias_filter_f &filter) {};
 
+	//
+	virtual void add_numeric_info(const char* name, const char* descr) = 0;
+
 	// Writes a record to the file, or caches it for writing
-	virtual void write(const record &rec) {
+	virtual void write(const record &rec, const char* info_name = NULL, const double info_val = -1.0) {
 		if (rec.is_null()) {
 			throw invalid_argument("Invalid SNV record passed to writer! Aborting.");
 		}
@@ -36,7 +39,8 @@ struct writer {
 
 	// Writes a record, noting that it failed the filter
 	// Depending on the behavior of the writer, this may not actually write the record
-	virtual void write_filter_failed (const record &r, const base_orient_bias_filter_f &filter) = 0;
+	virtual void write_filter_failed (const record &r, const base_orient_bias_filter_f &filter,
+		const char* info_name = NULL, const double info_val = -1.0) = 0;
 
 	// Open a file at the given path with the given format
 	// FMTFLAGS_T is defined in snv.hpp
@@ -55,6 +59,10 @@ struct writer {
 struct tsv_writer : writer {
 	// underlying file stream
 	ofstream f;
+	// info field (only a single field is supported for this reader atm)
+	string info_name;
+	// header line, emptied once it is written
+	string header_line;
 
 	// Constructor alias for open()
 	// the to_copy parameter is a dummy for now,
@@ -74,19 +82,49 @@ struct tsv_writer : writer {
 		if (!f.is_open()) {
 			throw runtime_error("Error opening TSV file for output.");
 		}
-		// write header line
-		f << "chrom\tpos\tref\talt" << endl;
+		// set header line
+		header_line = "chrom\tpos\tref\talt\n";
+	}
+
+	void add_numeric_info (const char* name, const char* descr) {
+		if (!info_name.empty()) {
+			throw runtime_error("Cannot add more than one info field to this TSV reader!");
+		}
+		if (header_line.empty()) {
+			throw runtime_error("Cannot add an info field after writing the header line!");
+		}
+		info_name = name;
+		header_line.erase(header_line.end() - 1);//remove newline
+		header_line += ('\t' + info_name + '\n');// append new field
+	}
+
+	void write_header_line () {
+		f << header_line;
+		header_line.clear();
 	}
 
 	// Write one record to the file (direct, immediate write)
-	void write (const record &r) {
+	void write (const record &r, const char* info_field = NULL, const double info_val = -1.0) {
 		writer::write(r);
-		f << r.chrom << '\t' << r.pos+1 << '\t' << nuc_to_char(r.nt_ref) << '\t' << nuc_to_char(r.nt_alt) << endl;
+		// write the header line if it has not yet been written
+		if (!header_line.empty()) {
+			write_header_line();
+		}
+		// write the line with an info field if it is given, without one otherwise
+		if (info_field != NULL) {
+			if (strcmp(info_field, info_name.c_str()) != 0) {
+				throw runtime_error("Could not find given info field in the reader!");
+			}
+			f << r.chrom << '\t' << r.pos+1 << '\t' << nuc_to_char(r.nt_ref) << '\t' << nuc_to_char(r.nt_alt) << '\t' << info_val << endl;
+		} else {
+			f << r.chrom << '\t' << r.pos+1 << '\t' << nuc_to_char(r.nt_ref) << '\t' << nuc_to_char(r.nt_alt) << endl;
+		}
 	}
 
 	// in this class, this method intentionally does nothing,
 	// since record should not be written back if filter fails
-	void write_filter_failed (const record &r, const base_orient_bias_filter_f &filter) {}
+	void write_filter_failed (const record &r, const base_orient_bias_filter_f &filter, 
+		const char* info_name = NULL, const double info_val = -1.0) {}
 
 	// Close the underlying file stream
 	void close() {
@@ -153,8 +191,14 @@ struct vcf_writer : writer {
 		}
 	}
 
+	void add_numeric_info(const char* name, const char* descr) {
+		bcf_hdr_printf(hdr, "##INFO=<ID=%s,Number=1,Type=Float,Description=\"%s\",Source=\"htspan-orient-bias\">", name, descr);
+		bcf_hdr_sync(hdr); // add the newly added field to the ID list
+	}
+
 	// cache one VCF record for writing after adding a filter tag to it
-	void write_filter_failed(const record &rec, const base_orient_bias_filter_f &filter) {
+	void write_filter_failed(const record &rec, const base_orient_bias_filter_f &filter,
+			const char* info_name = NULL, const double info_val = -1.0) {
 		int filter_id = bcf_hdr_id2int(hdr, BCF_DT_ID, filter.text_id);
 		if (filter_id < 0) {
 			throw runtime_error("Filter tag not found in header! Add the filter to the header first with add_filter_tag.");
@@ -168,16 +212,24 @@ struct vcf_writer : writer {
 	}
 
 	// Caches a record for writing
-	void write(const record &rec) {
+	void write(const record &rec, const char* info_name = NULL, const double info_val = -1.0) {
 		writer::write(rec);
-		bcf1_t *twr = bcf_dup(rec.v);
+		bcf1_t *twr = bcf_dup(rec.v); // this copy is destroyed after being written in flush()
 		// check that a corresponding contig exists
 		if (!hdr->id[BCF_DT_CTG] || bcf_hdr_name2id(hdr, rec.chrom.c_str()) != twr->rid) {
 			// if it does not exist, add it to the dictionary
 			bcf_hdr_printf(hdr, "##contig=<ID=%s>", rec.chrom.c_str());
 			twr->rid = bcf_hdr_name2id(hdr, rec.chrom.c_str());
 		}
-		write_queue.push(bcf_dup(twr));
+		// add the info field if one is passed
+		if (info_name != NULL) {
+			if (bcf_hdr_id2int(hdr, BCF_DT_ID, info_name) == -1) {
+				throw runtime_error("Info tag not found in header! Add the tag to the header first with add_numeric_info.");
+			}
+			bcf_update_info_float(hdr, twr, info_name, (void*) &info_val, 1);
+		}
+		// push the record onto the write queue
+		write_queue.push(twr);
 	}
 
 	// Writes the header and all cached records to the file.

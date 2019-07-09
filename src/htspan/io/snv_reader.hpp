@@ -15,6 +15,7 @@
 #include "htspan/bam.hpp"
 
 #include "snv.hpp"
+#include "frontend/cstring.hpp"
 
 // TODO: Make readers uniformly follow the path of 1) validate data 2) store in cache 3) copy to output record
 
@@ -107,6 +108,8 @@ struct tsv_reader : reader {
 	record cached;
 	// index to look for the next alt at, for multiple alts
 	size_t alt_i;
+	// max index an alt can be present at
+	size_t alt_max;
 
 	tsv_reader(const char* path) : reader() {
 	 	open(path);
@@ -138,10 +141,10 @@ struct tsv_reader : reader {
 	 */
 	bool next(record& rec) {
 		// if not at EOF, more alt nucs to read
-		if (!err && alt_i < line.size()) {
+		if (!err && alt_i < alt_max) {
 			char nuc_alt = line[alt_i];
 			// check for multi-nuc alt
-			if (alt_i < line.size() - 1 && line[alt_i + 1] != ',') {
+			if (alt_i < alt_max - 1 && line[alt_i + 1] != ',' && line[alt_i + 1] != '\t') {
 				err = 3;
 				return true;
 			}
@@ -168,7 +171,7 @@ struct tsv_reader : reader {
 			rec.clear();
 			cached.clear();
 
-			// process line
+			// read first three fields (alt nucs are handled separately)
 			istringstream ss(line);
 			char char_ref, char_alt;
 			ss >> cached.chrom >> cached.pos >> char_ref;
@@ -182,22 +185,33 @@ struct tsv_reader : reader {
 				err = 3;
 				return true;
 			}
+
 			// convert from 1-based to 0-based
 			cached.pos -= 1;
 			cached.nt_ref = char_to_nuc(char_ref);
+
 			// account for multiple alts:
-			// index starts at the last whitespace char + 1,
-			// should be the first alt nuc
-			alt_i = line.find_last_of("\t ") + 1;
+			// find the last tab
+			// check if the info field is present
+
+			alt_i = line.find_last_of("\t") + 1;
+			size_t n_tabs = str_count_char(line.c_str(), '\t');
+			if (n_tabs > 3) { // an info field is present, so find the next tab back
+				alt_max = alt_i;
+				alt_i = line.find_last_of("\t", alt_max - 2) + 1;
+			} else { // no info field, so max is EOL
+				alt_max = line.size();
+			}
 			char_alt = line[alt_i];
 			cached.nt_alt = char_to_nuc(char_alt);
+
 			// alt length < 1 (or invalid character)
 			if (!nuc_is_canonical(cached.nt_alt)) {
 				err = 1;
 				return true;
 			}
 			// alt length > 1
-			if (alt_i < line.size() - 1 && line[alt_i + 1] != ',') {
+			if (alt_i < alt_max - 1 && line[alt_i + 1] != ',' && line[alt_i + 1] != '\t') {
 				err = 3;
 				return true;
 			}
