@@ -118,3 +118,6 @@ check: $(utest_targets)
 	cd $(test) && ./test.sh
 	cd $(utest)/bin && ./test.sh
 
+remake: clean all
+
+remake-utest: clean utest
