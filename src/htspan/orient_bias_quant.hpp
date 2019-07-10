@@ -21,12 +21,7 @@ namespace hts {
 
 using namespace std;
 
-struct alpha_beta {
-	double alpha;
-	double beta;
-}
-
-struct orient_bias_quant_f {
+struct base_orient_bias_quant_f {
 
 	/// reference and alternative nucleotides to consider
 	nuc_t r1_ref, r1_alt, r2_ref, r2_alt;
@@ -43,7 +38,14 @@ struct orient_bias_quant_f {
 	// oxoG-inconsistent total count
 	long int ni;
 
-	
+	// count of total reads pushed
+	int read_count;
+
+	// reader for BAM sequence data
+	piler &p;
+
+	// reader for FASTA sequence data (reference)
+	faidx_reader &faidx;
 
 	/**
 	 * Initialize class.
@@ -59,8 +61,8 @@ struct orient_bias_quant_f {
 	{
 	}
 
-	size_t size() const {
-		return 0;
+	size_t n_reads() const {
+		return read_count;
 	}
 
 	/**
@@ -119,6 +121,44 @@ struct orient_bias_quant_f {
 		return true;
 	}
 
+	int next () {
+		const bam_pileup1_t *pile = p.next();
+		if (pile == NULL) {
+			return 1;
+		}
+		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
+		if (seq == NULL) {
+			return 2;
+		}
+		// check that reference nucleotide is consistent
+		char s_ref = char_to_nuc(seq[0]);
+		if (s_ref == r1_ref || s_ref == r2_ref) {
+			read_count += push(pile, p.size(), p.pos);
+		} else {
+			return 3;
+		}
+		return 0;
+	}
+
+	virtual size_t push (const bam_pileup1_t *pile, size_t n, int32_t pos) = 0;
+
+	virtual size_t size() const = 0;
+
+	virtual double operator()() const = 0;
+
+	//TODO: add simulation options for testing
+
+};
+
+struct freq_orient_bias_quant_f : base_orient_bias_quant_f {
+
+	// count of read sites
+	size_t site_count;
+
+	size_t size () const {
+		return site_count;
+	}
+
 	/**
 	 * Push reads to accumulate statistics.
 	 *
@@ -134,6 +174,9 @@ struct orient_bias_quant_f {
 				++success;
 			}
 		}
+		if (success > 0) {
+			++site_count;
+		}
 		return success;
 	}
 
@@ -144,7 +187,7 @@ struct orient_bias_quant_f {
 	 *
 	 * @return estimate of phi
 	 */
-	double operator()() {
+	double operator()() const {
 		double theta_hat = double(xi)/ni;
 		double phi = (double(xc)/nc - theta_hat) / (1 - theta_hat);
 		if (phi < 0.0) {
@@ -152,9 +195,6 @@ struct orient_bias_quant_f {
 		}
 		return phi;
 	}
-	
-	//TODO: add simulation options for testing
-
 };
 
 
@@ -172,7 +212,7 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 	//vector of inconsistent total counts, by site
 	vector<long int> ni_vec;
 
-	size_t vector_push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
+	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
 		xc = 0;
 		xi = 0;
 		nc = 0;
@@ -189,17 +229,118 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		ni_vec.push_back(ni);
 	}
 
-	static double lp_xij_given_hparams (const long int xij, const long int nij, double alpha_theta, double beta_theta) {
-		return lbeta(alpha_theta + xij, beta_theta + nij - xij) + lchoose(nij, xij); 
+	size_t size() const {
+		return xc_vec.size();
+	}
+	
+	struct theta_hparams_optimizable {
+
+		// parent object containing data
+		const bayes_orient_bias_quant_f &parent;
+
+		// vector of parameters updated during optimization
+		// [0] = alpha_theta
+		// [1] = beta_theta
+		vector<double> curr_params;
+
+		theta_hparams_optimizable (bayes_orient_bias_quant_f &P, vector<double> &initial_params) :
+			parent(P), curr_params(initial_params) {}
+
+		size_t nobs() const {
+			return parent.size();
+		}
+
+		size_t nparams() const {
+			return 2;
+		}
+
+		static double lp_xij_given_hparams (const long int xij, const long int nij, double alpha_theta, double beta_theta) {
+			return lbeta(alpha_theta + xij, beta_theta + nij - xij) + lchoose(nij, xij); 
+		}
+
+		// AKA -lp_xi_given_hparams
+		double operator() (const vector<double> &x) const {
+			// xi_vec and ni_vec are class members
+			// x[0] is alpha_theta, x[1] is beta_theta
+			double sum_lp_xij = 0.0;
+			for (size_t j = 0; j < nobs(); ++j) {
+				sum_lp_xij += lp_xij_given_hparams(parent.xi_vec[j], parent.ni_vec[j], x[0], x[1]);
+			}
+			return -(sum_lp_xij - lbeta(x[0], x[1])*nobs());
+		}
+
+		void accumulate (vector<double> &current_grad) {
+			vector<double> new_grad (2);
+			stograd::finite_difference_gradient(*this, curr_params, new_grad);
+			stograd::add_to(new_grad, current_grad);
+		}
+
+		void update (vector<double> &delta) {
+			stograd::subtract_from(delta, curr_params);
+		}
 	}
 
-	double lp_xi_given_hparams (const double alpha_theta, const double beta_theta) {
-		// xi_vec and ni_vec are class members
-		double sum_lp_xij = 0.0;
-		for (size_t j = 0; j < size(); ++j) {
-			sum_lp_xij += lp_xij_given_hparams(xi_vec[j], ni_vec[j], alpha_theta, beta_theta);
+	struct phi_hparams_optimizable {
+
+		// parent object containing data
+		const bayes_orient_bias_quant_f &parent;
+
+		const double alpha_theta;
+		const double beta_theta;
+
+		// vector of parameters updated during optimization
+		// [0] = alpha_phi
+		// [1] = beta_phi
+		vector<double> curr_params;
+
+		phi_hparams_optimizable(const bayes_orient_bias_quant_f &P, vector<double> &initial_params,
+				const double a_theta, const double b_theta) :
+				parent(P), curr_params(initial_params), alpha_theta(a_theta), beta_theta(b_theta) {}
+
+		size_t nobs() const {
+			return parent.size();
 		}
-		return sum_lp_xj - lbeta(alpha_theta, beta_theta)*nobs();
+
+		size_t nparams() const {
+			return 2;
+		}
+
+		static double lp_xcj_given_hparams (const long int xcj, const long int ncj, const double alpha_theta, const double beta_theta,
+				const double alpha_phi, const double beta_phi) {
+			double *lse_array = new double[xcj+1];
+			for (int k = 0; k <= xcj; ++k) {
+				lse_array[k] =
+					-log(ncj - k + 1) +
+					lbeta(xcj - k + alpha_phi, ncj - xcj + beta_phi) -
+					lbeta(xcj - k + 1,         ncj - xcj + 1) +
+					lbeta(k + alpha_theta, ncj - k + beta_theta) -
+					lbeta(k + 1, ncj - k + 1);
+			}
+			double rtn = log_sum_exp(xcj+1, lse_array);
+			delete[] lse_array;
+			return rtn;
+		}
+
+		// AKA -lp_xc_given_params 
+		double operator() (const vector<double> &x) const {
+			double sum_lp_xcj = 0.0;
+			double sum_log_ncp = 0.0;
+			for (size_t j = 0; j < nobs(); ++j) {
+				sum_lp_xcj += lp_xcj_given_hparams(parent.xc_vec[j], parent.nc_vec[j], alpha_theta, beta_theta, x[0], x[1]);
+				sum_log_ncp += log(nc + 1);
+			}
+			return -(sum_lp_xcj - sum_log_ncp - nobs()*(lbeta(alpha_theta, beta_theta) + lbeta(x[0], x[1])));
+		}
+
+		void accumulate (vector<double> &current_grad) {
+			vector<double> new_grad (2);
+			stograd::finite_difference_gradient(*this, curr_params, new_grad);
+			stograd::add_to(new_grad, current_grad);
+		}
+
+		void update (vector<double> &delta) {
+			stograd::subtract_from(delta, curr_params);
+		}
 	}
 };
 
