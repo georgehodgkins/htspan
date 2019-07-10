@@ -2,6 +2,7 @@
 #define _HTSPAN_MATH_HPP_
 
 #include <cmath>
+#include <algorithm>
 
 #include "alglib/specialfunctions.h"
 
@@ -117,6 +118,41 @@ double lchoose (const int n, const int k) {
 	}
 	return nfac_log - kfac_log - nkdfac_log;
 }
+
+/**
+* Generates a batch of binomially distributed random numbers
+* by generating a u~(0, 1) and naively finding
+* the largest k such that u < Binom(k, n, p).
+*
+* @param n Number of trials
+* @param p Probability of success in each trial
+* @param n_vars Number of variates to generate
+* @return a vector of variates <= n, sorted in ascending order
+*/
+vector<int> rbinom(int n, double p, size_t n_vars) {
+	// generate n_vars nubmer of u~(0,1)
+	vector<double> U (n_vars);
+	alglib::hqrndstate rng;
+	alglig::hqrndrandomize(rng);
+	for (size_t i = 0; i < n_vars; ++i) {
+		U.push_back(alglib::hqrnduniformr(rng));
+	}
+	// sort in descending order
+	sort(U.rbegin(), U.rend());
+	vector<int> K (n_vars);
+	int k = 0;
+	// evaluate the distribution at each value of k, advancing to the next u-value each time it increases past the previous one
+	while (!U.empty()) {
+		while (alglib::binomialdistribution(k, n, p) < U.back()) {
+			++k;
+		}
+		U.pop_back();
+		K.push_back(k);
+	}
+	return K;
+}
+
+
 
 
 
