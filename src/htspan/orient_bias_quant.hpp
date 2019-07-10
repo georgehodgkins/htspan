@@ -41,23 +41,27 @@ struct base_orient_bias_quant_f {
 	// count of total reads pushed
 	int read_count;
 
-	// reader for BAM sequence data
+	// reader for BAM sequence data (sequence being examind for damage)
 	piler &p;
 
-	// reader for FASTA sequence data (reference)
+	// reader for FASTA sequence data (reference sequence)
 	faidx_reader &faidx;
 
 	/**
 	 * Initialize class.
 	 *
-	 * Initialize class with expected ref and alt nucleotides for read 1
+	 * @param _ref Read 1 reference nucleotide for SNV of interest
+	 * @param _alt Read 2 reference nucleotide for SNV of interest
+	 * @param _p Initialized hts::piler containing sequence data of interest
+	 * @param _f Initialized hts::faidx_reader containing reference sequence
 	 */
-	orient_bias_quant_f(nuc_t _ref, nuc_t _alt)
+	base_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, piler &_p, faidx_reader &_f)
 	: r1_ref(_ref),
 		r1_alt(_alt),
 		r2_ref(nuc_complement(_ref)),
 		r2_alt(nuc_complement(_alt)),
-		xc(0), xi(0), nc(0), ni(0)
+		xc(0), xi(0), nc(0), ni(0), read_count(0),
+		p(_p), faidx(_f)
 	{
 	}
 
@@ -121,6 +125,12 @@ struct base_orient_bias_quant_f {
 		return true;
 	}
 
+	/*
+	* Accumulate statistics for the next locus, if it is valid
+	* and damage-consistent.
+	*
+	* @return 0 if successful, or a positive integer indicating the reason for failure.
+	*/
 	int next () {
 		const bam_pileup1_t *pile = p.next();
 		if (pile == NULL) {
@@ -140,11 +150,21 @@ struct base_orient_bias_quant_f {
 		return 0;
 	}
 
+	/**
+	* Accumulate statistics for a set of reads at the given locus.
+	*
+	* @param pile Pointer to HTSlib pileup object populated with reads of interest
+	* @param n Number of reads to process
+	* @param pos Reference position of the given pileup
+	* @return Number of reads pushed.
+	*/
 	virtual size_t push (const bam_pileup1_t *pile, size_t n, int32_t pos) = 0;
 
+	/**
+	* Return the number of processed loci
+	* (n_reads returns total processed reads).
+	*/
 	virtual size_t size() const = 0;
-
-	virtual double operator()() const = 0;
 
 	//TODO: add simulation options for testing
 
@@ -154,6 +174,12 @@ struct freq_orient_bias_quant_f : base_orient_bias_quant_f {
 
 	// count of read sites
 	size_t site_count;
+
+	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, piler &_p, faidx_reader &_f) : 
+			orient_bias_quant_f(nuc_t _ref, nuc_t _alt, piler &_p, faidx_reader &_f),
+			site_count(0)
+		{
+		}
 
 	size_t size () const {
 		return site_count;
@@ -211,6 +237,12 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 
 	//vector of inconsistent total counts, by site
 	vector<long int> ni_vec;
+
+	bayes_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, piler &_p, faidx_reader &_f) :
+			base_orient_bias_quant_f(_ref, _alt, _p, _f),
+			xc_vec(0), xi_vec(0), nc_vec(0), ni_vec(0)
+		{
+		}
 
 	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
 		xc = 0;
