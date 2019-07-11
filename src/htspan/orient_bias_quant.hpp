@@ -21,6 +21,11 @@ namespace hts {
 
 using namespace std;
 
+struct alpha_beta {
+	double alpha;
+	double beta;
+}
+
 struct base_orient_bias_quant_f {
 
 	/// reference and alternative nucleotides to consider
@@ -150,6 +155,26 @@ struct base_orient_bias_quant_f {
 		return 0;
 	}
 
+	static void simulate_orient_bias_read_counts (const vector<size_t> &ns_vec,
+			const vector<double> &theta_vec, const vector<double> &phi_vec,
+			vector<long int> &xc_vec, vector<long int> &xi_vec, vector<long int> &nc_vec, vector<long int> &ni_vec) {
+		// setup return vectors
+		xc_vec.clear();
+		xc_vec.reserve(ns_vec.size());
+		xi_vec.clear();
+		xi_vec.reserve(ns_vec.size());
+		nc_vec.clear();
+		nc_vec.reserve(ns_vec.size());
+		ni_vec.clear();
+		ni_vec.reserve(ns_vec.size());
+		for (int j = 0; j < ns_vec.size(); ++j) {
+			ni_vec[j] = ns_vec[j]/2;
+			nc_vec[j] = ns_vec[j] - ni_vec[j];
+			xi_vec[j] = rbinom(ni_vec[j], theta_vec[j]);
+			xc_vec[j] = rbinom(nc_vec[j], theta_vec[j]) + rbinom(nc_vec[j] - xr, phi_vec[j]);
+		}
+	}
+
 	/**
 	* Accumulate statistics for a set of reads at the given locus.
 	*
@@ -165,8 +190,6 @@ struct base_orient_bias_quant_f {
 	* (n_reads returns total processed reads).
 	*/
 	virtual size_t size() const = 0;
-
-	//TODO: add simulation options for testing
 
 };
 
@@ -204,6 +227,21 @@ struct freq_orient_bias_quant_f : base_orient_bias_quant_f {
 			++site_count;
 		}
 		return success;
+	}
+
+	void simulate(size_t N, double theta, double phi) {
+		vector<size_t> ns_vec (1, N);
+		vector<double> theta_vec (1, theta);
+		vector<double> phi_vec (1, phi);
+		vector<long int> xc_vec;
+		vector<long int> xi_vec;
+		vector<long int> nc_vec;
+		vector<long int> ni_vec;
+		simulate_orient_bias_read_counts(ns_vec, theta_vec, phi_vec, xc_vec, xi_vec, nc_vec, ni_vec);
+		xc = xc_vec.front();
+		xi = xi_vec.front();
+		nc = nc_vec.front();
+		ni = ni_vec.front();
 	}
 
 	/**
@@ -259,31 +297,83 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		xi_vec.push_back(xi);
 		nc_vec.push_back(nc);
 		ni_vec.push_back(ni);
+		return success;
 	}
 
 	size_t size() const {
 		return xc_vec.size();
 	}
-	
+
+	void simulate(const vector<size_t> &ns_vec, const double alpha_theta, const double beta_theta,
+			const double alpha_phi, const double beta_phi) {
+		vector<double> theta_vec (ns_vec.size());
+		vector<double> phi_vec(ns_vec.size());
+		for (size_t j = 0; j < ns_vec.size(); ++j) {
+			theta_vec[j] = rbinom(alpha_theta, beta_theta);
+		}
+		for (size_t j = 0; j < ns_vec.size(); ++j) {
+			phi_vec[j] = rbinom(alpha_phi, beta_phi);
+		}
+		simulate_orient_bias_read_counts(ns_vec, theta_vec, phi_vec, xc_vec, xi_vec, nc_vec, ni_vec);
+	}
+
+	alpha_beta operator()(size_t bsize, size_t nepochs, double learning_rate, double eps,
+			double alpha0_theta, double beta0_theta, double alpha0_phi, double beta0_phi) {
+		vector<double> theta_init(2);
+		theta_init[0] = alpha0_theta;
+		theta_init[1] = beta0_theta;
+		theta_hparams_optimizable theta_opt (*this, theta_init);
+		stograd::optimize(theta_opt, bsize, nepochs, learning_rate, eps);
+		vector<double> phi_init(2);
+		phi_init[0] = alpha0_phi;
+		phi_init[1] = beta0_phi;
+		phi_hparams_optimizable phi_opt (*this, phi_init, theta_opt.alpha(), theta_opt.beta());
+		stograd::optimize(phi_opt, bsize, nepochs, learning_rate, eps);
+		alpha_beta rtn;
+		rtn.alpha = phi_opt.alpha();
+		rtn.beta = phi_opt.beta();
+		return rtn;
+	}
+
 	struct theta_hparams_optimizable {
 
 		// parent object containing data
 		const bayes_orient_bias_quant_f &parent;
 
-		// vector of parameters updated during optimization
+		// index of record (in parent object) currently being analyzed
+		size_t J;
+
+		// vector of parameters being optimized
 		// [0] = alpha_theta
 		// [1] = beta_theta
 		vector<double> curr_params;
 
+		double alpha() const {
+			return curr_params[0];
+		}
+
+		double beta() const {
+			return curr_params[1];
+		}
+
 		theta_hparams_optimizable (bayes_orient_bias_quant_f &P, vector<double> &initial_params) :
-			parent(P), curr_params(initial_params) {}
+			parent(P), curr_params(initial_params), J(0) {}
 
 		size_t nobs() const {
-			return parent.size();
+			return J+1;
 		}
 
 		size_t nparams() const {
 			return 2;
+		}
+
+		size_t next () {
+			if (J == parent.size()-1) {
+				J = 0;
+			} else {
+				++J;
+			}
+			return J;
 		}
 
 		static double lp_xij_given_hparams (const long int xij, const long int nij, double alpha_theta, double beta_theta) {
@@ -305,6 +395,7 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 			vector<double> new_grad (2);
 			stograd::finite_difference_gradient(*this, curr_params, new_grad);
 			stograd::add_to(new_grad, current_grad);
+			next();
 		}
 
 		void update (vector<double> &delta) {
@@ -317,24 +408,45 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		// parent object containing data
 		const bayes_orient_bias_quant_f &parent;
 
+		// fixed parameters for objective function (previously estimated)
 		const double alpha_theta;
 		const double beta_theta;
 
-		// vector of parameters updated during optimization
+		// vector of parameters being optimized
 		// [0] = alpha_phi
 		// [1] = beta_phi
 		vector<double> curr_params;
+
+		double alpha() const {
+			return curr_params[0];
+		}
+
+		double beta() const {
+			return curr_params[1];
+		}
+
+		// index of record (in parent object) currently being analyzed
+		size_t J;
 
 		phi_hparams_optimizable(const bayes_orient_bias_quant_f &P, vector<double> &initial_params,
 				const double a_theta, const double b_theta) :
 				parent(P), curr_params(initial_params), alpha_theta(a_theta), beta_theta(b_theta) {}
 
 		size_t nobs() const {
-			return parent.size();
+			return J+1;
 		}
 
 		size_t nparams() const {
 			return 2;
+		}
+
+		size_t next() {
+			if (J == parent.size() - 1) {
+				J = 0;
+			} else {
+				++J;
+			}
+			return J;
 		}
 
 		static double lp_xcj_given_hparams (const long int xcj, const long int ncj, const double alpha_theta, const double beta_theta,
@@ -368,6 +480,7 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 			vector<double> new_grad (2);
 			stograd::finite_difference_gradient(*this, curr_params, new_grad);
 			stograd::add_to(new_grad, current_grad);
+			next();
 		}
 
 		void update (vector<double> &delta) {
