@@ -12,20 +12,28 @@
 #include <htslib/hts.h>
 #include <htslib/faidx.h>
 
+#include <alglib/alglibmisc.h>
+#include <alglib/specialfunctions.h>
+
+#include <stograd/src/stograd/stograd.hpp>
+
 #include "bam.hpp"
 #include "math.hpp"
+#include "r_rand.hpp"
 #include "piler.hpp"
 #include "io/faidx_reader.hpp"
-#include "stograd/src/stograd/stograd.hpp"
 
 namespace hts {
+
+// The stepper to use for stochastic gradient optimization in the Bayes model
+typedef stograd::stepper::adam<double> bayes_stepper_t;
 
 using namespace std;
 
 struct alpha_beta {
 	double alpha;
 	double beta;
-}
+};
 
 struct base_orient_bias_quant_f {
 
@@ -74,7 +82,7 @@ struct base_orient_bias_quant_f {
 	 * @param b       BAM record of a read
 	 * @param pos     reference position
 	 */
-	bool push(bam1_t* b, int32_t pos) {
+	bool push(const bam1_t* b, int32_t pos) {
 		// only analyze nucleotides A, C, G, T (no indels)
 		nuc_t qnuc = query_nucleotide(b, pos);
 		if (!nuc_is_canonical(qnuc)) return false;
@@ -136,11 +144,12 @@ struct base_orient_bias_quant_f {
 		nc_vec.reserve(ns_vec.size());
 		ni_vec.clear();
 		ni_vec.reserve(ns_vec.size());
-		for (int j = 0; j < ns_vec.size(); ++j) {
-			ni_vec[j] = ns_vec[j]/2;
-			nc_vec[j] = ns_vec[j] - ni_vec[j];
-			xi_vec[j] = rbinom(ni_vec[j], theta_vec[j]);
-			xc_vec[j] = rbinom(nc_vec[j], theta_vec[j]) + rbinom(nc_vec[j] - xr, phi_vec[j]);
+		for (size_t j = 0; j < ns_vec.size(); ++j) {
+			ni_vec.push_back(ns_vec[j]/2);
+			nc_vec.push_back(ns_vec[j] - ni_vec[j]);
+			xi_vec.push_back(r_rand::rbinom(ni_vec[j], theta_vec[j]));
+			long int xr = r_rand::rbinom(nc_vec[j], theta_vec[j]);
+			xc_vec.push_back(xr + r_rand::rbinom(nc_vec[j] - xr, phi_vec[j])); // xd ~ Binom(nc, phi) and xc = xr + xd
 		}
 	}
 
@@ -162,13 +171,13 @@ struct base_orient_bias_quant_f {
 
 };
 
-struct freq_orient_bias_quant_f : base_orient_bias_quant_f {
+struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 
 	// count of read sites
 	size_t site_count;
 
 	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) : 
-			orient_bias_quant_f(nuc_t _ref, nuc_t _alt),
+			base_orient_bias_quant_f(_ref, _alt),
 			site_count(0)
 		{
 		}
@@ -188,7 +197,7 @@ struct freq_orient_bias_quant_f : base_orient_bias_quant_f {
 	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
 		size_t success = 0;
 		for (size_t i = 0; i < n; ++i) {
-			if (push(pile[i].b, pos)) {
+			if (base_orient_bias_quant_f::push(pile[i].b, pos)) {
 				++success;
 			}
 		}
@@ -231,7 +240,7 @@ struct freq_orient_bias_quant_f : base_orient_bias_quant_f {
 };
 
 
-struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
+struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 
 	// vector of consistent alt counts, by site
 	vector<long int> xc_vec;
@@ -258,7 +267,7 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		ni = 0;
 		size_t success = 0;
 		for (size_t i = 0; i < n; ++i) {
-			if (push(pile[i].b, pos)) {
+			if (base_orient_bias_quant_f::push(pile[i].b, pos)) {
 				++success;
 			}
 		}
@@ -278,10 +287,10 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		vector<double> theta_vec (ns_vec.size());
 		vector<double> phi_vec(ns_vec.size());
 		for (size_t j = 0; j < ns_vec.size(); ++j) {
-			theta_vec[j] = rbinom(alpha_theta, beta_theta);
+			theta_vec[j] = r_rand::rbeta(alpha_theta, beta_theta);
 		}
 		for (size_t j = 0; j < ns_vec.size(); ++j) {
-			phi_vec[j] = rbinom(alpha_phi, beta_phi);
+			phi_vec[j] = r_rand::rbeta(alpha_phi, beta_phi);
 		}
 		simulate_orient_bias_read_counts(ns_vec, theta_vec, phi_vec, xc_vec, xi_vec, nc_vec, ni_vec);
 	}
@@ -292,12 +301,13 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		theta_init[0] = alpha0_theta;
 		theta_init[1] = beta0_theta;
 		theta_hparams_optimizable theta_opt (*this, theta_init);
-		stograd::optimize(theta_opt, bsize, nepochs, learning_rate, eps);
+		bayes_stepper_t stepper (learning_rate);
+		stograd::optimize(theta_opt, stepper, bsize, nepochs, eps);
 		vector<double> phi_init(2);
 		phi_init[0] = alpha0_phi;
 		phi_init[1] = beta0_phi;
 		phi_hparams_optimizable phi_opt (*this, phi_init, theta_opt.alpha(), theta_opt.beta());
-		stograd::optimize(phi_opt, bsize, nepochs, learning_rate, eps);
+		stograd::optimize(phi_opt, stepper, bsize, nepochs, eps);
 		alpha_beta rtn;
 		rtn.alpha = phi_opt.alpha();
 		rtn.beta = phi_opt.beta();
@@ -326,9 +336,13 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		}
 
 		theta_hparams_optimizable (bayes_orient_bias_quant_f &P, vector<double> &initial_params) :
-			parent(P), curr_params(initial_params), J(0) {}
+			parent(P), J(0), curr_params(initial_params) {}
 
 		size_t nobs() const {
+			return parent.xi_vec.size();
+		}
+
+		size_t cobs() const {
 			return J+1;
 		}
 
@@ -345,8 +359,45 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 			return J;
 		}
 
-		static double lp_xij_given_hparams (const long int xij, const long int nij, double alpha_theta, double beta_theta) {
+		static double lp_xij_given_hparams (const long int xij, const long int nij, const double alpha_theta, const double beta_theta) {
 			return lbeta(alpha_theta + xij, beta_theta + nij - xij) + lchoose(nij, xij); 
+		}
+
+		static double dlp_xij_given_hparams_dalpha (const long int xij, const long int nij, const double alpha_theta, const double beta_theta) {
+			return alglib::psi(xij + alpha_theta) - alglib::psi(nij + alpha_theta - beta_theta);
+		}
+
+		static double dlp_xij_given_hparams_dbeta (const long int xij, const long int nij, const double alpha_theta, const double beta_theta) {
+			return alglib::psi(nij - xij + beta_theta) - alglib::psi(nij + alpha_theta + beta_theta);
+		}
+
+		double dlp_xi_given_hparams_dalpha (const double alpha_theta, const double beta_theta) {
+			static double alpha_cached = -1.0;
+			static double psi_alpha_cached = 0.0;
+			if (alpha_theta != alpha_cached) {
+				psi_alpha_cached = alglib::psi(alpha_theta);
+				alpha_cached = alpha_theta;
+			}
+			// xi_vec and ni_vec are class members
+			double sum_dlp_xij_dalpha = 0.0;
+			for (size_t j = 0; j < cobs(); ++j) {
+				sum_dlp_xij_dalpha += dlp_xij_given_hparams_dalpha(parent.xi_vec[j], parent.ni_vec[j], alpha_theta, beta_theta);
+			}
+			return sum_dlp_xij_dalpha + cobs()*(alglib::psi(alpha_theta + beta_theta) - psi_alpha_cached);
+		}
+
+		double dlp_xi_given_hparams_dbeta (const double alpha_theta, const double beta_theta) {
+			static double beta_cached = -1.0;
+			static double psi_beta_cached = 0.0;
+			if (beta_theta != beta_cached) {
+				psi_beta_cached = alglib::psi(beta_theta);
+				beta_cached = beta_theta;
+			}
+			double sum_dlp_xij_dbeta = 0.0;
+			for (size_t j = 0; j < cobs(); ++j) {
+				sum_dlp_xij_dbeta += dlp_xij_given_hparams_dbeta(parent.xi_vec[j], parent.ni_vec[j], alpha_theta, beta_theta);
+			}
+			return sum_dlp_xij_dbeta + cobs()*(alglib::psi(alpha_theta + beta_theta) - psi_beta_cached);
 		}
 
 		// AKA -lp_xi_given_hparams
@@ -354,15 +405,16 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 			// xi_vec and ni_vec are class members
 			// x[0] is alpha_theta, x[1] is beta_theta
 			double sum_lp_xij = 0.0;
-			for (size_t j = 0; j < nobs(); ++j) {
+			for (size_t j = 0; j < cobs(); ++j) {
 				sum_lp_xij += lp_xij_given_hparams(parent.xi_vec[j], parent.ni_vec[j], x[0], x[1]);
 			}
-			return -(sum_lp_xij - lbeta(x[0], x[1])*nobs());
+			return -(sum_lp_xij - lbeta(x[0], x[1])*cobs());
 		}
 
 		void accumulate (vector<double> &current_grad) {
 			vector<double> new_grad (2);
-			stograd::finite_difference_gradient(*this, curr_params, new_grad);
+			new_grad[0] = dlp_xi_given_hparams_dalpha(curr_params[0], curr_params[1]);
+			new_grad[1] = dlp_xi_given_hparams_dbeta(curr_params[0], curr_params[1]);
 			stograd::add_to(new_grad, current_grad);
 			next();
 		}
@@ -370,7 +422,7 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		void update (vector<double> &delta) {
 			stograd::subtract_from(delta, curr_params);
 		}
-	}
+	}; // struct theta_hparams_optimizable
 
 	struct phi_hparams_optimizable {
 
@@ -399,9 +451,13 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 
 		phi_hparams_optimizable(const bayes_orient_bias_quant_f &P, vector<double> &initial_params,
 				const double a_theta, const double b_theta) :
-				parent(P), curr_params(initial_params), alpha_theta(a_theta), beta_theta(b_theta) {}
+				parent(P), alpha_theta(a_theta), beta_theta(b_theta), curr_params(initial_params), J(0) {}
 
 		size_t nobs() const {
+			return parent.xi_vec.size();
+		}
+
+		size_t cobs() const {
 			return J+1;
 		}
 
@@ -438,11 +494,11 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		double operator() (const vector<double> &x) const {
 			double sum_lp_xcj = 0.0;
 			double sum_log_ncp = 0.0;
-			for (size_t j = 0; j < nobs(); ++j) {
+			for (size_t j = 0; j < cobs(); ++j) {
 				sum_lp_xcj += lp_xcj_given_hparams(parent.xc_vec[j], parent.nc_vec[j], alpha_theta, beta_theta, x[0], x[1]);
-				sum_log_ncp += log(nc + 1);
+				sum_log_ncp += log(parent.nc_vec[j] + 1);
 			}
-			return -(sum_lp_xcj - sum_log_ncp - nobs()*(lbeta(alpha_theta, beta_theta) + lbeta(x[0], x[1])));
+			return -(sum_lp_xcj - sum_log_ncp - cobs()*(lbeta(alpha_theta, beta_theta) + lbeta(x[0], x[1])));
 		}
 
 		void accumulate (vector<double> &current_grad) {
@@ -455,8 +511,8 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 		void update (vector<double> &delta) {
 			stograd::subtract_from(delta, curr_params);
 		}
-	}
-};
+	};// struct phi_hparams_optimizable
+};// struct bayes_orient_bias_quant_f
 
 }  // namespace hts
 

@@ -56,13 +56,15 @@ all: $(deps) $(targets)
 mlat: $(mlat_deps) $(mlat_targets)
 	
 $(src)/alglib/libalg.a: $(src)/alglib
-	cd $(src)/alglib && make defines="-DAE_COMPILE_CHISQUAREDISTR -DAE_COMPILE_HQRND"
+	cd $(src)/alglib && make defines="-DAE_COMPILE_CHISQUAREDISTR -DAE_COMPILE_HQRND -DAE_COMPILE_PSIF"
 
 $(src)/htslib/libhts.a: $(src)/htslib
 	cd $(src)/htslib && make
 
 $(src)/mlat/lib/libmlat.a: $(src)/mlat
 	cd $(src)/mlat && make
+
+# note that stograd does not need separate compilation
 
 $(bin)/hts-mlat: $(src)/hts-mlat.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(MLAT)
