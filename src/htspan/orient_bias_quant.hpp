@@ -16,6 +16,7 @@
 #include "math.hpp"
 #include "piler.hpp"
 #include "io/faidx_reader.hpp"
+#include "stograd/src/stograd/stograd.hpp"
 
 namespace hts {
 
@@ -46,12 +47,6 @@ struct base_orient_bias_quant_f {
 	// count of total reads pushed
 	int read_count;
 
-	// reader for BAM sequence data (sequence being examind for damage)
-	piler &p;
-
-	// reader for FASTA sequence data (reference sequence)
-	faidx_reader &faidx;
-
 	/**
 	 * Initialize class.
 	 *
@@ -60,13 +55,12 @@ struct base_orient_bias_quant_f {
 	 * @param _p Initialized hts::piler containing sequence data of interest
 	 * @param _f Initialized hts::faidx_reader containing reference sequence
 	 */
-	base_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, piler &_p, faidx_reader &_f)
+	base_orient_bias_quant_f(nuc_t _ref, nuc_t _alt)
 	: r1_ref(_ref),
 		r1_alt(_alt),
 		r2_ref(nuc_complement(_ref)),
 		r2_alt(nuc_complement(_alt)),
-		xc(0), xi(0), nc(0), ni(0), read_count(0),
-		p(_p), faidx(_f)
+		xc(0), xi(0), nc(0), ni(0), read_count(0)
 	{
 	}
 
@@ -130,31 +124,6 @@ struct base_orient_bias_quant_f {
 		return true;
 	}
 
-	/*
-	* Accumulate statistics for the next locus, if it is valid
-	* and damage-consistent.
-	*
-	* @return 0 if successful, or a positive integer indicating the reason for failure.
-	*/
-	int next () {
-		const bam_pileup1_t *pile = p.next();
-		if (pile == NULL) {
-			return 1;
-		}
-		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
-		if (seq == NULL) {
-			return 2;
-		}
-		// check that reference nucleotide is consistent
-		char s_ref = char_to_nuc(seq[0]);
-		if (s_ref == r1_ref || s_ref == r2_ref) {
-			read_count += push(pile, p.size(), p.pos);
-		} else {
-			return 3;
-		}
-		return 0;
-	}
-
 	static void simulate_orient_bias_read_counts (const vector<size_t> &ns_vec,
 			const vector<double> &theta_vec, const vector<double> &phi_vec,
 			vector<long int> &xc_vec, vector<long int> &xi_vec, vector<long int> &nc_vec, vector<long int> &ni_vec) {
@@ -198,8 +167,8 @@ struct freq_orient_bias_quant_f : base_orient_bias_quant_f {
 	// count of read sites
 	size_t site_count;
 
-	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, piler &_p, faidx_reader &_f) : 
-			orient_bias_quant_f(nuc_t _ref, nuc_t _alt, piler &_p, faidx_reader &_f),
+	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) : 
+			orient_bias_quant_f(nuc_t _ref, nuc_t _alt),
 			site_count(0)
 		{
 		}
@@ -276,8 +245,8 @@ struct bayes_orient_bias_quant_f : base_orient_bias_quant_f {
 	//vector of inconsistent total counts, by site
 	vector<long int> ni_vec;
 
-	bayes_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, piler &_p, faidx_reader &_f) :
-			base_orient_bias_quant_f(_ref, _alt, _p, _f),
+	bayes_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) :
+			base_orient_bias_quant_f(_ref, _alt),
 			xc_vec(0), xi_vec(0), nc_vec(0), ni_vec(0)
 		{
 		}
