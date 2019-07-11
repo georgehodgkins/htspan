@@ -127,10 +127,11 @@ double lchoose (const int n, const int k) {
 * @param n Number of trials
 * @param p Probability of success in each trial
 * @param n_vars Number of variates to generate
-* @return a vector of variates <= n, sorted in ascending order
+* @return a vector of variates <= n
 */
-vector<int> rbinom(int n, double p, size_t n_vars) {
-	// generate n_vars nubmer of u~(0,1)
+void rbinom_batch(int n, double p, size_t n_vars, vector<int> &K) {
+	K.reserve(n_vars);
+	// generate n_vars number of u~(0,1)
 	vector<double> U (n_vars);
 	alglib::hqrndstate rng;
 	alglig::hqrndrandomize(rng);
@@ -139,20 +140,79 @@ vector<int> rbinom(int n, double p, size_t n_vars) {
 	}
 	// sort in descending order
 	sort(U.rbegin(), U.rend());
-	vector<int> K (n_vars);
 	int k = 0;
 	// evaluate the distribution at each value of k, advancing to the next u-value each time it increases past the previous one
+	double q = 1 - p;
+	double B = pow(q, n);
 	while (!U.empty()) {
-		while (alglib::binomialdistribution(k, n, p) < U.back()) {
+		do {
 			++k;
-		}
+			B *= (n - k + 1)/k * p/q;
+		} while (B < U.back());
 		U.pop_back();
 		K.push_back(k);
+	}
+	// shuffle the return vector, since it will be sorted after the above process
+	for (size_t i = 0; i < K.size(); ++i) {
+		size_t si = alglib::hqrnduniformi(rng, K.size());
+		swap(K[i], K[si]);
 	}
 	return K;
 }
 
+/**
+* Single random binomial variate for 
+* n trials with probability of success p.
+*/
+// TODO: make this function not suck
+int rbinom (int n, double p) {
+	static alglib::hqrndstate rng;
+	alglib::hqrndrandomize(rng);
+	double u = alglib::hqrnduniformr(rng);
+	double B = pow(1 - p, n);
+	int x = 0;
+	while (u < B) {
+		++x;
+		B *= (n - x + 1)/x * p/q;
+	}
+	return x;
+}
 
+/**
+* Single beta-distributed variate for shape parameters
+* a and b.
+*
+* Algorithm is from Cheng, R.C.H., CACM April 1978.
+*/
+// TODO: add optimizations
+double rbeta (double a, double b) {
+	static double alpha = 0.0;
+	static double beta = 0.0;
+	static double gamma = 0.0;
+	static double a_cached = -1.0;
+	static double b_cached = -1.0;
+	if (a != a_cached || b != b_cached) {
+		a_cached = a;
+		b_cached = b;
+		alpha_cached = a + b;
+		if (a <= 1 || b <= 1) {
+			beta = (1/a < 1/b) ? 1/a : 1/b;
+		} else {
+			beta = sqrt((alpha - 2)/(2*a*b-alpha));
+		}
+		gamma = a + 1/beta;
+	}
+	static alglib::hqrndstate rng;
+	alglib::hqrndrandomize(rng);
+	double u1, u2, W, V;
+	do {
+		u1 = alglib::hqrnduniformr(rng);
+		u2 = alglib::hqrnduniformr(rng);
+		V = beta*log(u1/(1-u1));
+		W = a*exp(V);
+	} while (alpha*log(alpha/(b+W)) + gamma*V - log(4) < log(u1*u1*u2));
+	return W/(b + W);
+}
 
 
 
