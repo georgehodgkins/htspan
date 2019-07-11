@@ -5,11 +5,14 @@
 
 #include <cmath>
 
+#ifndef TEST_EPS
 #define TEST_EPS 1e-3
+#endif
+#ifndef TEST_RAT
 #define TEST_RAT .05
+#endif
 
 // Returns the difference ratio of two values, the distance between the values divided by their mean
-// not used at the moment
 inline double diff_rat (double a, double b) {
 	return 2.0*abs(a-b)/abs(a+b);
 }
