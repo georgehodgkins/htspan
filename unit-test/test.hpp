@@ -8,6 +8,7 @@
 #ifndef TEST_EPS
 #define TEST_EPS 1e-3
 #endif
+
 #ifndef TEST_RAT
 #define TEST_RAT .05
 #endif
