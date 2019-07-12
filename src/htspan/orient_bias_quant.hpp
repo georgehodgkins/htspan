@@ -2,9 +2,9 @@
 #define _HTSPAN_ORIENT_BIAS_QUANT_HPP_
 
 #include <iostream>
-#include <queue>
 #include <vector>
 #include <cassert>
+#include <cfloat>
 
 #include <stdint.h>
 #include <string.h>
@@ -12,6 +12,7 @@
 #include <htslib/hts.h>
 #include <htslib/faidx.h>
 
+#include <alglib/ap.h>
 #include <alglib/alglibmisc.h>
 #include <alglib/specialfunctions.h>
 
@@ -30,9 +31,11 @@ typedef stograd::stepper::adam<double> bayes_stepper_t;
 
 using namespace std;
 
-struct alpha_beta {
-	double alpha;
-	double beta;
+struct hparams {
+	double alpha_theta;
+	double beta_theta;
+	double alpha_phi;
+	double beta_phi;
 };
 
 struct base_orient_bias_quant_f {
@@ -295,7 +298,7 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		simulate_orient_bias_read_counts(ns_vec, theta_vec, phi_vec, xc_vec, xi_vec, nc_vec, ni_vec);
 	}
 
-	alpha_beta operator()(size_t bsize, size_t nepochs, double learning_rate, double eps,
+	hparams operator()(size_t bsize, size_t nepochs, double learning_rate, double eps,
 			double alpha0_theta, double beta0_theta, double alpha0_phi, double beta0_phi) {
 		vector<double> theta_init(2);
 		theta_init[0] = alpha0_theta;
@@ -308,10 +311,75 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		phi_init[1] = beta0_phi;
 		phi_hparams_optimizable phi_opt (*this, phi_init, theta_opt.alpha(), theta_opt.beta());
 		stograd::optimize(phi_opt, stepper, bsize, nepochs, eps);
-		alpha_beta rtn;
-		rtn.alpha = phi_opt.alpha();
-		rtn.beta = phi_opt.beta();
+		hparams rtn;
+		rtn.alpha_theta = theta_opt.alpha();
+		rtn.beta_theta = theta_opt.beta();
+		rtn.alpha_phi = phi_opt.alpha();
+		rtn.beta_phi = phi_opt.beta();
 		return rtn;
+	}
+
+	double eval_theta_objective_func (hparams x, int maxJ = -1) {
+		vector<double> X (2);
+		X[0] = x.alpha_theta;
+		X[1] = x.beta_theta;
+		theta_hparams_optimizable F (*this, X);
+		if (maxJ == -1) {
+			F.J = size()-1;
+		} else {
+			F.J = maxJ;
+		}
+		return F(X);
+	}
+
+	double eval_theta_grad_dalpha (hparams x, int maxJ = -1) {
+		vector<double> X (2);
+		X[0] = x.alpha_theta;
+		X[1] = x.beta_theta;
+		theta_hparams_optimizable F(*this, X);
+		if (maxJ == -1) {
+			F.J = size()-1;
+		} else {
+			F.J = maxJ;
+		}
+		return F.dlp_xi_given_hparams_dalpha(x.alpha_theta, x.beta_theta);
+	}
+
+	double eval_theta_grad_dbeta (hparams x, int maxJ = -1) {
+		vector<double> X (2);
+		X[0] = x.alpha_theta;
+		X[1] = x.beta_theta;
+		theta_hparams_optimizable F(*this, X);
+		if (maxJ == -1) {
+			F.J = size()-1;
+		} else {
+			F.J = maxJ;
+		}
+		return F.dlp_xi_given_hparams_dbeta(x.alpha_theta, x.beta_theta);
+	}
+
+	double eval_phi_objective_func (hparams x, int maxJ = -1) {
+		vector<double> X (2);
+		X[0] = x.alpha_phi;
+		X[1] = x.beta_phi;
+		phi_hparams_optimizable F(*this, X, x.alpha_theta, x.beta_theta);
+		if (maxJ == -1) {
+			F.J = size()-1;
+		} else {
+			F.J = maxJ;
+		}
+		return F(X);
+	}
+
+	void set_data (vector<long int> &new_xc, vector<long int> &new_xi, vector<long int> &new_nc, vector<long int> &new_ni) {
+		xc_vec.clear();
+		xc_vec = new_xc;
+		xi_vec.clear();
+		xi_vec = new_xi;
+		nc_vec.clear();
+		nc_vec = new_nc;
+		ni_vec.clear();
+		ni_vec = new_ni;
 	}
 
 	struct theta_hparams_optimizable {
@@ -364,11 +432,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		}
 
 		static double dlp_xij_given_hparams_dalpha (const long int xij, const long int nij, const double alpha_theta, const double beta_theta) {
-			return alglib::psi(xij + alpha_theta) - alglib::psi(nij + alpha_theta - beta_theta);
+			return alglib::psi(alpha_theta + xij) - alglib::psi(alpha_theta + beta_theta + nij);
 		}
 
 		static double dlp_xij_given_hparams_dbeta (const long int xij, const long int nij, const double alpha_theta, const double beta_theta) {
-			return alglib::psi(nij - xij + beta_theta) - alglib::psi(nij + alpha_theta + beta_theta);
+			return alglib::psi(beta_theta + nij - xij) - alglib::psi(alpha_theta + beta_theta + nij);
 		}
 
 		double dlp_xi_given_hparams_dalpha (const double alpha_theta, const double beta_theta) {
@@ -480,9 +548,9 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			for (int k = 0; k <= xcj; ++k) {
 				lse_array[k] =
 					-log(ncj - k + 1) +
-					lbeta(xcj - k + alpha_phi, ncj - xcj + beta_phi) -
+					lbeta(alpha_phi + xcj - k, beta_phi + ncj - xcj) -
 					lbeta(xcj - k + 1,         ncj - xcj + 1) +
-					lbeta(k + alpha_theta, ncj - k + beta_theta) -
+					lbeta(alpha_theta + k, beta_theta + ncj - k) -
 					lbeta(k + 1, ncj - k + 1);
 			}
 			double rtn = log_sum_exp(xcj+1, lse_array);
@@ -502,7 +570,7 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		}
 
 		void accumulate (vector<double> &current_grad) {
-			vector<double> new_grad (2);
+			vector<double> new_grad;
 			stograd::finite_difference_gradient(*this, curr_params, new_grad);
 			stograd::add_to(new_grad, current_grad);
 			next();
