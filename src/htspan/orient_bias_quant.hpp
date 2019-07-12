@@ -26,8 +26,6 @@
 
 namespace hts {
 
-// The stepper to use for stochastic gradient optimization in the Bayes model
-typedef stograd::stepper::adam<double> bayes_stepper_t;
 
 using namespace std;
 
@@ -38,6 +36,10 @@ struct hparams {
 	double beta_phi;
 };
 
+/**
+* The base class for the frequentist and Bayesian quantification
+* functors. Contains individual read push and simulation code.
+*/
 struct base_orient_bias_quant_f {
 
 	/// reference and alternative nucleotides to consider
@@ -75,12 +77,16 @@ struct base_orient_bias_quant_f {
 	{
 	}
 
+	/*
+	* The total number of reads pushed (not loci).
+	* size() returns the number of loci instead.
+	*/
 	size_t n_reads() const {
 		return read_count;
 	}
 
 	/**
-	 * Push a read to accumulate statistics.
+	 * Process a single read and update observed variables accordingly.
 	 *
 	 * @param b       BAM record of a read
 	 * @param pos     reference position
@@ -135,6 +141,10 @@ struct base_orient_bias_quant_f {
 		return true;
 	}
 
+	/*
+	* Simulate a correctly distributed set of observed variables, for testing.
+	*/
+	// TODO: Change this to do a single read
 	static void simulate_orient_bias_read_counts (const vector<size_t> &ns_vec,
 			const vector<double> &theta_vec, const vector<double> &phi_vec,
 			vector<long int> &xc_vec, vector<long int> &xi_vec, vector<long int> &nc_vec, vector<long int> &ni_vec) {
@@ -176,7 +186,7 @@ struct base_orient_bias_quant_f {
 
 struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 
-	// count of read sites
+	// count of read loci (not reads)
 	size_t site_count;
 
 	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) : 
@@ -185,16 +195,21 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 		{
 		}
 
+	/*
+	* Returns the count of read loci (not reads).
+	* n_reads() returns total reads instead.
+	*/
 	size_t size () const {
 		return site_count;
 	}
 
 	/**
-	 * Push reads to accumulate statistics.
+	 * Process a bam pileup object containing
+	 * the reads at one locus and update the observed variables accordingly.
 	 *
 	 * @param pile bam pileup object
 	 * @param n    number of reads in pileup object
-	 * @param pos  target reference position
+	 * @param pos  locus reference position
 	 * @return number of successfully processed reads
 	 */
 	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
@@ -207,9 +222,17 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 		if (success > 0) {
 			++site_count;
 		}
+		read_count += success;
 		return success;
 	}
 
+	/*
+	* Simulate appropriately distributed observed variables, for testing.
+	*
+	* @param N Total number of reads to simulate
+	* @param theta Global alternate allele rate
+	* @param phi Global damage rate
+	*/
 	void simulate(size_t N, double theta, double phi) {
 		vector<size_t> ns_vec (1, N);
 		vector<double> theta_vec (1, theta);
@@ -226,7 +249,7 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	}
 
 	/**
-	 * Return estimate of global DNA damage
+	 * Return estimate of global DNA damage (phi_hat).
 	 *
 	 * Reads should have been processed by calling `push`.
 	 *
@@ -234,11 +257,11 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	 */
 	double operator()() const {
 		double theta_hat = double(xi)/ni;
-		double phi = (double(xc)/nc - theta_hat) / (1 - theta_hat);
-		if (phi < 0.0) {
+		double phi_hat = (double(xc)/nc - theta_hat) / (1 - theta_hat);
+		if (phi_hat < 0.0) {
 			return 0.0;
 		}
-		return phi;
+		return phi_hat;
 	}
 };
 
@@ -263,6 +286,14 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		{
 		}
 
+	/*
+	* Process the reads at one locus, contained in a BAM pileup object.
+	*
+	* @param pile Already populated BAM pileup object 
+	* @param n Number of reads in pileup
+	* @param pos Reference position of the locus
+	* @return Nubmer of successfully processed reads
+	*/
 	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
 		xc = 0;
 		xi = 0;
@@ -278,15 +309,30 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		xi_vec.push_back(xi);
 		nc_vec.push_back(nc);
 		ni_vec.push_back(ni);
+		read_count += success;
 		return success;
 	}
 
+	/*
+	* Returns the number of processed loci (not total reads).
+	* For total reads, use n_reads().
+	*/
 	size_t size() const {
 		return xc_vec.size();
 	}
 
-	void simulate(const vector<size_t> &ns_vec, const double alpha_theta, const double beta_theta,
-			const double alpha_phi, const double beta_phi) {
+	/*
+	* Generate a set of appropriately distributed observed variables, for testing.
+	* In the Bayesian model, phi and theta are not constant but instead beta-distributed.
+	* 
+	* @param ns_vec Vector of read counts at each simulated locus
+	* @param alpha_theta Alpha parameter of the distribution of theta
+	* @param beta_theta Beta parameter of the distribution of theta
+	* @param alpha_phi Alpha parameter of the distribution of phi
+	* @param beta_phi Beta parameter of the distribution of phi
+	*/
+	void simulate(const vector<size_t> &ns_vec, double alpha_theta, double beta_theta,
+			double alpha_phi, double beta_phi) {
 		vector<double> theta_vec (ns_vec.size());
 		vector<double> phi_vec(ns_vec.size());
 		for (size_t j = 0; j < ns_vec.size(); ++j) {
@@ -298,6 +344,25 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		simulate_orient_bias_read_counts(ns_vec, theta_vec, phi_vec, xc_vec, xi_vec, nc_vec, ni_vec);
 	}
 
+	// The stepper type to use for stochastic gradient optimization
+	typedef stograd::stepper::adam<double> bayes_stepper_t;
+
+	/*
+	* Estimate the alpha and beta parameters that characterize
+	* phi, for use in Bayesian identification model.
+	*
+	* Uses stochastic gradient optimization method (stograd).
+	*
+	* @param bsize Batch size for stograd
+	* @param nepochs Number of epochs for stograd
+	* @param learning_rate Learning rate for stograd
+	* @param eps Convergence threshold for stograd
+	* @param alpha0_theta Initial estimate of alpha_theta
+	* @param beta0_theta Initial estimate of beta_theta
+	* @param alpha0_phi Initial estimate of alpha_phi
+	* @param beta0_phi Initial estimate of beta_phi
+	* @return A hts::hparams object containing estimates of the four hyperparameters
+	*/
 	hparams operator()(size_t bsize, size_t nepochs, double learning_rate, double eps,
 			double alpha0_theta, double beta0_theta, double alpha0_phi, double beta0_phi) {
 		vector<double> theta_init(2);
@@ -319,6 +384,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		return rtn;
 	}
 
+	/*
+	* Evaluate the theta objective function (lp_xi_given_hparams) at
+	* the alpha_theta and beta_theta in the passed hparams object,
+	* taking into account read sites up to maxJ [default: all].
+	*/
 	double eval_theta_objective_func (hparams x, int maxJ = -1) {
 		vector<double> X (2);
 		X[0] = x.alpha_theta;
@@ -332,6 +402,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		return F(X);
 	}
 
+	/*
+	* Evaluate the theta gradient wrt beta_theta at
+	* the alpha_theta and beta_theta in the passed hparams object,
+	* taking into account read sites up to maxJ [default: all].
+	*/
 	double eval_theta_grad_dalpha (hparams x, int maxJ = -1) {
 		vector<double> X (2);
 		X[0] = x.alpha_theta;
@@ -345,6 +420,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		return F.dlp_xi_given_hparams_dalpha(x.alpha_theta, x.beta_theta);
 	}
 
+	/*
+	* Evaluate the theta gradient wrt alpha_theta at
+	* the alpha_theta and beta_theta in the passed hparams object,
+	* taking into account read sites up to maxJ [default: all].
+	*/
 	double eval_theta_grad_dbeta (hparams x, int maxJ = -1) {
 		vector<double> X (2);
 		X[0] = x.alpha_theta;
@@ -358,6 +438,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		return F.dlp_xi_given_hparams_dbeta(x.alpha_theta, x.beta_theta);
 	}
 
+	/*
+	* Evaluate the phi objective function (lp_xc_given_hparams) at
+	* the point indicated by the passed hparams object,
+	* taking into account read sites up to maxJ [default: all].
+	*/
 	double eval_phi_objective_func (hparams x, int maxJ = -1) {
 		vector<double> X (2);
 		X[0] = x.alpha_phi;
@@ -371,6 +456,10 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		return F(X);
 	}
 
+	/*
+	* Replace the stored data with that in the passed vectors.
+	* All the arguments must be the same length.
+	*/
 	void set_data (vector<long int> &new_xc, vector<long int> &new_xi, vector<long int> &new_nc, vector<long int> &new_ni) {
 		xc_vec.clear();
 		xc_vec = new_xc;
@@ -382,6 +471,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		ni_vec = new_ni;
 	}
 
+	// TODO: Remove parent ref from optimizables
+
+	/*
+	* Optimizable functor for use in stograd.
+	*/
 	struct theta_hparams_optimizable {
 
 		// parent object containing data
@@ -406,10 +500,18 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		theta_hparams_optimizable (bayes_orient_bias_quant_f &P, vector<double> &initial_params) :
 			parent(P), J(0), curr_params(initial_params) {}
 
+		/*
+		* Total number of loci for which data is 
+		* present in the parent.
+		*/
 		size_t nobs() const {
 			return parent.xi_vec.size();
 		}
 
+		/*
+		* The highest-indexed locus currently being
+		* considered. Advanced by next().
+		*/
 		size_t cobs() const {
 			return J+1;
 		}
@@ -525,6 +627,10 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			return parent.xi_vec.size();
 		}
 
+		/*
+		* The highest-indexed locus currently being
+		* considered. Advanced by next().
+		*/
 		size_t cobs() const {
 			return J+1;
 		}

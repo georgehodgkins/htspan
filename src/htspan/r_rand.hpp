@@ -1,7 +1,7 @@
 #ifndef _HTSPAN_R_RAND_HPP_
 #define _HTSPAN_R_RAND_HPP_
 
-// This header contains random sampling methods from the R source code,
+// This header contains random sampling methods from the R source code
 // for binomial and beta distributed variates
 
 /*
@@ -61,7 +61,7 @@ double fmax2(double x, double y) {
 	return (x > y) ? x : y;
 }
 
-
+// drop in our own replacement for R's RNG
 #define unif_rand() alglib::hqrnduniformr(rng)
 
 // This method is from R source at
