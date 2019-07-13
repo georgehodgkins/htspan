@@ -3,7 +3,6 @@
 #include <boost/test/unit_test.hpp>
 
 #include <cmath>
-#include <cstddef>
 
 #include <alglib/alglibmisc.h>
 
@@ -14,15 +13,16 @@
 
 #define FREQ_N_READS 10000
 
+#define BAYES_STEPPER stograd::stepper::adam<double>
 #define BAYES_LEARN_RATE 1e-2
 #define BAYES_EPS 1e-3
 #define BAYES_BSIZE 100
 #define BAYES_NEPOCHS 2
 #define BAYES_INIT_ALPHA .007
 #define BAYES_INIT_BETA .12
-#define BAYES_N_LOCS 1000
-#define BAYES_MIN_RCOUNT 10
-#define BAYES_MAX_RCOUNT 20
+#define BAYES_N_LOCS 5000
+#define BAYES_MIN_RCOUNT 5
+#define BAYES_MAX_RCOUNT 15
 
 using namespace std;
 
@@ -51,8 +51,12 @@ void bayes_obquant_sim_test (const size_t N, const size_t LOC_RD_MIN, const size
 	expected.beta_theta = BETA_THETA;
 	hts::bayes_orient_bias_quant_f bobquant (nuc_T, nuc_C);
 	bobquant.simulate(ns_vec, ALPHA_THETA, BETA_THETA, ALPHA_PHI, BETA_PHI);
-	hts::hparams alb_test = bobquant(BAYES_BSIZE, BAYES_NEPOCHS, BAYES_LEARN_RATE, BAYES_EPS,
+	hts::hparams alb_test = bobquant.operator()<BAYES_STEPPER>(BAYES_BSIZE, BAYES_NEPOCHS, BAYES_LEARN_RATE, BAYES_EPS,
 		BAYES_INIT_ALPHA, BAYES_INIT_BETA, BAYES_INIT_ALPHA, BAYES_INIT_BETA);
+	BOOST_CHECK_MESSAGE(test_val(alb_test.alpha_theta, ALPHA_THETA), 
+		"Value of alpha_theta was not within tolerance. Got: " << alb_test.alpha_theta << " Exp: " << ALPHA_THETA);
+	BOOST_CHECK_MESSAGE(test_val(alb_test.beta_theta, BETA_THETA),
+		"Value of beta_theta was not within tolerance. Got: " << alb_test.beta_theta << " Exp: " << BETA_THETA);
 	BOOST_CHECK_MESSAGE(test_val(alb_test.alpha_phi, ALPHA_PHI), 
 		"Value of alpha_phi was not within tolerance. Got: " << alb_test.alpha_phi << " Exp: " << ALPHA_PHI);
 	BOOST_CHECK_MESSAGE(test_val(alb_test.beta_phi, BETA_PHI),
