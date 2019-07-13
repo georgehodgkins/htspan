@@ -417,7 +417,7 @@ double local_min ( double a, double b, double t, numeric_functor& f,
 {
   double c;
   double d;
-  double e;
+  double e = 0.0;
   double eps;
   double fu;
   double fv;
@@ -446,7 +446,8 @@ double local_min ( double a, double b, double t, numeric_functor& f,
   x = sa + c * ( b - a );
   w = x;
   v = w;
-  e = 0.0;
+  //e = 0.0;
+  // moved this assgt to initialization to make compiler happy
   fx = f ( x );
   fw = fx;
   fv = fw;
@@ -484,11 +485,15 @@ double local_min ( double a, double b, double t, numeric_functor& f,
       r = e;
       e = d;
     }
-
+// This line generates an obnoxious warning on high optimization levels
+// so that warning is intentionally disabled here
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     if ( fabs ( p ) < fabs ( 0.5 * q * r ) &&
          q * ( sa - x ) < p &&
          p < q * ( sb - x ) )
     {
+#pragma GCC diagnostic pop
 //
 //  Take the parabolic interpolation step.
 //
