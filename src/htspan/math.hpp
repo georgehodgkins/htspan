@@ -2,7 +2,6 @@
 #define _HTSPAN_MATH_HPP_
 
 #include <cmath>
-#include <algorithm>
 
 #include "alglib/specialfunctions.h"
 
@@ -36,6 +35,51 @@ double phred(double x) {
  */
 double anti_phred(double x) {
 	return pow(10, -x/10);
+}
+
+
+/**
+*  Container-generic element-wise log, modifying
+*/
+template <typename Container>
+Container& log_elements (Container &X) {
+	for (typename Container::iterator it = X.begin(); it != X.end(); ++it) {
+		*it = log(*it);
+	}
+	return X;
+}
+
+/**
+*  Container-generic element-wise log, non-modifying
+*/
+template <typename Container>
+Container log_c (Container X) {
+	for (typename Container::iterator it = X.begin(); it != X.end(); ++it) {
+		*it = log(*it);
+	}
+	return X;
+}
+
+/**
+* Container-generic element-wise exp, modifying
+*/
+template <typename Container>
+Container& exp_elements (Container &X) {
+	for (typename Container::iterator it = X.begin(); it != X.end(); ++it) {
+		*it = exp(*it);
+	}
+	return X;
+}
+
+/**
+* Container-generic element-wise exp, non-modifying
+*/
+template <typename Container>
+Container exp_c (Container X) {
+	for (typename Container::iterator it = X.begin(); it != X.end(); ++it) {
+		*it = exp(*it);
+	}
+	return X;
 }
 
 /**
@@ -82,15 +126,15 @@ double chisq_cdf (double x, double n) {
 * parameters alpha and beta.
 */
 double lbeta (const double alpha, const double beta) {
-	double foo;
+	double foo;// return value set by reference that we don't need
 	return alglib::lngamma(alpha, foo) + alglib::lngamma(beta, foo) - alglib::lngamma(alpha + beta, foo);
 }
 
 // log(n!/(k!(n-k)!))
 double lchoose (const int n, const int k) {
-	double nfac_log = 0.0;//log(n!)
-	double kfac_log = 0.0;//log(k!)
-	double nkdfac_log = 0.0;//log((n-k)!)
+	double nfac_log = 0.0;// log(n!)
+	double kfac_log = 0.0;// log(k!)
+	double nkdfac_log = 0.0;// log((n-k)!)
 	int G; // max(k, n-k)
 	if (n-k >= k) {
 		G = n-k;
