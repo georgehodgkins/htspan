@@ -8,8 +8,9 @@
 
 #include <alglib/alglibmisc.h>
 
-#include "../htspan/nucleotide.hpp"
-#include "../htspan/orient_bias_quant.hpp"
+#include "htspan/nucleotide.hpp"
+#include "htspan/freq_orient_bias_quant.hpp"
+#include "htspan/bayes_orient_bias_quant.hpp"
 
 #include "test.hpp"
 

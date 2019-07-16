@@ -1,17 +1,8 @@
-#ifndef _HTSPAN_ORIENT_BIAS_QUANT_HPP_
-#define _HTSPAN_ORIENT_BIAS_QUANT_HPP_
+#ifndef _HTSPAN_BAYES_ORIENT_BIAS_QUANT_HPP_
+#define _HTSPAN_BAYES_ORIENT_BIAS_QUANT_HPP_
 
 #include <ostream>
-#include <vector>
-#include <cassert>
-#include <cfloat>
 #include <utility>
-
-#include <stdint.h>
-#include <string.h>
-
-#include <htslib/hts.h>
-#include <htslib/faidx.h>
 
 #include <alglib/ap.h>
 #include <alglib/alglibmisc.h>
@@ -19,17 +10,15 @@
 
 #include <stograd/src/stograd/stograd.hpp>
 
-#include "bam.hpp"
-#include "math.hpp"
-#include "r_rand.hpp"
-#include "piler.hpp"
-#include "io/faidx_reader.hpp"
+#include "base_orient_bias_quant.hpp"
 
 namespace hts {
 
-
 using namespace std;
 
+/**
+* Convenience class to hold parameter values for Bayesian quantification.
+*/
 struct hparams {
 	double alpha_theta;
 	double beta_theta;
@@ -51,236 +40,35 @@ struct hparams {
 		return rtn;
 	}
 };
+/*
+struct theta_hparams_optimizable {
+	bayes_quant_model &m;
 
-/**
-* The base class for the frequentist and Bayesian quantification
-* functors. Contains individual read push and simulation code.
-*/
-struct base_orient_bias_quant_f {
+	vector<double> curr_params;
 
-	/// reference and alternative nucleotides to consider
-	nuc_t r1_ref, r1_alt, r2_ref, r2_alt;
+	theta_hparams_optimizable(bayes_quant_model &model, vector<double> initial_params)
+		: m(model), 
 
-	// oxoG-consistent alt count
-	long int xc;
-	
-	// oxoG-inconsistent alt count
-	long int xi;
-
-	// oxoG-consistent total count
-	long int nc;
-	
-	// oxoG-inconsistent total count
-	long int ni;
-
-	// count of total reads pushed
-	int read_count;
-
-	/**
-	 * Initialize class.
-	 *
-	 * @param _ref Read 1 reference nucleotide for SNV of interest
-	 * @param _alt Read 2 reference nucleotide for SNV of interest
-	 * @param _p Initialized hts::piler containing sequence data of interest
-	 * @param _f Initialized hts::faidx_reader containing reference sequence
-	 */
-	base_orient_bias_quant_f(nuc_t _ref, nuc_t _alt)
-	: r1_ref(_ref),
-		r1_alt(_alt),
-		r2_ref(nuc_complement(_ref)),
-		r2_alt(nuc_complement(_alt)),
-		xc(0), xi(0), nc(0), ni(0), read_count(0)
-	{
+	size_t nobs() const {
+		return m.nobs();
 	}
 
-	/*
-	* The total number of reads pushed (not loci).
-	* size() returns the number of loci instead.
-	*/
-	size_t n_reads() const {
-		return read_count;
+	size_t nparams() const {
+		return 2;
 	}
 
-	/**
-	 * Process a single read and update observed variables accordingly.
-	 *
-	 * @param b       BAM record of a read
-	 * @param pos     reference position
-	 */
-	bool push(const bam1_t* b, int32_t pos) {
-		// only analyze nucleotides A, C, G, T (no indels)
-		nuc_t qnuc = query_nucleotide(b, pos);
-		if (!nuc_is_canonical(qnuc)) return false;
-		// query aligning against the reverse strand is reverse-complemented,
-		// so we need to reverse-complement again to get the original nucleotide
-		nuc_t onuc;
-		if (bam_is_rev(b)) {
-			onuc = nuc_complement(qnuc);
-		} else {
-			onuc = qnuc;
-		}
-
-		// accmulate statistics based on read1 vs. read2 and original nucleotide
-		if (bam_is_read1(b)) {
-			if (onuc == r1_ref) {
-				++nc;
-			} else if (onuc == r1_alt) {
-				++nc;
-				++xc;
-			} else if (onuc == r2_ref) {
-				++ni;
-			} else if (onuc == r2_alt) {
-				++ni;
-				++xi;
-			}
-			// other nucleotides are ignored
-		// double-check that the read is second read, in case the flag is malformed
-		} else if (bam_is_read2(b)) {
-			if (onuc == r2_ref) {
-				++nc;
-			} else if (onuc == r2_alt) {
-				++nc;
-				++xc;
-			} else if (onuc == r1_ref) {
-				++ni;
-			} else if (onuc == r1_alt) {
-				++ni;
-				++xi;
-			}
-			// other nucleotides are ignored
-		} else {
-			// read is neither read1 or read2
-			// BAM file is likely not from paired end sequencing
-			return false;
-		}
-
-		return true;
+	void accumulate (vector<double> &current_grad) {
+		vector<double> new_grad = m.theta_grad(curr_params);
+		add_to (new_grad, current_grad);
+		m.next();
 	}
 
-	/*
-	* Simulate a correctly distributed set of observed variables for a read, for testing.
-	*
-	* @param N Number of reads at the locus
-	* @param theta Alternate allele probability at the locus
-	* @param phi Damage probability at the locus
-	* @param xc returned as damage-consistent alt count at the locus
-	* @param xi returned as damage-inconsistent alt count at the locus
-	* @param nc returned as correctly oriented alt count at the locus
-	* @param ni returned as incorrectly oriented alt count at the locus
-	*/
-	static void simulate_orient_bias_read_counts (const size_t N, const double theta, const double phi,
-			long int &xc, long int &xi, long int &nc, long int &ni) {
-		ni = N/2;
-		nc = N - ni;
-		xi = r_rand::rbinom(ni, theta);
-		long int xr = r_rand::rbinom(nc, theta);
-		long int xd = r_rand::rbinom(nc - xr, phi);
-		xc = xr + xd;
+	void update (const vector<double> &delta) {
+		subtract_from(delta, curr_params);
 	}
 
-	/**
-	* Accumulate statistics for a set of reads at the given locus.
-	*
-	* @param pile Pointer to HTSlib pileup object populated with reads of interest
-	* @param n Number of reads to process
-	* @param pos Reference position of the given pileup
-	* @return Number of reads pushed.
-	*/
-	virtual size_t push (const bam_pileup1_t *pile, size_t n, int32_t pos) = 0;
+};*/
 
-	/**
-	* Return the number of processed loci
-	* (n_reads returns total processed reads).
-	*/
-	virtual size_t size() const = 0;
-
-};
-
-struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
-
-	// count of read loci (not reads)
-	size_t site_count;
-
-	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) : 
-			base_orient_bias_quant_f(_ref, _alt),
-			site_count(0)
-		{
-		}
-
-	/*
-	* Returns the count of read loci (not reads).
-	* n_reads() returns total reads instead.
-	*/
-	size_t size () const {
-		return site_count;
-	}
-
-	void copy_data (vector<long int> xc_vec, vector<long int> xi_vec, vector<long int> nc_vec, vector<long int> ni_vec) {
-		xc = 0;
-		xi = 0;
-		nc = 0;
-		ni = 0;
-		for (size_t j = 0; j < xc_vec.size(); ++j) {
-			xc += xc_vec[j];
-			xi += xi_vec[j];
-			nc += nc_vec[j];
-			ni += ni_vec[j];
-		}
-	}
-
-	/**
-	 * Process a bam pileup object containing
-	 * the reads at one locus and update the observed variables accordingly.
-	 *
-	 * @param pile bam pileup object
-	 * @param n    number of reads in pileup object
-	 * @param pos  locus reference position
-	 * @return number of successfully processed reads
-	 */
-	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
-		size_t success = 0;
-		for (size_t i = 0; i < n; ++i) {
-			if (base_orient_bias_quant_f::push(pile[i].b, pos)) {
-				++success;
-			}
-		}
-		if (success > 0) {
-			++site_count;
-		}
-		read_count += success;
-		return success;
-	}
-
-	/*
-	* Simulate appropriately distributed observed variables, for testing.
-	*
-	* @param N Total number of reads to simulate
-	* @param theta Global alternate allele rate
-	* @param phi Global damage rate
-	*/
-	void simulate(size_t N, double theta, double phi) {
-		simulate_orient_bias_read_counts(N, theta, phi, xc, xi, nc, ni);
-	}
-
-	double theta_hat() const {
-		return double(xi)/ni;
-	}
-
-	/**
-	 * Return estimate of global DNA damage (phi_hat).
-	 *
-	 * Reads should have been processed by calling `push`.
-	 *
-	 * @return estimate of phi
-	 */
-	double operator()() const {
-		double phi_hat = (double(xc)/nc - theta_hat()) / (1 - theta_hat());
-		if (phi_hat < 0.0) {
-			return 0.0;
-		}
-		return phi_hat;
-	}
-};
 
 
 struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
@@ -526,8 +314,7 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	*
 	* A subset of observations (the observed variables for each locus) are under
 	* consideration at any one time; after each gradient accumulation, another
-	* locus is added to the set being considered.	
-	* 
+	* locus is added to the set being considered.
 	*/
 	struct theta_hparams_optimizable {
 
@@ -831,6 +618,6 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 
 };// struct bayes_orient_bias_quant_f
 
-}  // namespace hts
+} // namespace hts
 
-#endif  // _HTSPAN_ORIENT_BIAS_QUANT_HPP_
+#endif // _HTSPAN_BAYES_ORIENT_BIAS_QUANT_HPP_
