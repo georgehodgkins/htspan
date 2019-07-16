@@ -516,16 +516,25 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 
 	/*
 	* Optimizable functor for use in stograd.
-	* 
+	*
 	* Optimizes the alpha and beta parameters of the 
-	* beta distribution that characterizes theta.
+	* beta distribution that characterizes theta (alt allele probability).
+	*
+	* Stochastic gradient optimization takes an objective function, 
+	* and its gradient evaluated either analytically or numerically
+	* and returns a set of values to update each parameter being optimized.
+	*
+	* A subset of observations (the observed variables for each locus) are under
+	* consideration at any one time; after each gradient accumulation, another
+	* locus is added to the set being considered.	
+	* 
 	*/
 	struct theta_hparams_optimizable {
 
 		// parent object containing data
 		const bayes_orient_bias_quant_f &parent;
 
-		// index of record (in parent object) currently being analyzed
+		// index of the highest-indexed locus currently in the observed set
 		size_t J;
 
 		// vector of parameters being optimized
@@ -534,6 +543,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		// [1] = beta_theta
 		vector<double> curr_params;
 
+		/**
+		* Values of alpha and beta are stored in log space,
+		* so we transform them to the constrained space before
+		* returning them.
+		*/
 		double alpha() const {
 			return exp(curr_params[0]);
 		}
@@ -545,7 +559,7 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		theta_hparams_optimizable (bayes_orient_bias_quant_f &P, vector<double> initial_params) :
 			parent(P), J(0), curr_params(log_c(initial_params)) {}
 
-		/*
+		/**
 		* Total number of loci for which data is 
 		* present in the parent.
 		*/
@@ -553,18 +567,25 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			return parent.xi_vec.size();
 		}
 
-		/*
+		/**
 		* The highest-indexed locus currently being
-		* considered. Advanced by next().
+		* considered, indexed from one. Advanced by next().
 		*/
 		size_t cobs() const {
 			return J+1;
 		}
 
+		/**
+		* Number of parameters being optimized. Constant.
+		*/
 		size_t nparams() const {
 			return 2;
 		}
 
+		/**
+		* Add another locus (set of observed variables)
+		* to the set of loci being considered.
+		*/
 		size_t next () {
 			if (J == parent.size()-1) {
 				J = 0;
@@ -586,6 +607,7 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			return alglib::psi(beta_theta + nij - xij) - alglib::psi(alpha_theta + beta_theta + nij);
 		}
 
+		// Gradient of lp_xi_given_hparams wrt alpha
 		double dlp_xi_given_hparams_dalpha (vector<double> x, bool exp_args = true) {
 			static double alpha_cached = -1.0;
 			static double psi_alpha_cached = 0.0;
@@ -604,6 +626,7 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			return sum_dlp_xij_dalpha + cobs()*(alglib::psi(x[0] + x[1]) - psi_alpha_cached);
 		}
 
+		// Gradient of lp_xi_given_hparams wrt beta
 		double dlp_xi_given_hparams_dbeta (vector<double> x, bool exp_args = true) {
 			static double beta_cached = -1.0;
 			static double psi_beta_cached = 0.0;
@@ -621,20 +644,34 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			return sum_dlp_xij_dbeta + cobs()*(alglib::psi(x[0] + x[1]) - psi_beta_cached);
 		}
 
-		// AKA -lp_xi_given_hparams
-		double operator() (vector<double> x, bool exp_args = true) const {
-			if (exp_args) {
-				exp_elements(x);
-			}
+		double lp_xi_given_hparams (vector<double> x) const {
 			// xi_vec and ni_vec are class members
 			// x[0] is alpha_theta, x[1] is beta_theta
 			double sum_lp_xij = 0.0;
 			for (size_t j = 0; j < cobs(); ++j) {
 				sum_lp_xij += lp_xij_given_hparams(parent.xi_vec[j], parent.ni_vec[j], x[0], x[1]);
 			}
-			return -(sum_lp_xij - lbeta(x[0], x[1])*cobs());
+			return sum_lp_xij - lbeta(x[0], x[1])*cobs();
 		}
 
+		/**
+		* Objective function being minimized.
+		*
+		* Maximizing lp_xi_given_hparams, so we minimize
+		* -lp_xi_given_hparams.
+		*/
+		double operator() (vector<double> x, bool exp_args = true) const {
+			if (exp_args) {
+				exp_elements(x);
+			}
+			return -lp_xi_given_hparams(x);
+		}
+
+		/**
+		* Evaluate the gradient for the current observed set of loci
+		* and add it to the accumulated gradient tracked by the optimizer,
+		* then add the next locus to the observed set.
+		*/
 		void accumulate (vector<double> &current_grad) {
 			vector<double> new_grad (2);
 			new_grad[0] = dlp_xi_given_hparams_dalpha(curr_params);
@@ -643,11 +680,24 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			next();
 		}
 
+		/**
+		* Update the parameter values with the delta returned 
+		* by the optimizer.
+		*/
 		void update (vector<double> &delta) {
 			stograd::subtract_from(delta, curr_params);
 		}
 	}; // struct theta_hparams_optimizable
 
+	/*
+	* Optimizable functor for use in stograd.
+	*
+	* Optimizes the alpha and beta parameters of
+	* the beta distribution that characterizes phi (damage probability).
+	*
+	* See theta_hparams_optimizable description above for details on
+	* the stograd optimization method.
+	*/
 	struct phi_hparams_optimizable {
 
 		// parent object containing data
@@ -664,6 +714,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		// [1] = beta_phi
 		vector<double> curr_params;
 
+		/**
+		* Values of alpha and beta are stored in log space,
+		* so we transform them to the constrained space before
+		* returning them.
+		*/
 		double alpha() const {
 			return exp(curr_params[0]);
 		}
@@ -679,8 +734,11 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 				const double a_theta, const double b_theta) :
 				parent(P), alpha_theta(a_theta), beta_theta(b_theta), curr_params(log_c(initial_params)), J(0) {}
 
+		/**
+		* Total number of loci for which data is present in the parent.
+		*/
 		size_t nobs() const {
-			return parent.xi_vec.size();
+			return parent.size();
 		}
 
 		/*
@@ -691,10 +749,17 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			return J+1;
 		}
 
+		/*
+		* Number of parameters being optimized. Constant.
+		*/
 		size_t nparams() const {
 			return 2;
 		}
 
+		/*
+		* Add another locus (set of observed variables)
+		* to the set of loci being considered.
+		*/
 		size_t next() {
 			if (J == parent.size() - 1) {
 				J = 0;
@@ -720,20 +785,34 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			return rtn;
 		}
 
-		// AKA -lp_xc_given_params 
-		double operator() (vector<double> x, bool exp_args = true) const {
-			if (exp_args) {
-				exp_elements(x);
-			}
+		double lp_xc_given_hparams (vector<double> x) const {
 			double sum_lp_xcj = 0.0;
 			double sum_log_ncp = 0.0;
 			for (size_t j = 0; j < cobs(); ++j) {
 				sum_lp_xcj += lp_xcj_given_hparams(parent.xc_vec[j], parent.nc_vec[j], alpha_theta, beta_theta, x[0], x[1]);
 				sum_log_ncp += log(parent.nc_vec[j] + 1);
 			}
-			return -(sum_lp_xcj - sum_log_ncp - cobs()*(lbeta(alpha_theta, beta_theta) + lbeta(x[0], x[1])));
+			return sum_lp_xcj - sum_log_ncp - cobs()*(lbeta(alpha_theta, beta_theta) + lbeta(x[0], x[1]));
 		}
 
+		/**
+		* Objective function being optimized.
+		*
+		* We want to maximize lp_xc_given_hparams, so
+		* we minimize its negative.
+		*/
+		double operator() (vector<double> x, bool exp_args = true) const {
+			if (exp_args) {
+				exp_elements(x);
+			}
+			return -lp_xc_given_hparams(x);
+		}
+
+		/**
+		* Evaluate the gradient for the current observed set of loci
+		* and add it to the accumulated gradient tracked by the optimizer,
+		* then add the next locus to the observed set.
+		*/
 		void accumulate (vector<double> &current_grad) {
 			vector<double> new_grad;
 			stograd::finite_difference_gradient(*this, curr_params, new_grad);
@@ -741,10 +820,15 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			next();
 		}
 
+		/**
+		* Update the parameter values with the delta returned 
+		* by the optimizer.
+		*/
 		void update (vector<double> &delta) {
 			stograd::subtract_from(delta, curr_params);
 		}
 	};// struct phi_hparams_optimizable
+
 };// struct bayes_orient_bias_quant_f
 
 }  // namespace hts
