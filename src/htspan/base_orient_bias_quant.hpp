@@ -135,12 +135,12 @@ struct base_orient_bias_quant_f {
 	* @param ni returned as incorrectly oriented alt count at the locus
 	*/
 	static void simulate_orient_bias_read_counts (const size_t N, const double theta, const double phi,
-			long int &xc, long int &xi, long int &nc, long int &ni) {
+			long int &xc, long int &xi, long int &nc, long int &ni, int seed = 0) {
 		ni = N/2;
 		nc = N - ni;
-		xi = r_rand::rbinom(ni, theta);
-		long int xr = r_rand::rbinom(nc, theta);
-		long int xd = r_rand::rbinom(nc - xr, phi);
+		xi = r_rand::rbinom(ni, theta, seed);
+		long int xr = r_rand::rbinom(nc, theta, seed);
+		long int xd = r_rand::rbinom(nc - xr, phi, seed);
 		xc = xr + xd;
 	}
 
@@ -153,13 +153,6 @@ struct base_orient_bias_quant_f {
 	* @return Number of reads pushed.
 	*/
 	virtual size_t push (const bam_pileup1_t *pile, size_t n, int32_t pos) = 0;
-
-	/**
-	* Return the number of processed loci
-	* (n_reads returns total processed reads).
-	*/
-	virtual size_t size() const = 0;
-
 };
 
 }  // namespace hts

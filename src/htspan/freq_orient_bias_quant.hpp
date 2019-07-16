@@ -67,8 +67,8 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	* @param theta Global alternate allele rate
 	* @param phi Global damage rate
 	*/
-	void simulate(size_t N, double theta, double phi) {
-		simulate_orient_bias_read_counts(N, theta, phi, xc, xi, nc, ni);
+	void simulate(size_t N, double theta, double phi, int seed = 0) {
+		simulate_orient_bias_read_counts(N, theta, phi, xc, xi, nc, ni, seed);
 	}
 
 	double theta_hat() const {

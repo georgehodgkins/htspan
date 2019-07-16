@@ -25,51 +25,39 @@
  *  https://www.R-project.org/Licenses/
  */
 
+#include <cstdlib>
 #include <cmath>
 #include <cfloat>
 
 #include <alglib/alglibmisc.h>
+
+#include "math.hpp"
 
 namespace hts {
 
 namespace r_rand {
 
 using namespace std;
-// These methods are taken from the OpenCV source at
-// modules/hal/include/opencv2/hal/defs.h
-bool isinf(double x)
-{
-    union { uint64_t u; double f; } ieee754;
-    ieee754.f = x;
-    return ( (unsigned)(ieee754.u >> 32) & 0x7fffffff ) == 0x7ff00000 &&
-           ( (unsigned)ieee754.u == 0 );
-}
-
-bool isnan(double x)
-{
-    union { uint64_t u; double f; } ieee754;
-    ieee754.f = x;
-    return ( (unsigned)(ieee754.u >> 32) & 0x7fffffff ) +
-           ( (unsigned)ieee754.u != 0 ) > 0x7ff00000;
-}
-
-double fmin2(double x, double y) {
-	return (x < y) ? x : y;
-}
-
-double fmax2(double x, double y) {
-	return (x > y) ? x : y;
-}
 
 // drop in our own replacement for R's RNG
 #define unif_rand() alglib::hqrnduniformr(rng)
 
 // This method is from R source at
 // src/nmath/rbeta.c, with cosmetic changes for compatibility
-double rbeta(double aa, double bb)
+double rbeta(double aa, double bb, int seed = 0)
 {
 	static alglib::hqrndstate rng;
-	alglib::hqrndrandomize(rng);
+	static int prev_seed = -1;
+	if (seed == 0) {
+		alglib::hqrndrandomize(rng);
+	} else if (seed != prev_seed) {
+		srand(seed);
+		int s1 = rand();
+		int s2 = rand();
+		alglib::hqrndseed(s1, s2, rng);
+		prev_seed = seed;
+	}
+
     if (isnan(aa) || isnan(bb) || aa < 0. || bb < 0.) {
     	throw invalid_argument("NaN passed to rbeta()");
     }
@@ -178,10 +166,19 @@ double rbeta(double aa, double bb)
 
 // This method is taken from R source at
 // https://github.com/wch/r-source/blob/trunk/src/nmath/rbinom.c, with minor changes for compatibility
-int rbinom(int nin, double pp)
+int rbinom(int nin, double pp, int seed = 0)
 {
 	static alglib::hqrndstate rng;
-	alglib::hqrndrandomize(rng);
+	static int prev_seed = -1;
+	if (seed == 0) {
+		alglib::hqrndrandomize(rng);
+	} else if (seed != prev_seed) {
+		srand(seed);
+		int s1 = rand();
+		int s2 = rand();
+		alglib::hqrndseed(s1, s2, rng);
+		prev_seed = seed;
+	}
 
     static double c, fm, npq, p1, p2, p3, p4, qn;
     static double xl, xll, xlr, xm, xr;

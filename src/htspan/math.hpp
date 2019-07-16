@@ -37,6 +37,31 @@ double anti_phred(double x) {
 	return pow(10, -x/10);
 }
 
+// These methods are taken from the OpenCV source at
+// modules/hal/include/opencv2/hal/defs.h
+bool isinf(double x)
+{
+    union { uint64_t u; double f; } ieee754;
+    ieee754.f = x;
+    return ( (unsigned)(ieee754.u >> 32) & 0x7fffffff ) == 0x7ff00000 &&
+           ( (unsigned)ieee754.u == 0 );
+}
+
+bool isnan(double x)
+{
+    union { uint64_t u; double f; } ieee754;
+    ieee754.f = x;
+    return ( (unsigned)(ieee754.u >> 32) & 0x7fffffff ) +
+           ( (unsigned)ieee754.u != 0 ) > 0x7ff00000;
+}
+
+double fmin2(double x, double y) {
+	return (x < y) ? x : y;
+}
+
+double fmax2(double x, double y) {
+	return (x > y) ? x : y;
+}
 
 /**
 *  Container-generic element-wise log, modifying
