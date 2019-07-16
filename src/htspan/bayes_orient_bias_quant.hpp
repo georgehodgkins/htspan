@@ -40,38 +40,8 @@ struct hparams {
 		return rtn;
 	}
 };
-/*
-struct theta_hparams_optimizable {
-	bayes_quant_model &m;
 
-	vector<double> curr_params;
-
-	theta_hparams_optimizable(bayes_quant_model &model, vector<double> initial_params)
-		: m(model), 
-
-	size_t nobs() const {
-		return m.nobs();
-	}
-
-	size_t nparams() const {
-		return 2;
-	}
-
-	void accumulate (vector<double> &current_grad) {
-		vector<double> new_grad = m.theta_grad(curr_params);
-		add_to (new_grad, current_grad);
-		m.next();
-	}
-
-	void update (const vector<double> &delta) {
-		subtract_from(delta, curr_params);
-	}
-
-};*/
-
-
-
-struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
+struct bayes_quant_model {
 
 	// vector of consistent alt counts, by site
 	vector<long int> xc_vec;
@@ -85,9 +55,236 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	//vector of inconsistent total counts, by site
 	vector<long int> ni_vec;
 
+	size_t J;
+
+	bayes_quant_model () : 
+		xc_vec(0), xi_vec(0), nc_vec(0), ni_vec(0), J(0) {}
+
+	/*
+	* Clear data vectors and reserve the requested
+	* number of entries in them.
+	*
+	* @param N Number of entries to reserve
+	*/ 
+	void reset_realloc (size_t N) {
+		xc_vec.clear();
+		xc_vec.reserve(N);
+		xi_vec.clear();
+		xi_vec.reserve(N);
+		nc_vec.clear();
+		nc_vec.reserve(N);
+		ni_vec.clear();
+		ni_vec.reserve(N);
+	}
+
+	/*
+	* Replace the stored data with that in the passed vectors.
+	* All the arguments must be the same length.
+	*/
+	void set_data (vector<long int> &new_xc, vector<long int> &new_xi, vector<long int> &new_nc, vector<long int> &new_ni) {
+		xc_vec.clear();
+		xc_vec = new_xc;
+		xi_vec.clear();
+		xi_vec = new_xi;
+		nc_vec.clear();
+		nc_vec = new_nc;
+		ni_vec.clear();
+		ni_vec = new_ni;
+	}
+
+	size_t nobs () const {
+		return xc_vec.size();
+	}
+
+	size_t next () {
+		if (J == nobs()-1) {
+			J = 0;
+		} else {
+			++J;
+		}
+		return J;
+	}
+
+	static double dlp_xij_given_hparams_dalpha (long int xij, long int nij, double alpha_theta, double beta_theta) {
+		static double alpha_cached = -1.0;
+		static double beta_cached = -1.0;
+		static double psi_alpha_beta = -1.0;
+		static double psi_alpha = -1.0;
+		if (alpha_theta != alpha_cached) {
+			psi_alpha_beta = alglib::psi(alpha_theta + beta_theta);
+			psi_alpha = alglib::psi(alpha_theta);
+			alpha_cached = alpha_theta;
+			beta_cached = beta_theta;
+		} else if (beta_theta != beta_cached) {
+			psi_alpha_beta = alglib::psi(alpha_theta + beta_theta);
+			beta_cached = beta_theta;
+		}
+		return psi_alpha_beta - psi_alpha + alglib::psi(alpha_theta + xij) - alglib::psi(alpha_theta + beta_theta + nij);
+	}
+
+	static double dlp_xij_given_hparams_dbeta (long int xij, long int nij, double alpha_theta, double beta_theta) {
+		static double alpha_cached = -1.0;
+		static double beta_cached = -1.0;
+		static double psi_alpha_beta = -1.0;
+		static double psi_beta = -1.0;
+		if (beta_theta != beta_cached) {
+			psi_alpha_beta = alglib::psi(alpha_theta + beta_theta);
+			psi_beta = alglib::psi(beta_theta);
+			alpha_cached = alpha_theta;
+			beta_cached = beta_theta;
+		} else if (alpha_theta != alpha_cached) {
+			psi_alpha_beta = alglib::psi(alpha_theta + beta_theta);
+			alpha_cached = alpha_theta;
+		}
+		return psi_alpha_beta - psi_beta + alglib::psi(beta_theta + nij - xij) - alglib::psi(alpha_theta + beta_theta + nij);
+	}
+
+	vector<double> theta_gradient (vector<double> x) {
+		vector<double> grad (2);
+		grad[0] = dlp_xij_given_hparams_dalpha(xi_vec[J], ni_vec[J], x[0], x[1]);
+		grad[1] = dlp_xij_given_hparams_dbeta(xi_vec[J], ni_vec[J], x[0], x[1]);
+		return grad;
+	}
+
+	static double lp_xcj_given_hparams (long int xcj, long int ncj, double alpha_phi, double beta_phi,
+			const double alpha_theta, const double beta_theta) {
+		static double alpha_theta_cached = -1.0;
+		static double beta_theta_cached = -1.0;
+		static double alpha_phi_cached = -1.0;
+		static double beta_phi_cached = -1.0;
+		static double lbeta_ath_bth = -1.0;
+		static double lbeta_aph_bph = -1.0;
+		if (alpha_theta != alpha_theta_cached || beta_theta != beta_theta_cached) {
+			lbeta_ath_bth = lbeta(alpha_theta, beta_theta);
+			alpha_theta_cached = alpha_theta;
+			beta_theta_cached = beta_theta;
+		}
+		if (alpha_phi != alpha_phi_cached || beta_phi != beta_phi_cached) {
+			lbeta_aph_bph = lbeta(alpha_phi, beta_phi);
+			alpha_phi_cached = alpha_phi;
+			beta_phi_cached = beta_phi;
+		}
+		double *lse_array = new double[xcj+1];
+		for (int k = 0; k <= xcj; ++k) {
+			lse_array[k] =
+				-log(ncj - k + 1) +
+				lbeta(alpha_phi + xcj - k, beta_phi + ncj - xcj) -
+				lbeta(xcj - k + 1,         ncj - xcj + 1) +
+				lbeta(alpha_theta + k, beta_theta + ncj - k) -
+				lbeta(k + 1, ncj - k + 1);
+		}
+		double lse = log_sum_exp(xcj+1, lse_array);
+		delete[] lse_array;
+		return lse - log(ncj + 1) - lbeta_ath_bth - lbeta_aph_bph;
+	}
+
+	// this is a class because finite_difference_gradient expects a functor
+	struct phi_objective_f {
+		const bayes_quant_model &m;
+
+		const double alpha_theta;
+
+		const double beta_theta;
+
+		phi_objective_f(const bayes_quant_model &_m, const double a_th, const double b_th) :
+			m(_m), alpha_theta(a_th), beta_theta(b_th) {}
+
+		double operator() (const vector<double> &x) const {
+			return m.lp_xcj_given_hparams(m.xc_vec[m.J], m.nc_vec[m.J],
+				x[0], x[1], alpha_theta, beta_theta);
+		}
+	};
+
+	vector<double> phi_gradient (vector<double> x, const double alpha_theta, const double beta_theta) {
+		static phi_objective_f F (*this, alpha_theta, beta_theta);
+		vector<double> grad;
+		stograd::finite_difference_gradient(F, x, grad);// grad passed by reference and holds return values
+		return grad;
+	}
+};
+
+struct theta_hparams_optimizable {
+	bayes_quant_model &m;
+
+	vector<double> curr_params;
+
+	theta_hparams_optimizable(bayes_quant_model &_m, vector<double> initial_params)
+		: m(_m), curr_params(log_c(initial_params)) {}
+
+	size_t nobs() const {
+		return m.nobs();
+	}
+
+	size_t nparams() const {
+		return 2;
+	}
+
+	double alpha() const {
+		return exp(curr_params[0]);
+	}
+
+	double beta() const {
+		return exp(curr_params[1]);
+	}
+
+	void accumulate (vector<double> &current_grad) {
+		vector<double> new_grad = m.theta_gradient(exp_c(curr_params));
+		stograd::add_to (new_grad, current_grad);
+		m.next();
+	}
+
+	void update (const vector<double> &delta) {
+		stograd::add_to(delta, curr_params);
+	}
+
+};
+
+struct phi_hparams_optimizable {
+	bayes_quant_model &m;
+
+	vector<double> curr_params;
+
+	const double alpha_theta;
+	const double beta_theta;
+
+	phi_hparams_optimizable (bayes_quant_model &_m, vector<double> initial_params, double a_t, double b_t) :
+		m(_m), curr_params(log_c(initial_params)), alpha_theta(a_t), beta_theta(b_t) {}
+
+	size_t nobs() const {
+		return m.nobs();
+	}
+
+	size_t nparams() const {
+		return 2;
+	}
+
+	double alpha() const {
+		return exp(curr_params[0]);
+	}
+
+	double beta() const {
+		return exp(curr_params[1]);
+	}
+
+	void accumulate (vector<double> &current_grad) {
+		vector<double> new_grad = m.phi_gradient(exp_c(curr_params), alpha_theta, beta_theta);
+		stograd::add_to(new_grad, current_grad);
+		m.next();
+	}
+
+	void update (const vector<double> &delta) {
+		stograd::add_to(delta, curr_params);
+	}
+
+};
+
+
+struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
+
+	bayes_quant_model m;
+
 	bayes_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) :
-			base_orient_bias_quant_f(_ref, _alt),
-			xc_vec(0), xi_vec(0), nc_vec(0), ni_vec(0)
+			base_orient_bias_quant_f(_ref, _alt)
 		{
 		}
 
@@ -110,37 +307,12 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 				++success;
 			}
 		}
-		xc_vec.push_back(xc);
-		xi_vec.push_back(xi);
-		nc_vec.push_back(nc);
-		ni_vec.push_back(ni);
+		m.xc_vec.push_back(xc);
+		m.xi_vec.push_back(xi);
+		m.nc_vec.push_back(nc);
+		m.ni_vec.push_back(ni);
 		read_count += success;
 		return success;
-	}
-
-	/*
-	* Clear data vectors and reserve the requested
-	* number of entries in them.
-	*
-	* @param N Number of entries to reserve
-	*/ 
-	void reset_realloc (size_t N) {
-		xc_vec.clear();
-		xc_vec.reserve(N);
-		xi_vec.clear();
-		xi_vec.reserve(N);
-		nc_vec.clear();
-		nc_vec.reserve(N);
-		ni_vec.clear();
-		ni_vec.reserve(N);
-	}
-
-	/*
-	* Returns the number of processed loci (not total reads).
-	* For total reads, use n_reads().
-	*/
-	size_t size() const {
-		return xc_vec.size();
 	}
 
 	/*
@@ -153,38 +325,26 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	* @param alpha_phi Alpha parameter of the distribution of phi
 	* @param beta_phi Beta parameter of the distribution of phi
 	*/
-	pair<double, double> simulate(const vector<size_t> &ns_vec, double alpha_theta, double beta_theta,
-			double alpha_phi, double beta_phi) {
+	void simulate(const vector<size_t> &ns_vec, double alpha_theta, double beta_theta,
+			double alpha_phi, double beta_phi, int seed = 0) {
 		vector<double> theta_vec (ns_vec.size());
 		vector<double> phi_vec (ns_vec.size());
-		double phi_sum = 0.0;
-		double theta_sum = 0.0;
 		// Generate correctly distributed values of phi and theta
 		// to pass to the simulator
 		for (size_t j = 0; j < ns_vec.size(); ++j) {
-			theta_vec[j] = r_rand::rbeta(alpha_theta, beta_theta);
-			theta_sum += theta_vec[j];
+			theta_vec[j] = r_rand::rbeta(alpha_theta, beta_theta, seed);
 		}
 		for (size_t j = 0; j < ns_vec.size(); ++j) {
-			phi_vec[j] = r_rand::rbeta(alpha_phi, beta_phi);
-			phi_sum += phi_vec[j];
+			phi_vec[j] = r_rand::rbeta(alpha_phi, beta_phi, seed);
 		}
 		// Simulate as many reads as necessary
-		reset_realloc(ns_vec.size());
+		m.reset_realloc(ns_vec.size());
 		for (size_t j = 0; j < ns_vec.size(); ++j) {
-			simulate_orient_bias_read_counts(ns_vec[j], theta_vec[j], phi_vec[j], xc, xi, nc, ni);
-			xc_vec.push_back(xc);
-			xi_vec.push_back(xi);
-			nc_vec.push_back(nc);
-			ni_vec.push_back(ni);
-		}
-		return make_pair(theta_sum/ns_vec.size(), phi_sum/ns_vec.size());
-	}
-
-	void write_data (ostream &prn) {
-		prn << "xc\txi\tnc\tni\n";
-		for (size_t j = 0; j < size(); ++j) {
-			prn << xc_vec[j] << '\t' << xi_vec[j] << '\t' << nc_vec[j] << '\t' << ni_vec[j] << '\n';
+			simulate_orient_bias_read_counts(ns_vec[j], theta_vec[j], phi_vec[j], xc, xi, nc, ni, seed);
+			m.xc_vec.push_back(xc);
+			m.xi_vec.push_back(xi);
+			m.nc_vec.push_back(nc);
+			m.ni_vec.push_back(ni);
 		}
 	}
 
@@ -211,13 +371,14 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		vector<double> theta_init(2);
 		theta_init[0] = alpha0_theta;
 		theta_init[1] = beta0_theta;
-		theta_hparams_optimizable theta_opt (*this, theta_init);
+		theta_hparams_optimizable theta_opt (m, theta_init);
 		bayes_stepper_t stepper (learning_rate);
 		stograd::optimize(theta_opt, stepper, bsize, nepochs, eps);
 		vector<double> phi_init(2);
 		phi_init[0] = alpha0_phi;
 		phi_init[1] = beta0_phi;
-		phi_hparams_optimizable phi_opt (*this, phi_init, theta_opt.alpha(), theta_opt.beta());
+		phi_hparams_optimizable phi_opt (m, phi_init, theta_opt.alpha(), theta_opt.beta());
+		m.J = 0;
 		stograd::optimize(phi_opt, stepper, bsize, nepochs, eps);
 		hparams rtn;
 		rtn.alpha_theta = theta_opt.alpha();
@@ -226,395 +387,6 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		rtn.beta_phi = phi_opt.beta();
 		return rtn;
 	}
-
-	/*
-	* Evaluate the theta objective function (-lp_xi_given_hparams) at
-	* the alpha_theta and beta_theta in the passed hparams object,
-	* taking into account read sites up to maxJ [default: all].
-	*/
-	double eval_theta_objective_func (hparams x, int maxJ = -1) {
-		theta_hparams_optimizable F (*this, x.theta_pvec());
-		if (maxJ == -1) {
-			F.J = size()-1;
-		} else {
-			F.J = maxJ;
-		}
-		return F(x.theta_pvec(), false);
-	}
-
-	/*
-	* Evaluate the theta gradient wrt alpha_theta at
-	* the alpha_theta and beta_theta in the passed hparams object,
-	* taking into account read sites up to maxJ [default: all].
-	*/
-	double eval_theta_grad_dalpha (hparams x, int maxJ = -1) {
-		theta_hparams_optimizable F(*this, x.theta_pvec());
-		if (maxJ == -1) {
-			F.J = size()-1;
-		} else {
-			F.J = maxJ;
-		}
-		return F.dlp_xi_given_hparams_dalpha(x.theta_pvec(), false);
-	}
-
-	/*
-	* Evaluate the theta gradient wrt beta_theta at
-	* the alpha_theta and beta_theta in the passed hparams object,
-	* taking into account read sites up to maxJ [default: all].
-	*/
-	double eval_theta_grad_dbeta (hparams x, int maxJ = -1) {
-		theta_hparams_optimizable F(*this, x.theta_pvec());
-		if (maxJ == -1) {
-			F.J = size()-1;
-		} else {
-			F.J = maxJ;
-		}
-		return F.dlp_xi_given_hparams_dbeta(x.theta_pvec(), false);
-	}
-
-	/*
-	* Evaluate the phi objective function (-lp_xc_given_hparams) at
-	* the point indicated by the passed hparams object,
-	* taking into account read sites up to maxJ [default: all].
-	*/
-	double eval_phi_objective_func (hparams x, int maxJ = -1) {
-		phi_hparams_optimizable F(*this, x.phi_pvec(), x.alpha_theta, x.beta_theta);
-		if (maxJ == -1) {
-			F.J = size()-1;
-		} else {
-			F.J = maxJ;
-		}
-		return F(x.phi_pvec(), false);
-	}
-
-	/*
-	* Replace the stored data with that in the passed vectors.
-	* All the arguments must be the same length.
-	*/
-	void set_data (vector<long int> &new_xc, vector<long int> &new_xi, vector<long int> &new_nc, vector<long int> &new_ni) {
-		xc_vec.clear();
-		xc_vec = new_xc;
-		xi_vec.clear();
-		xi_vec = new_xi;
-		nc_vec.clear();
-		nc_vec = new_nc;
-		ni_vec.clear();
-		ni_vec = new_ni;
-	}
-
-	/*
-	* Optimizable functor for use in stograd.
-	*
-	* Optimizes the alpha and beta parameters of the 
-	* beta distribution that characterizes theta (alt allele probability).
-	*
-	* Stochastic gradient optimization takes an objective function, 
-	* and its gradient evaluated either analytically or numerically
-	* and returns a set of values to update each parameter being optimized.
-	*
-	* A subset of observations (the observed variables for each locus) are under
-	* consideration at any one time; after each gradient accumulation, another
-	* locus is added to the set being considered.
-	*/
-	struct theta_hparams_optimizable {
-
-		// parent object containing data
-		const bayes_orient_bias_quant_f &parent;
-
-		// index of the highest-indexed locus currently in the observed set
-		size_t J;
-
-		// vector of parameters being optimized
-		// values are in unconstrained (log) space
-		// [0] = alpha_theta
-		// [1] = beta_theta
-		vector<double> curr_params;
-
-		/**
-		* Values of alpha and beta are stored in log space,
-		* so we transform them to the constrained space before
-		* returning them.
-		*/
-		double alpha() const {
-			return exp(curr_params[0]);
-		}
-
-		double beta() const {
-			return exp(curr_params[1]);
-		}
-
-		theta_hparams_optimizable (bayes_orient_bias_quant_f &P, vector<double> initial_params) :
-			parent(P), J(0), curr_params(log_c(initial_params)) {}
-
-		/**
-		* Total number of loci for which data is 
-		* present in the parent.
-		*/
-		size_t nobs() const {
-			return parent.xi_vec.size();
-		}
-
-		/**
-		* The highest-indexed locus currently being
-		* considered, indexed from one. Advanced by next().
-		*/
-		size_t cobs() const {
-			return J+1;
-		}
-
-		/**
-		* Number of parameters being optimized. Constant.
-		*/
-		size_t nparams() const {
-			return 2;
-		}
-
-		/**
-		* Add another locus (set of observed variables)
-		* to the set of loci being considered.
-		*/
-		size_t next () {
-			if (J == parent.size()-1) {
-				J = 0;
-			} else {
-				++J;
-			}
-			return J;
-		}
-
-		static double lp_xij_given_hparams (const long int xij, const long int nij, const double alpha_theta, const double beta_theta) {
-			return lbeta(alpha_theta + xij, beta_theta + nij - xij) + lchoose(nij, xij); 
-		}
-
-		static double dlp_xij_given_hparams_dalpha (const long int xij, const long int nij, const double alpha_theta, const double beta_theta) {
-			return alglib::psi(alpha_theta + xij) - alglib::psi(alpha_theta + beta_theta + nij);
-		}
-
-		static double dlp_xij_given_hparams_dbeta (const long int xij, const long int nij, const double alpha_theta, const double beta_theta) {
-			return alglib::psi(beta_theta + nij - xij) - alglib::psi(alpha_theta + beta_theta + nij);
-		}
-
-		// Gradient of lp_xi_given_hparams wrt alpha
-		double dlp_xi_given_hparams_dalpha (vector<double> x, bool exp_args = true) {
-			static double alpha_cached = -1.0;
-			static double psi_alpha_cached = 0.0;
-			if (exp_args) {
-				exp_elements(x);
-			}
-			if (x[0] != alpha_cached) {
-				psi_alpha_cached = alglib::psi(x[0]);
-				alpha_cached = x[0];
-			}
-			// xi_vec and ni_vec are class members
-			double sum_dlp_xij_dalpha = 0.0;
-			for (size_t j = 0; j < cobs(); ++j) {
-				sum_dlp_xij_dalpha += dlp_xij_given_hparams_dalpha(parent.xi_vec[j], parent.ni_vec[j], x[0], x[1]);
-			}
-			return sum_dlp_xij_dalpha + cobs()*(alglib::psi(x[0] + x[1]) - psi_alpha_cached);
-		}
-
-		// Gradient of lp_xi_given_hparams wrt beta
-		double dlp_xi_given_hparams_dbeta (vector<double> x, bool exp_args = true) {
-			static double beta_cached = -1.0;
-			static double psi_beta_cached = 0.0;
-			if (exp_args) {
-				exp_elements(x);
-			}
-			if (x[1] != beta_cached) {
-				psi_beta_cached = alglib::psi(x[1]);
-				beta_cached = x[1];
-			}
-			double sum_dlp_xij_dbeta = 0.0;
-			for (size_t j = 0; j < cobs(); ++j) {
-				sum_dlp_xij_dbeta += dlp_xij_given_hparams_dbeta(parent.xi_vec[j], parent.ni_vec[j], x[0], x[1]);
-			}
-			return sum_dlp_xij_dbeta + cobs()*(alglib::psi(x[0] + x[1]) - psi_beta_cached);
-		}
-
-		double lp_xi_given_hparams (vector<double> x) const {
-			// xi_vec and ni_vec are class members
-			// x[0] is alpha_theta, x[1] is beta_theta
-			double sum_lp_xij = 0.0;
-			for (size_t j = 0; j < cobs(); ++j) {
-				sum_lp_xij += lp_xij_given_hparams(parent.xi_vec[j], parent.ni_vec[j], x[0], x[1]);
-			}
-			return sum_lp_xij - lbeta(x[0], x[1])*cobs();
-		}
-
-		/**
-		* Objective function being minimized.
-		*
-		* Maximizing lp_xi_given_hparams, so we minimize
-		* -lp_xi_given_hparams.
-		*/
-		double operator() (vector<double> x, bool exp_args = true) const {
-			if (exp_args) {
-				exp_elements(x);
-			}
-			return -lp_xi_given_hparams(x);
-		}
-
-		/**
-		* Evaluate the gradient for the current observed set of loci
-		* and add it to the accumulated gradient tracked by the optimizer,
-		* then add the next locus to the observed set.
-		*/
-		void accumulate (vector<double> &current_grad) {
-			vector<double> new_grad (2);
-			new_grad[0] = dlp_xi_given_hparams_dalpha(curr_params);
-			new_grad[1] = dlp_xi_given_hparams_dbeta(curr_params);
-			stograd::add_to(new_grad, current_grad);
-			next();
-		}
-
-		/**
-		* Update the parameter values with the delta returned 
-		* by the optimizer.
-		*/
-		void update (vector<double> &delta) {
-			stograd::subtract_from(delta, curr_params);
-		}
-	}; // struct theta_hparams_optimizable
-
-	/*
-	* Optimizable functor for use in stograd.
-	*
-	* Optimizes the alpha and beta parameters of
-	* the beta distribution that characterizes phi (damage probability).
-	*
-	* See theta_hparams_optimizable description above for details on
-	* the stograd optimization method.
-	*/
-	struct phi_hparams_optimizable {
-
-		// parent object containing data
-		const bayes_orient_bias_quant_f &parent;
-
-		// fixed parameters for objective function (previously estimated)
-		// values are in real space
-		const double alpha_theta;
-		const double beta_theta;
-
-		// vector of parameters being optimized
-		// values are in unconstrained (log) space 
-		// [0] = alpha_phi
-		// [1] = beta_phi
-		vector<double> curr_params;
-
-		/**
-		* Values of alpha and beta are stored in log space,
-		* so we transform them to the constrained space before
-		* returning them.
-		*/
-		double alpha() const {
-			return exp(curr_params[0]);
-		}
-
-		double beta() const {
-			return exp(curr_params[1]);
-		}
-
-		// index of record (in parent object) currently being analyzed
-		size_t J;
-
-		phi_hparams_optimizable(const bayes_orient_bias_quant_f &P, vector<double> initial_params,
-				const double a_theta, const double b_theta) :
-				parent(P), alpha_theta(a_theta), beta_theta(b_theta), curr_params(log_c(initial_params)), J(0) {}
-
-		/**
-		* Total number of loci for which data is present in the parent.
-		*/
-		size_t nobs() const {
-			return parent.size();
-		}
-
-		/*
-		* The highest-indexed locus currently being
-		* considered. Advanced by next().
-		*/
-		size_t cobs() const {
-			return J+1;
-		}
-
-		/*
-		* Number of parameters being optimized. Constant.
-		*/
-		size_t nparams() const {
-			return 2;
-		}
-
-		/*
-		* Add another locus (set of observed variables)
-		* to the set of loci being considered.
-		*/
-		size_t next() {
-			if (J == parent.size() - 1) {
-				J = 0;
-			} else {
-				++J;
-			}
-			return J;
-		}
-
-		static double lp_xcj_given_hparams (const long int xcj, const long int ncj, const double alpha_theta, const double beta_theta,
-				const double alpha_phi, const double beta_phi) {
-			double *lse_array = new double[xcj+1];
-			for (int k = 0; k <= xcj; ++k) {
-				lse_array[k] =
-					-log(ncj - k + 1) +
-					lbeta(alpha_phi + xcj - k, beta_phi + ncj - xcj) -
-					lbeta(xcj - k + 1,         ncj - xcj + 1) +
-					lbeta(alpha_theta + k, beta_theta + ncj - k) -
-					lbeta(k + 1, ncj - k + 1);
-			}
-			double rtn = log_sum_exp(xcj+1, lse_array);
-			delete[] lse_array;
-			return rtn;
-		}
-
-		double lp_xc_given_hparams (vector<double> x) const {
-			double sum_lp_xcj = 0.0;
-			double sum_log_ncp = 0.0;
-			for (size_t j = 0; j < cobs(); ++j) {
-				sum_lp_xcj += lp_xcj_given_hparams(parent.xc_vec[j], parent.nc_vec[j], alpha_theta, beta_theta, x[0], x[1]);
-				sum_log_ncp += log(parent.nc_vec[j] + 1);
-			}
-			return sum_lp_xcj - sum_log_ncp - cobs()*(lbeta(alpha_theta, beta_theta) + lbeta(x[0], x[1]));
-		}
-
-		/**
-		* Objective function being optimized.
-		*
-		* We want to maximize lp_xc_given_hparams, so
-		* we minimize its negative.
-		*/
-		double operator() (vector<double> x, bool exp_args = true) const {
-			if (exp_args) {
-				exp_elements(x);
-			}
-			return -lp_xc_given_hparams(x);
-		}
-
-		/**
-		* Evaluate the gradient for the current observed set of loci
-		* and add it to the accumulated gradient tracked by the optimizer,
-		* then add the next locus to the observed set.
-		*/
-		void accumulate (vector<double> &current_grad) {
-			vector<double> new_grad;
-			stograd::finite_difference_gradient(*this, curr_params, new_grad);
-			stograd::add_to(new_grad, current_grad);
-			next();
-		}
-
-		/**
-		* Update the parameter values with the delta returned 
-		* by the optimizer.
-		*/
-		void update (vector<double> &delta) {
-			stograd::subtract_from(delta, curr_params);
-		}
-	};// struct phi_hparams_optimizable
 
 };// struct bayes_orient_bias_quant_f
 
