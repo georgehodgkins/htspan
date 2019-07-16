@@ -35,4 +35,9 @@ bool test_val(double got, double std) {
 	}
 }
 
+// true if value is close to or less than the standard
+bool test_val_lte (double got, double std) {
+	return (got <= std) || test_val(got, std);
+}
+
 #endif // _HTSPAN_TEST_HPP

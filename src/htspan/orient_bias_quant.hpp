@@ -1,10 +1,11 @@
 #ifndef _HTSPAN_ORIENT_BIAS_QUANT_HPP_
 #define _HTSPAN_ORIENT_BIAS_QUANT_HPP_
 
-#include <iostream>
+#include <ostream>
 #include <vector>
 #include <cassert>
 #include <cfloat>
+#include <utility>
 
 #include <stdint.h>
 #include <string.h>
@@ -214,6 +215,19 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 		return site_count;
 	}
 
+	void copy_data (vector<long int> xc_vec, vector<long int> xi_vec, vector<long int> nc_vec, vector<long int> ni_vec) {
+		xc = 0;
+		xi = 0;
+		nc = 0;
+		ni = 0;
+		for (size_t j = 0; j < xc_vec.size(); ++j) {
+			xc += xc_vec[j];
+			xi += xi_vec[j];
+			nc += nc_vec[j];
+			ni += ni_vec[j];
+		}
+	}
+
 	/**
 	 * Process a bam pileup object containing
 	 * the reads at one locus and update the observed variables accordingly.
@@ -248,6 +262,10 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 		simulate_orient_bias_read_counts(N, theta, phi, xc, xi, nc, ni);
 	}
 
+	double theta_hat() const {
+		return double(xi)/ni;
+	}
+
 	/**
 	 * Return estimate of global DNA damage (phi_hat).
 	 *
@@ -256,8 +274,7 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	 * @return estimate of phi
 	 */
 	double operator()() const {
-		double theta_hat = double(xi)/ni;
-		double phi_hat = (double(xc)/nc - theta_hat) / (1 - theta_hat);
+		double phi_hat = (double(xc)/nc - theta_hat()) / (1 - theta_hat());
 		if (phi_hat < 0.0) {
 			return 0.0;
 		}
@@ -348,17 +365,21 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	* @param alpha_phi Alpha parameter of the distribution of phi
 	* @param beta_phi Beta parameter of the distribution of phi
 	*/
-	void simulate(const vector<size_t> &ns_vec, double alpha_theta, double beta_theta,
+	pair<double, double> simulate(const vector<size_t> &ns_vec, double alpha_theta, double beta_theta,
 			double alpha_phi, double beta_phi) {
 		vector<double> theta_vec (ns_vec.size());
 		vector<double> phi_vec (ns_vec.size());
+		double phi_sum = 0.0;
+		double theta_sum = 0.0;
 		// Generate correctly distributed values of phi and theta
 		// to pass to the simulator
 		for (size_t j = 0; j < ns_vec.size(); ++j) {
 			theta_vec[j] = r_rand::rbeta(alpha_theta, beta_theta);
+			theta_sum += theta_vec[j];
 		}
 		for (size_t j = 0; j < ns_vec.size(); ++j) {
 			phi_vec[j] = r_rand::rbeta(alpha_phi, beta_phi);
+			phi_sum += phi_vec[j];
 		}
 		// Simulate as many reads as necessary
 		reset_realloc(ns_vec.size());
@@ -368,6 +389,14 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 			xi_vec.push_back(xi);
 			nc_vec.push_back(nc);
 			ni_vec.push_back(ni);
+		}
+		return make_pair(theta_sum/ns_vec.size(), phi_sum/ns_vec.size());
+	}
+
+	void write_data (ostream &prn) {
+		prn << "xc\txi\tnc\tni\n";
+		for (size_t j = 0; j < size(); ++j) {
+			prn << xc_vec[j] << '\t' << xi_vec[j] << '\t' << nc_vec[j] << '\t' << ni_vec[j] << '\n';
 		}
 	}
 
