@@ -63,6 +63,11 @@ double fmax2(double x, double y) {
 	return (x > y) ? x : y;
 }
 
+// Some generic funcs that should work with STL containers
+
+// We don't use for_each() here because lambdas aren't in C++98 and
+// defining external functions is definitely more work than it's worth
+
 /**
 *  Container-generic element-wise log, modifying
 */
@@ -105,6 +110,22 @@ Container exp_c (Container X) {
 		*it = exp(*it);
 	}
 	return X;
+}
+
+/**
+* Container-generic constrainer.
+* Fixes values less than lb at lb, less than ub at ub.
+*/
+template <typename Container>
+void constrain_values (Container &X, typename Container::value_type lb, typename Container::value_type ub) {
+	for (typename Container::iterator it = X.begin(); it != X.end(); ++it) {
+		if (*it < lb) {
+			*it = lb;
+		}
+		if (*it > ub) {
+			*it = ub;
+		}
+	}
 }
 
 /**
