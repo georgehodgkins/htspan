@@ -2,7 +2,8 @@
 #define _HTSPAN_BAYES_ORIENT_BIAS_QUANT_HPP_
 
 #include <ostream>
-#include <utility>
+#include <stdexcept>
+#include <cstdlib>
 
 #include <alglib/ap.h>
 #include <alglib/alglibmisc.h>
@@ -10,6 +11,7 @@
 
 #include <stograd/src/stograd/stograd.hpp>
 
+#include "math.hpp"
 #include "base_orient_bias_quant.hpp"
 
 namespace hts {
@@ -55,6 +57,7 @@ struct bayes_quant_model {
 	//vector of inconsistent total counts, by site
 	vector<long int> ni_vec;
 
+	// index of current site being examined
 	size_t J;
 
 	bayes_quant_model () : 
@@ -92,10 +95,16 @@ struct bayes_quant_model {
 		ni_vec = new_ni;
 	}
 
+	/**
+	* Total number of sites in data set.
+	*/
 	size_t nobs () const {
 		return xc_vec.size();
 	}
 
+	/*
+	* Advance to the next site for analysis.
+	*/
 	size_t next () {
 		if (J == nobs()-1) {
 			J = 0;
@@ -105,6 +114,11 @@ struct bayes_quant_model {
 		return J;
 	}
 
+	/*
+	* Gradient of the objective function for optimizing
+	* the parameters of the beta distribution that characterizes
+	* theta (alt allele probability), with respect to alpha.
+	*/
 	static double dlp_xij_given_hparams_dalpha (long int xij, long int nij, double alpha_theta, double beta_theta) {
 		static double alpha_cached = -1.0;
 		static double beta_cached = -1.0;
@@ -122,6 +136,11 @@ struct bayes_quant_model {
 		return psi_alpha_beta - psi_alpha + alglib::psi(alpha_theta + xij) - alglib::psi(alpha_theta + beta_theta + nij);
 	}
 
+	/*
+	* Gradient of the objective function for optimizing
+	* the parameters of the beta distribution that characterizes
+	* theta (alt allele probability), with respect to beta.
+	*/
 	static double dlp_xij_given_hparams_dbeta (long int xij, long int nij, double alpha_theta, double beta_theta) {
 		static double alpha_cached = -1.0;
 		static double beta_cached = -1.0;
@@ -139,6 +158,10 @@ struct bayes_quant_model {
 		return psi_alpha_beta - psi_beta + alglib::psi(beta_theta + nij - xij) - alglib::psi(alpha_theta + beta_theta + nij);
 	}
 
+	/*
+	* Evaluate the gradients of the theta objective function
+	* wrt alpha and beta; x[0] == alpha and x[1] == beta
+	*/
 	vector<double> theta_gradient (vector<double> x) {
 		vector<double> grad (2);
 		grad[0] = dlp_xij_given_hparams_dalpha(xi_vec[J], ni_vec[J], x[0], x[1]);
@@ -146,6 +169,10 @@ struct bayes_quant_model {
 		return grad;
 	}
 
+	/*
+	* The objective function used for optimizing the parameters
+	* of the beta distribution that characterizes phi (damage probability).
+	*/
 	static double lp_xcj_given_hparams (long int xcj, long int ncj, double alpha_phi, double beta_phi,
 			const double alpha_theta, const double beta_theta) {
 		static double alpha_theta_cached = -1.0;
@@ -178,7 +205,14 @@ struct bayes_quant_model {
 		return lse - log(ncj + 1) - lbeta_ath_bth - lbeta_aph_bph;
 	}
 
-	// this is a class because finite_difference_gradient expects a functor
+	/**
+	* Functor used to numerically evaluate the gradient of 
+	* the phi objective function, since the analytic gradient is
+	* expensive to evaluate.
+	*
+	* A functor is used because stograd::finite_difference_gradient
+	* expects one.
+	*/
 	struct phi_objective_f {
 		const bayes_quant_model &m;
 
@@ -195,6 +229,10 @@ struct bayes_quant_model {
 		}
 	};
 
+	/*
+	* Evaluate the gradients of the phi objective function
+	* wrt alpha and beta; x[0] == alpha and x[1] == beta
+	*/
 	vector<double> phi_gradient (vector<double> x, const double alpha_theta, const double beta_theta) {
 		static phi_objective_f F (*this, alpha_theta, beta_theta);
 		vector<double> grad;
@@ -229,12 +267,19 @@ struct theta_hparams_optimizable {
 
 	void accumulate (vector<double> &current_grad) {
 		vector<double> new_grad = m.theta_gradient(exp_c(curr_params));
+		if (isnan(new_grad[0]) || isnan(new_grad[1])) {
+			throw runtime_error ("NaN returned from gradient!");
+		}
 		stograd::add_to (new_grad, current_grad);
 		m.next();
 	}
 
 	void update (const vector<double> &delta) {
+		if (isnan(delta[0]) || isnan(delta[1])) {
+			throw runtime_error ("NaN returned from stograd!");
+		}
 		stograd::add_to(delta, curr_params);
+		constrain_values(curr_params, -15, 15);
 	}
 
 };
@@ -268,12 +313,19 @@ struct phi_hparams_optimizable {
 
 	void accumulate (vector<double> &current_grad) {
 		vector<double> new_grad = m.phi_gradient(exp_c(curr_params), alpha_theta, beta_theta);
+		if (isnan(new_grad[0]) || isnan(new_grad[1])) {
+			throw runtime_error ("NaN returned from gradient!");
+		}
 		stograd::add_to(new_grad, current_grad);
 		m.next();
 	}
 
 	void update (const vector<double> &delta) {
+		if (isnan(delta[0]) || isnan(delta[1])) {
+			throw runtime_error ("NaN returned from stograd!");
+		}
 		stograd::add_to(delta, curr_params);
+		constrain_values(curr_params, -15, 15);
 	}
 
 };
@@ -319,27 +371,37 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	* Generate a set of appropriately distributed observed variables, for testing.
 	* In the Bayesian model, phi and theta are not constant but instead beta-distributed.
 	* 
-	* @param ns_vec Vector of read counts at each simulated locus
+	* @param N Number of loci to simulate
 	* @param alpha_theta Alpha parameter of the distribution of theta
 	* @param beta_theta Beta parameter of the distribution of theta
 	* @param alpha_phi Alpha parameter of the distribution of phi
 	* @param beta_phi Beta parameter of the distribution of phi
 	*/
-	void simulate(const vector<size_t> &ns_vec, double alpha_theta, double beta_theta,
-			double alpha_phi, double beta_phi, int seed = 0) {
-		vector<double> theta_vec (ns_vec.size());
-		vector<double> phi_vec (ns_vec.size());
+	void simulate(size_t N, double alpha_theta, double beta_theta,
+			double alpha_phi, double beta_phi, size_t rd_min, size_t rd_max, int seed = 0) {
+		vector<double> theta_vec (N);
+		vector<double> phi_vec (N);
+		// Generate uniformly distributed random read counts
+		alglib::hqrndstate rng;
+		srand(seed);
+		int s1 = rand();
+		int s2 = rand();
+		alglib::hqrndseed(s1, s2, rng);
+		vector<size_t> ns_vec (N);
+		for (size_t j = 0; j < N; ++j) {
+			ns_vec[j] = alglib::hqrnduniformi(rng, rd_max - rd_min) + rd_min;
+		}
 		// Generate correctly distributed values of phi and theta
 		// to pass to the simulator
-		for (size_t j = 0; j < ns_vec.size(); ++j) {
+		for (size_t j = 0; j < N; ++j) {
 			theta_vec[j] = r_rand::rbeta(alpha_theta, beta_theta, seed);
 		}
-		for (size_t j = 0; j < ns_vec.size(); ++j) {
+		for (size_t j = 0; j < N; ++j) {
 			phi_vec[j] = r_rand::rbeta(alpha_phi, beta_phi, seed);
 		}
 		// Simulate as many reads as necessary
-		m.reset_realloc(ns_vec.size());
-		for (size_t j = 0; j < ns_vec.size(); ++j) {
+		m.reset_realloc(N);
+		for (size_t j = 0; j < N; ++j) {
 			simulate_orient_bias_read_counts(ns_vec[j], theta_vec[j], phi_vec[j], xc, xi, nc, ni, seed);
 			m.xc_vec.push_back(xc);
 			m.xi_vec.push_back(xi);

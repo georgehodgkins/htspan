@@ -12,6 +12,9 @@
 #include "htspan/freq_orient_bias_quant.hpp"
 #include "htspan/bayes_orient_bias_quant.hpp"
 
+// set slightly looser bounds than the default
+#define TEST_RAT .1
+#define TEST_EPS 1e-6
 #include "test.hpp"
 
 #define FREQ_N_READS 10000
@@ -20,7 +23,7 @@
 #define BAYES_LEARN_RATE 1e-2
 #define BAYES_EPS 1e-3
 #define BAYES_BSIZE 100
-#define BAYES_NEPOCHS 4
+#define BAYES_NEPOCHS 50
 #define BAYES_INIT_ALPHA 1
 #define BAYES_INIT_BETA 1
 #define BAYES_N_LOCS 500000
@@ -40,14 +43,10 @@ void freq_obquant_sim_test (const size_t N, const double THETA, const double PHI
 void bayes_obquant_sim_test (const size_t N, const size_t LOC_RD_MIN, const size_t LOC_RD_MAX,
 		const double ALPHA_THETA_STD, const double BETA_THETA_STD, const double ALPHA_PHI_STD, const double BETA_PHI_STD) { 
 	// generate random read counts within the requested range
+#ifndef SIM_SEED
 	alglib::hqrndstate rng;
 	alglib::hqrndrandomize(rng);
-	vector<size_t> ns_vec (N);
-	for (size_t j = 0; j < N; ++j) {
-		ns_vec[j] = alglib::hqrnduniformi(rng, LOC_RD_MAX - LOC_RD_MIN) + LOC_RD_MIN;
-	}
-#ifndef SIM_SEED
-	int sim_seed = alglib::hqrnduniformi(rng, 1 << 16);
+	int sim_seed = alglib::hqrnduniformi(rng, 1 << 16); // uniform int between 0 and 2^15
 #else
 	int sim_seed = SIM_SEED;
 #endif
@@ -58,7 +57,7 @@ void bayes_obquant_sim_test (const size_t N, const size_t LOC_RD_MIN, const size
 	double THETA_MEAN = ALPHA_THETA_STD/(ALPHA_THETA_STD + BETA_THETA_STD);
 	double PHI_MEAN = ALPHA_PHI_STD/(ALPHA_PHI_STD + BETA_PHI_STD);
 	hts::bayes_orient_bias_quant_f bobquant (nuc_T, nuc_C);
-	bobquant.simulate(ns_vec, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD, sim_seed);
+	bobquant.simulate(N, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD, LOC_RD_MIN, LOC_RD_MAX, sim_seed);
 	hts::freq_orient_bias_quant_f fobquant (nuc_T, nuc_C);
 	fobquant.copy_data(bobquant.m.xc_vec, bobquant.m.xi_vec, bobquant.m.nc_vec, bobquant.m.ni_vec);
 	BOOST_CHECK_MESSAGE(test_val(fobquant.theta_hat(), THETA_MEAN),
