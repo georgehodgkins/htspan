@@ -1,8 +1,9 @@
 #ifndef _HTSPAN_R_RAND_HPP_
 #define _HTSPAN_R_RAND_HPP_
 
-// This header contains random sampling methods from the R source code
+// This header contains random sampling methods lifted from the R source code
 // for binomial and beta distributed variates
+// Source root used is at https://github.com/wch/r-source/tree/958ebf4fc5d56c4299aca3717d22dda9fd6cf2fb
 
 /*
  *  R : A Computer Language for Statistical Data Analysis
@@ -42,20 +43,35 @@ using namespace std;
 // drop in our own replacement for R's RNG
 #define unif_rand() alglib::hqrnduniformr(rng)
 
-// This method is from R source at
-// src/nmath/rbeta.c, with cosmetic changes for compatibility
+/**
+* Generate beta-distributed random variates.
+*
+* Lifted from R source at src/nmath/rbeta.c.
+*
+* The internal RNG is only seeded once at first call,
+* unless the seed changes. It should produce a consistent
+* sequence of variates for a given seed.
+* 
+* @param aa The alpha parameter of the characterizing beta dist
+* @param bb The beta parameter of the characterizing beta dist
+* @param seed [0] Any integer value except -1; 0 indicates random seeding
+* @return Beta-distributed random variate between 0 and 1
+*/
 double rbeta(double aa, double bb, int seed = 0)
 {
 	static alglib::hqrndstate rng;
 	static int prev_seed = -1;
-	if (seed == 0) {
-		alglib::hqrndrandomize(rng);
-	} else if (seed != prev_seed) {
-		srand(seed);
-		int s1 = rand();
-		int s2 = rand();
-		alglib::hqrndseed(s1, s2, rng);
-		prev_seed = seed;
+	if (seed != prev_seed) {
+		if (seed == 0) {
+			alglib::hqrndrandomize(rng);
+			prev_seed = 0;
+		} else {
+			srand(seed);
+			int s1 = rand();
+			int s2 = rand();
+			alglib::hqrndseed(s1, s2, rng);
+			prev_seed = seed;
+		}
 	}
 
     if (isnan(aa) || isnan(bb) || aa < 0. || bb < 0.) {
@@ -163,21 +179,36 @@ double rbeta(double aa, double bb, int seed = 0)
 
 #define repeat for(;;)
 
-
-// This method is taken from R source at
-// https://github.com/wch/r-source/blob/trunk/src/nmath/rbinom.c, with minor changes for compatibility
+/**
+* Generate binomially distributed random variates.
+*
+* This method is lifted from the R source at
+* src/nmath/rbinom.c with minor modifications.
+*
+* The internal RNG is only seeded once at first call,
+* unless the seed changes. It should produce a consistent
+* sequence of variates for a given seed.
+*
+* @param nin Sample size for distribution
+* @param pp Probability of success per sample
+* @param seed [0] Any integer value except -1, 0 indicates random seeding
+* @return binomially distributed random integer between 0 and (nin)
+*/
 int rbinom(int nin, double pp, int seed = 0)
 {
 	static alglib::hqrndstate rng;
 	static int prev_seed = -1;
-	if (seed == 0) {
-		alglib::hqrndrandomize(rng);
-	} else if (seed != prev_seed) {
-		srand(seed);
-		int s1 = rand();
-		int s2 = rand();
-		alglib::hqrndseed(s1, s2, rng);
-		prev_seed = seed;
+	if (seed != prev_seed) {
+		if (seed == 0) {
+			alglib::hqrndrandomize(rng);
+			prev_seed = 0;
+		} else {
+			srand(seed);
+			int s1 = rand();
+			int s2 = rand();
+			alglib::hqrndseed(s1, s2, rng);
+			prev_seed = seed;
+		}
 	}
 
     static double c, fm, npq, p1, p2, p3, p4, qn;
