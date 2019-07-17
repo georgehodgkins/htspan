@@ -12,7 +12,7 @@
 #include "htspan/freq_orient_bias_quant.hpp"
 #include "htspan/bayes_orient_bias_quant.hpp"
 
-// set slightly looser bounds than the default
+// set slightly looser standards than the default
 #define TEST_RAT .1
 #define TEST_EPS 1e-6
 #include "test.hpp"
@@ -20,15 +20,17 @@
 #define FREQ_N_READS 10000
 
 #define BAYES_STEPPER stograd::stepper::adam<double>
-#define BAYES_LEARN_RATE 1e-2
-#define BAYES_EPS 1e-3
+#define BAYES_LEARN_RATE 1e-4
+#define BAYES_EPS 1e-6
 #define BAYES_BSIZE 100
-#define BAYES_NEPOCHS 50
+#define BAYES_NEPOCHS 100
 #define BAYES_INIT_ALPHA 1
 #define BAYES_INIT_BETA 1
-#define BAYES_N_LOCS 500000
-#define BAYES_MIN_RCOUNT 5
-#define BAYES_MAX_RCOUNT 15
+#define BAYES_N_LOCS 50000
+#define BAYES_MIN_RCOUNT 50
+#define BAYES_MAX_RCOUNT 150
+
+#define SIM_SEED 15202
 
 using namespace std;
 
@@ -61,30 +63,32 @@ void bayes_obquant_sim_test (const size_t N, const size_t LOC_RD_MIN, const size
 	hts::freq_orient_bias_quant_f fobquant (nuc_T, nuc_C);
 	fobquant.copy_data(bobquant.m.xc_vec, bobquant.m.xi_vec, bobquant.m.nc_vec, bobquant.m.ni_vec);
 	BOOST_CHECK_MESSAGE(test_val(fobquant.theta_hat(), THETA_MEAN),
-		"Frequentist estimate of generated theta was not correct. Got: " << fobquant.theta_hat() << " Exp: " << THETA_MEAN);
+		"Frequentist estimate of generated theta: Got: " << fobquant.theta_hat() << " Exp: " << THETA_MEAN);
 	BOOST_CHECK_MESSAGE(test_val(fobquant(), PHI_MEAN),
-		"Frequentist estimate of generated phi was not correct. Got: " << fobquant() << " Exp: " << PHI_MEAN);
+		"Frequentist estimate of generated phi: Got: " << fobquant() << " Exp: " << PHI_MEAN);
 	// run the test
 	hts::hparams got = bobquant.operator()<BAYES_STEPPER>(BAYES_BSIZE, BAYES_NEPOCHS, BAYES_LEARN_RATE, BAYES_EPS,
 		BAYES_INIT_ALPHA, BAYES_INIT_BETA, BAYES_INIT_ALPHA, BAYES_INIT_BETA);
 	double E_theta = got.alpha_theta/(got.alpha_theta + got.beta_theta);
 	double E_phi = got.alpha_phi/(got.alpha_phi + got.beta_phi);
+	BOOST_TEST_MESSAGE("Theta estimate epoch count: " << bobquant.n_theta_epochs);
 	BOOST_CHECK_MESSAGE(test_val(got.alpha_theta, ALPHA_THETA_STD), 
-		"Value of alpha_theta was not within tolerance. Got: " << got.alpha_theta << " (log = " << log(got.alpha_theta) <<
+		"alpha_theta: Got: " << got.alpha_theta << " (log = " << log(got.alpha_theta) <<
 		") Exp: " << ALPHA_THETA_STD << " (log = " << log(ALPHA_THETA_STD) << ")");
 	BOOST_CHECK_MESSAGE(test_val(got.beta_theta, BETA_THETA_STD),
-		"Value of beta_theta was not within tolerance. Got: " << got.beta_theta << " (log = " << log(got.beta_theta) <<
+		"beta_theta: Got: " << got.beta_theta << " (log = " << log(got.beta_theta) <<
 		") Exp: " << BETA_THETA_STD << " (log = " << log(BETA_THETA_STD) << ")");
 	BOOST_CHECK_MESSAGE(test_val(E_theta, THETA_MEAN),
-		"E[theta] was not within tolerance. Got: " << E_theta << " Exp: " << THETA_MEAN);
+		"E[theta]: Got: " << E_theta << " Exp: " << THETA_MEAN);
+	BOOST_TEST_MESSAGE("Phi estimate epoch count: " << bobquant.n_phi_epochs);
 	BOOST_CHECK_MESSAGE(test_val(got.alpha_phi, ALPHA_PHI_STD), 
-		"Value of alpha_phi was not within tolerance. Got: " << got.alpha_phi << " (log = " << log(got.alpha_phi) <<
+		"alpha_phi: Got: " << got.alpha_phi << " (log = " << log(got.alpha_phi) <<
 		") Exp: " << ALPHA_PHI_STD << " (log = " << log(ALPHA_PHI_STD) << ")");
 	BOOST_CHECK_MESSAGE(test_val(got.beta_phi, BETA_PHI_STD),
-		"Value of beta_phi was not within tolerance. Got: " << got.beta_phi << " (log = " << log(got.beta_phi) <<
+		"beta_phi: Got: " << got.beta_phi << " (log = " << log(got.beta_phi) <<
 		") Exp: " << BETA_PHI_STD << " (log = " << log(BETA_PHI_STD) << ")");
 	BOOST_CHECK_MESSAGE(test_val(E_phi, PHI_MEAN),
-		"E[phi] was not within tolerance. Got: " << E_phi << " Exp: " << PHI_MEAN);
+		"E[phi]: Got: " << E_phi << " Exp: " << PHI_MEAN);
 }
 
 BOOST_AUTO_TEST_SUITE(test)

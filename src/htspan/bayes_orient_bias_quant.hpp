@@ -335,8 +335,12 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 
 	bayes_quant_model m;
 
+	int n_phi_epochs;
+	int n_theta_epochs;
+
 	bayes_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) :
-			base_orient_bias_quant_f(_ref, _alt)
+			base_orient_bias_quant_f(_ref, _alt),
+			n_phi_epochs(0), n_theta_epochs(0)
 		{
 		}
 
@@ -435,13 +439,13 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		theta_init[1] = beta0_theta;
 		theta_hparams_optimizable theta_opt (m, theta_init);
 		bayes_stepper_t stepper (learning_rate);
-		stograd::optimize(theta_opt, stepper, bsize, nepochs, eps);
+		n_theta_epochs = stograd::optimize(theta_opt, stepper, bsize, nepochs, eps);
 		vector<double> phi_init(2);
 		phi_init[0] = alpha0_phi;
 		phi_init[1] = beta0_phi;
 		phi_hparams_optimizable phi_opt (m, phi_init, theta_opt.alpha(), theta_opt.beta());
 		m.J = 0;
-		stograd::optimize(phi_opt, stepper, bsize, nepochs, eps);
+		n_phi_epochs = stograd::optimize(phi_opt, stepper, bsize, nepochs, eps);
 		hparams rtn;
 		rtn.alpha_theta = theta_opt.alpha();
 		rtn.beta_theta = theta_opt.beta();
