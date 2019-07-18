@@ -2,6 +2,7 @@
 #define _HTSPAN_MATH_HPP_
 
 #include <cmath>
+#include <stdint.h>
 
 #include "alglib/specialfunctions.h"
 

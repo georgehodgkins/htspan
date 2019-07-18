@@ -24,7 +24,8 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 		return site_count;
 	}
 
-	void copy_data (vector<long int> xc_vec, vector<long int> xi_vec, vector<long int> nc_vec, vector<long int> ni_vec) {
+	void copy_data (const vector<long int> &xc_vec, const vector<long int> &xi_vec,
+			const vector<long int> &nc_vec, const vector<long int> &ni_vec) {
 		xc = 0;
 		xi = 0;
 		nc = 0;

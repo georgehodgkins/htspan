@@ -13,6 +13,7 @@
 
 #include "math.hpp"
 #include "base_orient_bias_quant.hpp"
+#include "freq_orient_bias_quant.hpp"
 
 namespace hts {
 
@@ -432,8 +433,8 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	* @return A hts::hparams object containing estimates of the four hyperparameters
 	*/
 	template <typename bayes_stepper_t>
-	hparams operator()(size_t bsize, size_t nepochs, double learning_rate, double eps,
-			double alpha0_theta, double beta0_theta, double alpha0_phi, double beta0_phi) {
+	hparams operator()(const size_t bsize, const size_t nepochs, const double learning_rate, const double eps,
+			const double alpha0_theta, const double beta0_theta, const double alpha0_phi, const double beta0_phi) {
 		vector<double> theta_init(2);
 		theta_init[0] = alpha0_theta;
 		theta_init[1] = beta0_theta;
@@ -452,6 +453,17 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		rtn.alpha_phi = phi_opt.alpha();
 		rtn.beta_phi = phi_opt.beta();
 		return rtn;
+	}
+
+	template <typename bayes_stepper_t>
+	hparams operator() (const size_t bsize, const size_t nepochs, const double learning_rate, const double eps) {
+		// obtain the frequentist estimate to use as a starting point, assuming alpha = 1
+		freq_orient_bias_quant_f fobquant (r1_ref, r1_alt);
+		fobquant.copy_data(m.xc_vec, m.xi_vec, m.nc_vec, m.ni_vec);
+		double beta0_theta = (double) 1 / fobquant.theta_hat() - 1;
+		double beta0_phi = (double) 1 / fobquant() - 1; // fobquant.operator() returns phi_hat
+		return operator()<bayes_stepper_t> (bsize, nepochs, learning_rate, eps,
+				1, beta0_theta, 1, beta0_phi);
 	}
 
 };// struct bayes_orient_bias_quant_f
