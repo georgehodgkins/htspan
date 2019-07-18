@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Convert a VCF file to the tab-separated format used by htspan
+
 set -euo pipefail
 
 if [[ $# -ge 3 || $# -ge 1 && $1 == "-h" ]]; then

@@ -5,7 +5,7 @@
 set -euo pipefail
 
 if (( $# < 2 )); then
-	echo "usage : $0 <bam> <reference-fasta>" >&2
+	echo "usage : $0 <bam> <reference-fasta> [mut_rate]" >&2
 	exit 1
 fi
 
