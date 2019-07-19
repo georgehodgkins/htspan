@@ -468,6 +468,34 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 
 };// struct bayes_orient_bias_quant_f
 
+//
+// Specialization of the above for the yamadam stepper, which does not take a learning rate
+// Outside the class because the standard does not allow inline template specializations
+//
+template <>
+hparams bayes_orient_bias_quant_f::operator()<stograd::stepper::yamadam<double> > (
+		const size_t bsize, const size_t nepochs, const double learning_rate, const double eps,
+		const double alpha0_theta, const double beta0_theta, const double alpha0_phi, const double beta0_phi) {
+	vector<double> theta_init(2);
+	theta_init[0] = alpha0_theta;
+	theta_init[1] = beta0_theta;
+	theta_hparams_optimizable theta_opt (m, theta_init);
+	stograd::stepper::yamadam<double> stepper;
+	n_theta_epochs = stograd::optimize(theta_opt, stepper, bsize, nepochs, eps);
+	vector<double> phi_init(2);
+	phi_init[0] = alpha0_phi;
+	phi_init[1] = beta0_phi;
+	phi_hparams_optimizable phi_opt (m, phi_init, theta_opt.alpha(), theta_opt.beta());
+	m.J = 0;
+	n_phi_epochs = stograd::optimize(phi_opt, stepper, bsize, nepochs, eps);
+	hparams rtn;
+	rtn.alpha_theta = theta_opt.alpha();
+	rtn.beta_theta = theta_opt.beta();
+	rtn.alpha_phi = phi_opt.alpha();
+	rtn.beta_phi = phi_opt.beta();
+	return rtn;
+}
+
 } // namespace hts
 
 #endif // _HTSPAN_BAYES_ORIENT_BIAS_QUANT_HPP_
