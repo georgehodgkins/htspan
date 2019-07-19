@@ -19,7 +19,7 @@
 using namespace std;
 
 template <typename bayes_stepper_t>
-void core_testing_method (hts::simul_writer &output, const char* test_name, const char* stepper_name, const size_t bsize,
+void core_testing_method (hts::frontend::simul_writer &output, const char* test_name, const char* stepper_name, const size_t bsize,
 		const double lrate, const double beta_th, const double beta_ph, const double alpha0, const double beta0, int sim_seed) {
 
 	hts::bayes_orient_bias_quant_f bobquant(nuc_G, nuc_T);
@@ -43,8 +43,10 @@ void core_testing_method (hts::simul_writer &output, const char* test_name, cons
 
 		finish = time(NULL);
 
+		int elapsed = finish - start;
 		output << "\b\b\b" << bobquant.n_theta_epochs << '\t' << bobquant.n_phi_epochs << '\t' << result.alpha_theta <<
-			'\t' << result.beta_theta << '\t' << result.alpha_phi << '\t' << result.beta_phi << '\t' << (int) (finish - start) << '\n';
+			'\t' << result.beta_theta << '\t' << result.alpha_phi << '\t' << result.beta_phi << '\t' <<
+			elapsed / 60 << ':' << elapsed % 60 << '\n';
 
 	} catch (exception &e) {
 		output << "\b\b\bException thrown: " << e.what() << '\n';
@@ -100,19 +102,24 @@ int main(int argc, char** argv) {
 
 	// select batch size
 	for (size_t n_b = 0; n_b < sizeof(BSIZES)/sizeof(int); ++n_b) {
-		// select learning rate
-		for (size_t n_lr = 0; n_lr < sizeof(LRATES)/sizeof(double); ++n_lr) {
-			// select initial parameters
+		// select test
+		for (size_t n_tst = 0; n_tst < sizeof(TESTS)/sizeof(char*); ++n_tst) {
+			// select initial parameter
 			for (size_t n_ips = 0; n_ips < sizeof(IALPHAS)/sizeof(double); ++n_ips) {
-				// select test
-				for (size_t n_tst = 0; n_tst < sizeof(TESTS)/sizeof(char*); ++n_tst) {
+				// select learning rate
+				for (size_t n_lr = 0; n_lr < sizeof(LRATES)/sizeof(double); ++n_lr) {
 					core_testing_method<stograd::stepper::constant<double> > (output, TESTS[n_tst], "const", BSIZES[n_b], LRATES[n_lr],
-						BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHA[n_ips], IBETA[n_ips], sim_seed);
+						BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHAS[n_ips], IBETAS[n_ips], sim_seed);
 					core_testing_method<stograd::stepper::adam<double> > (output, TESTS[n_tst], "adam", BSIZES[n_b], LRATES[n_lr],
-						BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHA[n_ips], IBETA[n_ips], sim_seed);
-					core_testing_method<stograd::stepper::yogi<double> > (output, TESTS[n_tst], "yogi", BSIZES[n_b], LRATES[n_lr],
-						BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHA[n_ips], IBETA[n_ips], sim_seed);
+						BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHAS[n_ips], IBETAS[n_ips], sim_seed);
+					core_testing_method<stograd::stepper::rmsprop<double> > (output, TESTS[n_tst], "rmsprop", BSIZES[n_b], LRATES[n_lr],
+						BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHAS[n_ips], IBETAS[n_ips], sim_seed);
+					core_testing_method<stograd::stepper::amsgrad<double> > (output, TESTS[n_tst], "amsgrad", BSIZES[n_b], LRATES[n_lr],
+						BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHAS[n_ips], IBETAS[n_ips], sim_seed);
 				}
+				// yamadam does not use a learning rate
+				core_testing_method<stograd::stepper::yamadam<double> > (output, TESTS[n_tst], "yamadam", BSIZES[n_b], 0,
+					BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHAS[n_ips], IBETAS[n_ips], sim_seed);
 			}
 		}
 	}
