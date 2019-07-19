@@ -11,7 +11,8 @@ using namespace std;
 
 #include "htspan/piler.hpp"
 #include "htspan/io/faidx_reader.hpp"
-#include "htspan/orient_bias_quant.hpp"
+#include "htspan/freq_orient_bias_quant.hpp"
+#include "htspan/bayes_orient_bias_quant.hpp"
 
 #include "htspan/io/simul_writer.hpp"
 using namespace hts;
@@ -32,10 +33,10 @@ namespace hts {
 * @param keep_dup Whether to exclude duplicated reads from consideration
 * @param max_qreads Maximum number of (passing) reads to analyze
 */
-bool orient_bias_quantify(nuc_t ref, nuc_t alt, double min_mapq, double min_baseq, bool keep_dup,
-		 size_t max_qreads, piler &p, faidx_reader &faidx) {
+bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min_baseq, bool keep_dup,
+		 size_t max_qreads, piler &p, faidx_reader &faidx, bool plain_output) {
 	// Initialize objects
-	orient_bias_quant_f obquant (ref, alt);
+	freq_orient_bias_quant_f obquant (ref, alt);
 	//set quality filter theresholds
 	p.qfilter.min_mapq = min_mapq;
 	p.qfilter.min_baseq = min_baseq;
@@ -79,7 +80,10 @@ bool orient_bias_quantify(nuc_t ref, nuc_t alt, double min_mapq, double min_base
 	//calculate the phi estimator
 	double phi = obquant();
 	//output the estimator
-	frontend::global_log.v(1) << "Phi estimator: " << phi << '\n';
+	if (!plain_output) {
+		frontend::global_log.v(1) << "Phi estimator: ";
+	} 
+	frontend::global_log.v(1) << phi << '\n';
 	return true;
 }
 

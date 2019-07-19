@@ -197,7 +197,7 @@ struct Arg: public option::Arg {
 	* Check that a string argument matches one of a list of options.
 	*/
 	static ArgStatus MatchingString (const Option& opt, bool msg, const char* str[], const size_t n_str) {
-		for (int n = 0; n < n_str; ++n) {
+		for (size_t n = 0; n < n_str; ++n) {
 			if (strcmpi(opt.arg, str[n]) == 0) {
 				return ARG_OK;
 			}
@@ -205,7 +205,7 @@ struct Arg: public option::Arg {
 		// if we reach this point arg did not match any valid strings
 		if (msg) {
 			std::cerr << "Argument to " << opt.name << " must match one of the following:\n";
-			for (int n = 0; n < n_str-1; ++n) {
+			for (size_t n = 0; n < n_str-1; ++n) {
 				std::cerr << "\'" << str[n] << "\', ";
 			}
 			std::cerr << "\'" << str[n_str-1] << "\'.\n";

@@ -113,7 +113,7 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 * @return whether the operation succeeded.
 */
 bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bound,
-		 double phi, double sig_level, fetcher &f, snv::streamer &s, bool fixed_phi) {
+		 double phi, double sig_level, fetcher &f, snv::streamer &s, bool fixed_phi, bool plain_output) {
 
 	orient_bias_data data(ref, alt, 0);
 	snv::record rec;
@@ -126,10 +126,15 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	// intialize filter
 	// note that the filter is tied to the data object by reference, so it updates for new data
 	freq_orient_bias_filter_f fobfilter(data, -minz_bound, minz_bound, eps);
-	snvw.add_filter_tag(fobfilter);
+	if (sig_level > 0) {
+		snvw.add_filter_tag(fobfilter);
+	}
 
 	// table header
-	frontend::global_log.v(1) << "snv\tpval\tfilter";
+	frontend::global_log.v(1) << "snv\tpval";
+	if (sig_level > 0) {
+		frontend::global_log.v(1) << "\tfilter";
+	}
 	frontend::global_log.v(2) << "\t#reads";
 	frontend::global_log.v(1) << "\n";
 	size_t n_sig = 0;
@@ -151,7 +156,12 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 
 		// run filter
 		double pval = fobfilter(phi, fixed_phi);
-		if (pval < sig_level) {
+		if (sig_level == 0) {
+			frontend::global_log.v(1) << rec.to_string() << '\t' << pval;
+			frontend::global_log.v(2) << '\t' <<  f.pile.queries.size();
+			frontend::global_log.v(1) << '\n';
+			snvw.write(rec, "FOBP", pval);
+		} else if (pval < sig_level) {
 			++n_sig;
 			frontend::global_log.v(2) << rec.to_string() << '\t' << pval << "\t[pass]\t" << f.pile.queries.size() << '\n';
 			snvw.write(rec, "FOBP", pval);
@@ -163,7 +173,17 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 		}
 		++n;
 	}
-	frontend::global_log.v(1) << "\nTotal: " << n << " Passed: " << n_sig << " Failed: " << n - n_sig << '\n';
+	if (!plain_output) {
+		//table footer
+		frontend::global_log.v(1) << "NOTE 1: P-values are not adjusted for false discovery.\n";
+		frontend::global_log.v(1) << "NOTE 2: Values are only accurate to within " << numeric_limits<double>::epsilon() << '\n';
+
+		frontend::global_log.v(1) << "\nTotal: " << n;
+		if (sig_level > 0) {
+			frontend::global_log.v(1) << " Passed: " << n_sig << " Failed: " << n - n_sig;
+		}
+		frontend::global_log.v(1) << '\n';
+	}
 	return true;
 }
 
@@ -185,7 +205,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 * @return whether the operation succeeded.
 */
 bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bound, 
-		double alpha, double beta, double prior_alt, double posterior_threshold, fetcher &f, snv::streamer &s) {
+		double alpha, double beta, double prior_alt, double posterior_threshold, fetcher &f, snv::streamer &s, bool plain_output) {
 	orient_bias_data data (ref, alt, 0);
 	snv::record rec;
 	snv::reader &snvr = *s.snvr_pt;
@@ -194,13 +214,18 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 	// intialize filter
 	// note that the filter is tied to the data object by reference, so it updates for new data
 	bayes_orient_bias_filter_f bobfilter(data, -minz_bound, minz_bound, eps);
-	snvw.add_filter_tag(bobfilter);
+	if (posterior_threshold > 0) {
+		snvw.add_filter_tag(bobfilter);
+	}
 
 	// add info field for posterior probabilities
 	snvw.add_numeric_info("BOBP", "Log posterior probability of a genuine variant from hts-orient-bias filter");
 
 	// table header
-	frontend::global_log.v(1) << "snv\tprob\tfilter";
+	frontend::global_log.v(1) << "snv\tprob";
+	if (posterior_threshold > 0) {
+		frontend::global_log.v(1) << "\tfilter";
+	}
 	frontend::global_log.v(2) << "\t#reads";
 	frontend::global_log.v(1) << '\n';
 	size_t n_sig = 0;
@@ -220,23 +245,35 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 			// run filter
 			double lposterior = bobfilter(prior_alt, alpha, beta);
 			double posterior = exp(lposterior);
-			if (posterior > posterior_threshold) {
+
+			if (posterior_threshold == 0) {
+				frontend::global_log.v(1) << rec.to_string() << '\t' << posterior;
+				frontend::global_log.v(2) << '\t' <<  f.pile.queries.size();
+				frontend::global_log.v(1) << '\n';
+				snvw.write(rec, "BOBP", lposterior);
+			} else if (posterior > posterior_threshold) {
 				++n_sig;
 				frontend::global_log.v(2) << rec.to_string() << '\t' << posterior << "\t[pass]\t" << f.pile.queries.size() << '\n';
 				snvw.write(rec, "BOBP", lposterior);
 			} else {
 				frontend::global_log.v(1) << rec.to_string() << '\t' << posterior << "\t[fail]";
-				frontend::global_log.v(3) << '\t' <<  f.pile.queries.size();
+				frontend::global_log.v(2) << '\t' <<  f.pile.queries.size();
 				frontend::global_log.v(1) << '\n';
 				snvw.write_filter_failed(rec, bobfilter, "BOBP", lposterior);
 			}
 			++n;
 	}
-	//table footer
-	frontend::global_log.v(1) << "NOTE 1: posterior probabilities are not adjusted for false discovery.\n";
-	frontend::global_log.v(1) << "NOTE 2: Values are only accurate to within " << numeric_limits<double>::epsilon() << '\n';
+	if (!plain_output) {
+		//table footer
+		frontend::global_log.v(1) << "NOTE 1: posterior probabilities are not adjusted for false discovery.\n";
+		frontend::global_log.v(1) << "NOTE 2: Values are only accurate to within " << numeric_limits<double>::epsilon() << '\n';
 
-	frontend::global_log.v(1) << "\nSummary: Total: " << n << " Passed: " << n_sig << " Failed: " << n - n_sig << '\n';
+		frontend::global_log.v(1) << "\nSummary: Total: " << n;
+		if (posterior_threshold > 0) {
+			frontend::global_log.v(1) << " Passed: " << n_sig << " Failed: " << n - n_sig;
+		}
+		frontend::global_log.v(1) << '\n';
+	}
 
 	return true;
 }

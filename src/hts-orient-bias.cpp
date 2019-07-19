@@ -99,6 +99,8 @@ int main (int argc, char** argv) {
 		log_fname = options[LOGFILE].arg;
 	}
 
+	bool plain_output = (bool) options[PLAIN];
+
 	// Direct file and result output appropriately
 	// Note that fatal errors will go to stdout regardless either by
 	// cerr in the frontend or thrown exceptions in the backend
@@ -368,7 +370,9 @@ int main (int argc, char** argv) {
 			global_log.v(1) << "Warning: Quantification external sim code does not exist yet.\n"; 
 			return 0;
 		} else {
-			global_log.v(1) << "Starting quantification...\n";
+			if (!plain_output) {
+				global_log.v(1) << "Starting quantification...\n";
+			}
 			// open BAM data file
 			piler p;
 			faidx_reader faidx;
@@ -383,7 +387,8 @@ int main (int argc, char** argv) {
 					"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
 				return 1;
 			}
-			success = orient_bias_quantify(ref, alt, min_mapq, min_baseq, keep_dup, max_qreads, p, faidx);
+			success = orient_bias_quantify_freq(ref, alt, min_mapq, min_baseq,
+				keep_dup, max_qreads, p, faidx, plain_output);
 			if (!success) {
 				global_log.v(1) << "Quantification process failed.\n";
 				return 1;
@@ -402,7 +407,9 @@ int main (int argc, char** argv) {
 			//	-1*minz_bound, minz_bound, minz_eps, minz_iter);// change count param when param options are added
 			//obfilter.read(ext_sim_fname.c_str());
 		} else {
-			global_log.v(1) << "Starting identification...\n";
+			if (!plain_output) {
+				global_log.v(1) << "Starting identification...\n";
+			}
 			fetcher alignment_file;
 			if (!alignment_file.open(align_fname.c_str())) {
 				std::cerr <<
@@ -412,9 +419,11 @@ int main (int argc, char** argv) {
 			snv::streamer snv_files (snv_in_fname.c_str(), snv_out_fname.c_str(), snv_in_fmt, snv_out_fmt);
 
 			if (model == BAYES) {
-				success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta, prior_alt, sig_level, alignment_file, snv_files);
+				success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta,
+					prior_alt, sig_level, alignment_file, snv_files, plain_output);
 			} else if (model == FREQ) {
-				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi, sig_level, alignment_file, snv_files, fixed_phi);
+				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi,
+					sig_level, alignment_file, snv_files, fixed_phi, plain_output);
 			}
 			if (!success) {
 				global_log.v(1) << "Identification process failed.";

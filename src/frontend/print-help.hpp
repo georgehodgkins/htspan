@@ -21,8 +21,8 @@ using namespace option;
 * @param width Maximum number of columns written before wrapping.
 * @return none (Prints to the selected ostream)
 */
-void print_descr_usage(const Descriptor descr, std::ostream& prn, int width = 80) {
-	int wctr = 0;
+void print_descr_usage(const Descriptor descr, std::ostream& prn, size_t width = 80) {
+	size_t wctr = 0;
 	bool tab_in = false;
 	for (size_t n = 0; n < strlen(descr.help); ++n) {
 		// CR tells us to feed a newline and tab in all subsequent lines

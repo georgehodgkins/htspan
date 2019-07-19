@@ -19,7 +19,7 @@ signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4,
 	VERBOSITY=5, LOGFILE=6, BAMFILE=7, REFFILE=8, IN_SNVFILE=9, OUT_SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, EPS=18,
 	THETA_SIM=19, PHI_SIM=20, ERR_MEAN_SIM=21, ERR_SD_SIM=22, DAMAGE_TYPE=23, ALPHA=24, BETA=25,
-	ALTPRI=26, MODEL=27, IN_SNVFTYPE=28, OUT_SNVFTYPE=29, SIGLEVEL=30, FIXED_PHI=31, HELP=32};
+	ALTPRI=26, MODEL=27, IN_SNVFTYPE=28, OUT_SNVFTYPE=29, SIGLEVEL=30, FIXED_PHI=31, PLAIN=32, HELP=33};
 
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
@@ -302,7 +302,8 @@ const option::Descriptor usage[] = {
 		Arg::Probability,
 		"-g, --sig-level [.05 freq/.95 bayes]\rThreshold for a variant to be considered damaged by the filter.\n"
 		"Specifically, a variant with a p-val /above/ (freq model) or a posterior probability /below/ (bayes model) "
-		"this threshold is flagged as damaged by the filter."
+		"this threshold is flagged as damaged by the filter.\n"
+		"Set to 0 to disable filtering (statistics will still be recorded in the output file)."
 	},{
 		FIXED_PHI,
 		t_OTHER,
@@ -318,6 +319,13 @@ const option::Descriptor usage[] = {
 		"help",
 		Arg::Optional,
 		"-?, --help\rPrint this help message."
+	},{
+		PLAIN,
+		t_OTHER,
+		"",
+		"plain",
+		Arg::None,
+		"--plain Make log output more machine-friendly"
 	},{// null terminator
 		UNKNOWN,
 		0,
