@@ -14,7 +14,8 @@
 
 #include "bam.hpp"
 #include "nucleotide.hpp"
-#include "io/simul_writer.hpp"
+
+#include "frontend/simul_writer.hpp"
 
 namespace hts {
 

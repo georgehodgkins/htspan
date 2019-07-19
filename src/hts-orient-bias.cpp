@@ -9,6 +9,7 @@
 #include "frontend/orient-bias-quantify.hpp"
 #include "frontend/optionparser.hpp"
 #include "frontend/cstring.hpp"
+#include "frontend/simul_writer.hpp"
 
 #include "htspan/nucleotide.hpp"
 #include "htspan/fetcher.hpp"
@@ -17,7 +18,6 @@
 
 #include "htspan/io/faidx_reader.hpp"
 #include "htspan/io/snv.hpp"
-#include "htspan/io/simul_writer.hpp"
 
 using namespace hts::frontend;
 

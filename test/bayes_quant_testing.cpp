@@ -5,7 +5,7 @@
 
 #include "htspan/bayes_orient_bias_quant.hpp"
 #include "htspan/nucleotide.hpp"
-#include "htspan/io/simul_writer.hpp"
+#include "frontend/simul_writer.hpp"
 
 #include "stograd/src/stograd/stograd.hpp"
 
@@ -56,12 +56,12 @@ void core_testing_method (hts::frontend::simul_writer &output, const char* test_
 
 int main(int argc, char** argv) {
 
-	if (argc < 1) {
+	if (argc < 2) {
 		throw runtime_error("Seed argument reqd!");
 	}
 	int sim_seed = atoi(argv[1]);
 	if (sim_seed == 0) {
-		throw runtime_error("Seed cannot be zero.");
+		throw runtime_error("Seed cannot be zero or invalid!");
 	}
 
 	// optionally write to both stdout and a file
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
 	output.setprecision(5);//set to five digits of output, no scientific notation
 	// any value here that needs to be reported in scientific notation is oob anyway
 	cout.setf(ios_base::fixed);
-	if (argc > 1) {
+	if (argc > 2) {
 		output.add_file(argv[2]);
 	}
 
@@ -106,6 +106,10 @@ int main(int argc, char** argv) {
 		for (size_t n_tst = 0; n_tst < sizeof(TESTS)/sizeof(char*); ++n_tst) {
 			// select initial parameter
 			for (size_t n_ips = 0; n_ips < sizeof(IALPHAS)/sizeof(double); ++n_ips) {
+				// yamadam does not use a learning rate
+				//core_testing_method<stograd::stepper::yamadam<double> > (output, TESTS[n_tst], "yamadam", BSIZES[n_b], 0,
+				//	BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHAS[n_ips], IBETAS[n_ips], sim_seed);
+
 				// select learning rate
 				for (size_t n_lr = 0; n_lr < sizeof(LRATES)/sizeof(double); ++n_lr) {
 					core_testing_method<stograd::stepper::constant<double> > (output, TESTS[n_tst], "const", BSIZES[n_b], LRATES[n_lr],
@@ -117,9 +121,6 @@ int main(int argc, char** argv) {
 					core_testing_method<stograd::stepper::amsgrad<double> > (output, TESTS[n_tst], "amsgrad", BSIZES[n_b], LRATES[n_lr],
 						BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHAS[n_ips], IBETAS[n_ips], sim_seed);
 				}
-				// yamadam does not use a learning rate
-				core_testing_method<stograd::stepper::yamadam<double> > (output, TESTS[n_tst], "yamadam", BSIZES[n_b], 0,
-					BETA_THETAS[n_tst], BETA_PHIS[n_tst], IALPHAS[n_ips], IBETAS[n_ips], sim_seed);
 			}
 		}
 	}

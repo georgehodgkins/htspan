@@ -14,7 +14,7 @@ using namespace std;
 #include "htspan/freq_orient_bias_quant.hpp"
 #include "htspan/bayes_orient_bias_quant.hpp"
 
-#include "htspan/io/simul_writer.hpp"
+#include "simul_writer.hpp"
 using namespace hts;
 
 namespace hts {

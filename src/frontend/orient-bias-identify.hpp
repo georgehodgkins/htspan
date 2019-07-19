@@ -17,8 +17,9 @@ using namespace std;
 #include "htspan/io/snv_reader.hpp"
 #include "htspan/io/snv_writer.hpp"
 #include "htspan/io/snv.hpp"
-#include "htspan/io/simul_writer.hpp"
 #include "htspan/io/streamer.hpp"
+
+#include "simul_writer.hpp"
 
 // TODO: update method documentation
 namespace hts {
