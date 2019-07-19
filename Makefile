@@ -6,7 +6,7 @@ ifndef DEBUG
 	CXXFLAGS = -O3 -Wall -std=c++98 -Isrc
 	bin = bin
 else
-	CXXFLAGS = -ggdb3 -frecord-gcc-switches -Wall -std=c++98 -Isrc -O0
+	CXXFLAGS = -ggdb3 -frecord-gcc-switches -Wall -std=c++98 -Isrc -Og
 	bin = debug
 endif
 
@@ -122,7 +122,7 @@ utest: $(utest_targets)
 test: check
 	
 
-quant-testing: $(utest)/$(bin)/quant-param-testing
+quant-testing: $(bin)/bayes-quant-testing
 
 
 check: $(utest_targets)

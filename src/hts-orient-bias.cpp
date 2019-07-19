@@ -261,14 +261,14 @@ int main (int argc, char** argv) {
 				alpha = strtod(options[ALPHA].arg, NULL);
 			} else {
 				global_log.v(1) <<
-					"Warning: no estimate of alpha was supplied. Default value of " << alpha << " will be used.\n";
+					"Warning: no estimate of alpha_phi was supplied. Default value of " << alpha << " will be used.\n";
 			}
 			// beta hyperparameter
 			if (options[BETA]) {
 				beta = strtod(options[BETA].arg, NULL);
 			} else {
 				global_log.v(1) <<
-					"Warning: no estimate of beta was supplied. Default value of " << beta << " will be used.\n";
+					"Warning: no estimate of beta_phi was supplied. Default value of " << beta << " will be used.\n";
 			}
 			// alt prior prob
 			if (options[ALTPRI]) {
@@ -297,7 +297,7 @@ int main (int argc, char** argv) {
 	if (options[MIN_BASEQ]) {
 		min_baseq = atoi(options[MIN_MAPQ].arg);
 	}
-	long int max_qreads = 5e7;
+	long int max_qreads = 75000;
 	if (options[MAX_QREADS]) {
 		max_qreads = atol(options[MAX_QREADS].arg);
 	}
@@ -370,28 +370,54 @@ int main (int argc, char** argv) {
 			global_log.v(1) << "Warning: Quantification external sim code does not exist yet.\n"; 
 			return 0;
 		} else {
-			if (!plain_output) {
-				global_log.v(1) << "Starting quantification...\n";
-			}
-			// open BAM data file
-			piler p;
-			faidx_reader faidx;
-			if (!p.open(align_fname.c_str())) {
-				std::cerr <<
-					"Error: could not open BAM file \'" << align_fname << "\'.\n";
-				return 1;
-			}
-			// open reference sequence file
-			if (!faidx.open(ref_fname.c_str())) {
-				std::cerr <<
-					"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
-				return 1;
-			}
-			success = orient_bias_quantify_freq(ref, alt, min_mapq, min_baseq,
-				keep_dup, max_qreads, p, faidx, plain_output);
-			if (!success) {
-				global_log.v(1) << "Quantification process failed.\n";
-				return 1;
+			if (model == FREQ) {
+				if (!plain_output) {
+					global_log.v(1) << "Starting frequentist quantification...\n";
+				}
+				// open BAM data file
+				piler p;
+				faidx_reader faidx;
+				if (!p.open(align_fname.c_str())) {
+					std::cerr <<
+						"Error: could not open BAM file \'" << align_fname << "\'.\n";
+					return 1;
+				}
+				// open reference sequence file
+				if (!faidx.open(ref_fname.c_str())) {
+					std::cerr <<
+						"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
+					return 1;
+				}
+				success = orient_bias_quantify_freq(ref, alt, min_mapq, min_baseq,
+					keep_dup, max_qreads, p, faidx, plain_output);
+				if (!success) {
+					global_log.v(1) << "Quantification process failed.\n";
+					return 1;
+				}
+			} else if (model == BAYES) {
+				if (!plain_output) {
+					global_log.v(1) << "Starting Bayesian quantification (this will take a bit)...\n";
+				}
+				// open BAM data file
+				piler p;
+				faidx_reader faidx;
+				if (!p.open(align_fname.c_str())) {
+					std::cerr <<
+						"Error: could not open BAM file \'" << align_fname << "\'.\n";
+					return 1;
+				}
+				// open reference sequence file
+				if (!faidx.open(ref_fname.c_str())) {
+					std::cerr <<
+						"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
+					return 1;
+				}
+				success = orient_bias_quantify_bayes(ref, alt, min_mapq, min_baseq,
+					keep_dup, max_qreads, p, faidx, plain_output);
+				if (!success) {
+					global_log.v(1) << "Quantification process failed.\n";
+					return 1;
+				}
 			}
 		}
 	} // End quantification block
@@ -431,4 +457,5 @@ int main (int argc, char** argv) {
 			}
 		}
 	} // identification block
+	return 0;
 }// main

@@ -191,7 +191,7 @@ const option::Descriptor usage[] = {
 		"",
 		"max-reads",
 		Arg::MaxQReads, 
-		"--max-reads [5e7]\rMaximum number of reads to process in the damage quantification process. "
+		"--max-reads [75000]\rMaximum number of reads to process in the damage quantification process. "
 		"Note that this argument has no effect on the damage identification process."
 	},{
 		MINZ_BOUND,
