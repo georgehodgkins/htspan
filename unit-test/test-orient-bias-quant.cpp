@@ -17,22 +17,36 @@
 #define TEST_EPS 1e-6
 #include "test.hpp"
 
-#define FREQ_N_READS 10000
+#define FREQ_N_READS 75000
 
 #define BAYES_STEPPER stograd::stepper::adam<double>
 #define BAYES_LEARN_RATE 1e-4
-#define BAYES_EPS 1e-6
+#define BAYES_EPS 1e-6  // avoid early convergence to local minimum
 #define BAYES_BSIZE 100
-#define BAYES_NEPOCHS 100
+#define BAYES_NEPOCHS 3000
 #define BAYES_INIT_ALPHA 1
 #define BAYES_INIT_BETA 1
-#define BAYES_N_LOCS 50000
+#define BAYES_N_LOCS 75000
 #define BAYES_MIN_RCOUNT 50
 #define BAYES_MAX_RCOUNT 150
 
-#define SIM_SEED 15202
-
 using namespace std;
+
+// Boost fixture to allow access to command line arguments
+struct seed_fixture {
+	int SIM_SEED;
+
+	seed_fixture()
+		{
+			if (boost::unit_test::framework::master_test_suite().argc > 0) {
+				SIM_SEED = atoi(boost::unit_test::framework::master_test_suite().argv[1]);
+			} else {
+				SIM_SEED = 0;
+			}
+		}
+
+	~seed_fixture() {}
+};
 
 void freq_obquant_sim_test (const size_t N, const double THETA, const double PHI) {
 	hts::freq_orient_bias_quant_f fobquant (nuc_T, nuc_C);
@@ -43,15 +57,13 @@ void freq_obquant_sim_test (const size_t N, const double THETA, const double PHI
 }
 
 void bayes_obquant_sim_test (const size_t N, const size_t LOC_RD_MIN, const size_t LOC_RD_MAX,
-		const double ALPHA_THETA_STD, const double BETA_THETA_STD, const double ALPHA_PHI_STD, const double BETA_PHI_STD) { 
+		const double ALPHA_THETA_STD, const double BETA_THETA_STD, const double ALPHA_PHI_STD, const double BETA_PHI_STD, int sim_seed) { 
 	// generate random read counts within the requested range
-#ifndef SIM_SEED
-	alglib::hqrndstate rng;
-	alglib::hqrndrandomize(rng);
-	int sim_seed = alglib::hqrnduniformi(rng, 1 << 16); // uniform int between 0 and 2^15
-#else
-	int sim_seed = SIM_SEED;
-#endif
+	if (sim_seed == 0) {	
+		alglib::hqrndstate rng;
+		alglib::hqrndrandomize(rng);
+		sim_seed = alglib::hqrnduniformi(rng, 1 << 16); // uniform int between 0 and 2^15
+	}
 	BOOST_TEST_MESSAGE("Bayesian quant model test with true hparams alpha_theta = " << ALPHA_THETA_STD <<
 		", beta_theta = " << BETA_THETA_STD << ", alpha_phi = " << ALPHA_PHI_STD << ", beta_phi = " << BETA_PHI_STD <<
 		"\nSimulating " << N << " loci with read counts between " << LOC_RD_MIN << " and " << LOC_RD_MAX <<  " (seed = " << sim_seed << ")");
@@ -91,7 +103,7 @@ void bayes_obquant_sim_test (const size_t N, const size_t LOC_RD_MIN, const size
 		"E[phi]: Got: " << E_phi << " Exp: " << PHI_MEAN);
 }
 
-BOOST_AUTO_TEST_SUITE(test)
+BOOST_FIXTURE_TEST_SUITE(test, seed_fixture)
 //
 // component function tests
 //
@@ -175,7 +187,7 @@ BOOST_AUTO_TEST_CASE(bayes_hs_hd) {
 	const double BETA_THETA_STD = 10;
 	const double ALPHA_PHI_STD = 1;
 	const double BETA_PHI_STD = 10;
-	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD);
+	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD, SIM_SEED);
 }
 
 BOOST_AUTO_TEST_CASE(bayes_hs_ld) {
@@ -183,7 +195,7 @@ BOOST_AUTO_TEST_CASE(bayes_hs_ld) {
 	const double BETA_THETA_STD = 10;
 	const double ALPHA_PHI_STD = 1;
 	const double BETA_PHI_STD = 100;
-	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD);
+	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD, SIM_SEED);
 }
 
 BOOST_AUTO_TEST_CASE(bayes_ls_hd) {
@@ -191,7 +203,7 @@ BOOST_AUTO_TEST_CASE(bayes_ls_hd) {
 	const double BETA_THETA_STD = 100;
 	const double ALPHA_PHI_STD = 1;
 	const double BETA_PHI_STD = 10;
-	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD);
+	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD, SIM_SEED);
 }
 
 BOOST_AUTO_TEST_CASE(bayes_ms_hd) {
@@ -199,7 +211,7 @@ BOOST_AUTO_TEST_CASE(bayes_ms_hd) {
 	const double BETA_THETA_STD = 50;
 	const double ALPHA_PHI_STD = 1;
 	const double BETA_PHI_STD = 10;
-	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD);
+	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD, SIM_SEED);
 }
 
 BOOST_AUTO_TEST_CASE(bayes_ms_ld) {
@@ -207,7 +219,7 @@ BOOST_AUTO_TEST_CASE(bayes_ms_ld) {
 	const double BETA_THETA_STD = 50;
 	const double ALPHA_PHI_STD = 1;
 	const double BETA_PHI_STD = 100;
-	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD);
+	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD, SIM_SEED);
 }
 
 BOOST_AUTO_TEST_CASE(bayes_ls_ld) {
@@ -215,7 +227,7 @@ BOOST_AUTO_TEST_CASE(bayes_ls_ld) {
 	const double BETA_THETA_STD = 100;
 	const double ALPHA_PHI_STD = 1;
 	const double BETA_PHI_STD = 100;
-	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD);
+	bayes_obquant_sim_test(BAYES_N_LOCS, BAYES_MIN_RCOUNT, BAYES_MAX_RCOUNT, ALPHA_THETA_STD, BETA_THETA_STD, ALPHA_PHI_STD, BETA_PHI_STD, SIM_SEED);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
