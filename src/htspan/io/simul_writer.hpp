@@ -1,6 +1,7 @@
 #include <ostream>
 #include <string>
 #include <sstream>
+#include <iomanip>
 #include <list>
 #include <fstream>
 #include <stdexcept>
@@ -26,6 +27,8 @@ class simul_writer {
 	list<ofstream*> file_streams;
 	bool u_cerr;
 	bool u_cout;
+	int width;
+	int precision;
 	int verbosity; // verbosity level of writer (default: 1)
 	// a value of -1 indicates that verbosity is disabled for the writer
 	// a value of 0 indicates total silence
@@ -35,8 +38,10 @@ class simul_writer {
 	~simul_writer ();
 	void add_file (string);
 	void use_cout (bool);
-	void use_cerr (bool);
+	void use_cerr (bool); 
 	void set_verbosity (int v) { verbosity = v; }
+	void setw(int w) {width = w;}
+	void setprecision(int p) {precision = p};
 	simul_writer& operator<< (string);
 	simul_writer& operator<< (int);
 	simul_writer& operator<< (size_t);
@@ -52,6 +57,8 @@ simul_writer::simul_writer () {
 	u_cout = false;
 	verbosity = 1;
 	curr_vth = -1;
+	precision = 6; // default
+	width = 0; // no min width
 }
 
 simul_writer::~simul_writer () {
@@ -103,22 +110,23 @@ simul_writer& simul_writer::operator<< (string param) {
 }
 
 // overloads for common types
-// unfortunately, ios manipulators (endl, flush, setw) only work with proper ostreams
+// unfortunately, ios manipulators only work with proper ostreams
+// use this->setw and this->setprecision instead
 simul_writer& simul_writer::operator<< (int param) {
 	ostringstream sstream;
-	sstream << param;
+	sstream << setw(width) << param;
 	return operator<<(sstream.str());
 }
 
 simul_writer& simul_writer::operator<< (size_t param) {
 	ostringstream sstream;
-	sstream << param;
+	sstream << setw(width) << param;
 	return operator<<(sstream.str());
 }
 
 simul_writer& simul_writer::operator<< (double param) {
 	ostringstream sstream;
-	sstream << param;
+	sstream << setw(width) << setprecision(precision) << param;
 	return operator<<(sstream.str());
 }
 
