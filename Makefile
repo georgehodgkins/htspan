@@ -93,6 +93,12 @@ $(bin)/hts-orient-bias-stats: $(src)/hts-orient-bias-stats.cpp
 $(bin)/hts-orient-bias: $(src)/hts-orient-bias.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(ALG)
 
+# experimental determination of best params for Bayesian quant
+# not built by 'all'
+
+$(bin)/bayes-quant-testing: $(test)/bayes_quant_testing.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(ALG)
+
 #! Unit test targets for orient-bias
 
 $(utest)/$(bin)/test-freq-orient-bias-filter: $(utest)/test-freq-orient-bias-filter.cpp
@@ -115,6 +121,9 @@ utest: $(utest_targets)
 
 test: check
 	
+
+quant-testing: $(utest)/$(bin)/quant-param-testing
+
 
 check: $(utest_targets)
 	cd $(test) && ./test.sh
