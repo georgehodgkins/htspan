@@ -40,8 +40,8 @@ class simul_writer {
 	void use_cout (bool);
 	void use_cerr (bool); 
 	void set_verbosity (int v) { verbosity = v; }
-	void setw(int w) {width = w;}
-	void setprecision(int p) {precision = p};
+	void setw(int w) {width = w; }
+	void setprecision(int p) {precision = p; }
 	simul_writer& operator<< (string);
 	simul_writer& operator<< (int);
 	simul_writer& operator<< (size_t);
@@ -114,19 +114,19 @@ simul_writer& simul_writer::operator<< (string param) {
 // use this->setw and this->setprecision instead
 simul_writer& simul_writer::operator<< (int param) {
 	ostringstream sstream;
-	sstream << setw(width) << param;
+	sstream << std::setw(width) << param;
 	return operator<<(sstream.str());
 }
 
 simul_writer& simul_writer::operator<< (size_t param) {
 	ostringstream sstream;
-	sstream << setw(width) << param;
+	sstream << std::setw(width) << param;
 	return operator<<(sstream.str());
 }
 
 simul_writer& simul_writer::operator<< (double param) {
 	ostringstream sstream;
-	sstream << setw(width) << setprecision(precision) << param;
+	sstream << std::setw(width) << std::setprecision(precision) << param;
 	return operator<<(sstream.str());
 }
 
