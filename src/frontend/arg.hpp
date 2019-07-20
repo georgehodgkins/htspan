@@ -17,7 +17,7 @@
 #include "file.hpp"
 #include "cstring.hpp"
 
-// This file contains generic and specific argument checks for the option parser.
+// This file contains argument checks for the options defined in options.hpp
 
 namespace hts {
 	
@@ -53,8 +53,9 @@ struct Arg: public option::Arg {
 			return ARG_ILLEGAL;
 		}
 		if (xtns != NULL && n_xtns > 0) {
+			// find the beginning of the last extension in filename
 			const char* dot = strrchr(opt.arg, '.') + 1;
-			for(size_t i = 0; i < n_xtns; ++i) {
+			for (size_t i = 0; i < n_xtns; ++i) {
 				if (strcmpi(dot, xtns[i]) == 0) {
 					return ARG_OK;
 				}
@@ -145,6 +146,8 @@ struct Arg: public option::Arg {
 				return ARG_ILLEGAL;
 			}
 		}
+		
+		// bounds checking
 		if (x <= ub && x >= lb) {
 			return ARG_OK;
 		} else {
@@ -157,9 +160,6 @@ struct Arg: public option::Arg {
 
 	/**
 	* Check that a double argument is valid and in the range [lb, ub]
-	*
-	* Since most of the arguments this will handle are probabilities,
-	* lb and ub default to 0 and 1 respectively.
 	*/
 	static ArgStatus DoubleRange (const Option& opt, bool msg, double lb = DBL_MIN, double ub = DBL_MAX) {
 		if (opt.arg == NULL || strlen(opt.arg) == 0) {
@@ -183,6 +183,8 @@ struct Arg: public option::Arg {
 				return ARG_ILLEGAL;
 			}
 		}
+		
+		// bounds checking
 		if (x <= ub && x >= lb) {
 			return ARG_OK;
 		} else {
@@ -202,6 +204,7 @@ struct Arg: public option::Arg {
 				return ARG_OK;
 			}
 		}
+		
 		// if we reach this point arg did not match any valid strings
 		if (msg) {
 			std::cerr << "Argument to " << opt.name << " must match one of the following:\n";

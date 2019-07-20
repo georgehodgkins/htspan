@@ -4,6 +4,8 @@
 #include <fstream>
 #include <string>
 
+namespace hts {
+
 inline bool file_exists (const char* fname) {
 	std::ifstream f(fname);
 	return f.good();
@@ -42,5 +44,7 @@ void get_file_ext(const std::string& fname, std::string& ext) {
 	}
 	ext = fname.substr(start + 1);
 }
+
+} // namespace hts
 
 #endif  // _HTSPAN_FILE_HPP_

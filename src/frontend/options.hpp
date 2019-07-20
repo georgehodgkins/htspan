@@ -14,7 +14,7 @@ namespace hts {
 namespace frontend {
 
 // These indices uniquely identify options
-// They are signed so the print_selected_usages function in print-help.hpp works correctly
+// They are signed so that the print_selected_usages function in print-help.hpp works correctly
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, BAMFILE=7, REFFILE=8, IN_SNVFILE=9, OUT_SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, EPS=18,
@@ -46,7 +46,7 @@ const size_t sim_arg_count = sizeof(intsim_only_args)/sizeof(OptionIndex);
 * Main array of options passed to the parser.
 * This array must stay ordered least to greatest index for help printing to work.
 * Note that in help descrs, \r feeds a newline + indentation for all subsequent lines in that description
-* All option checks are in arg.hpp.
+* All option checks are defined in arg.hpp, except for basic Arg::None and Arg::Optional.
 */
 const option::Descriptor usage[] = {
 	{
@@ -325,7 +325,7 @@ const option::Descriptor usage[] = {
 		"",
 		"plain",
 		Arg::None,
-		"--plain Make log output more machine-friendly"
+		"--plain Make output more machine-readable"
 	},{// null terminator
 		UNKNOWN,
 		0,

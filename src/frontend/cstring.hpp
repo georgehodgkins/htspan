@@ -1,10 +1,12 @@
 #ifndef _HTSPAN_CSTRING_HPP_
 #define _HTSPAN_CSTRING_HPP_ 
 
+// A couple of c-string utilities
+
 namespace hts {
 
 /**
-* Case insensitive strcmp, returns bool instead of the traditional int
+* Case insensitive strcmp
 */
 int strcmpi (const char* s1, const char* s2) {
 	if (s1 == NULL) {
@@ -34,7 +36,7 @@ int strcmpi (const char* s1, const char* s2) {
 }
 
 /**
-* Counts the occurences of a character in a string.
+* Counts the occurrences of a character in a string.
 */
 size_t str_count_char (const char* s, char c) {
 	size_t r = 0;

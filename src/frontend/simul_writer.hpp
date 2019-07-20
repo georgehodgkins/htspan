@@ -9,6 +9,11 @@
 #ifndef _HTSPAN_SIMUL_HPP_
 #define _HTSPAN_SIMUL_HPP_
 
+/**
+* This file defines a class that writes to multiple ostreams at once.
+* It also contains the declaration of a global log output for use by hts-orient-bias.
+*/
+
 // TODO: make this a conforming ostream
 
 namespace hts {

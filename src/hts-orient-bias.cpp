@@ -21,22 +21,30 @@
 
 using namespace hts::frontend;
 
-// TODO Eliminate string/cstr juggling
-// TODO Add appropriate help messages to errors
+/**
+* This is the entry point for hts-orient-bias. The code in this file
+* is mainly concerned with parsing command-line options
+* and initializing input/output files; it then passes these to driver functions
+* located in frontend/orient-bias-identify.hpp and frontend/orient-bias-quantify.hpp.
+*/
+
+// TODO: expose simulation capabilities
 
 int main (int argc, char** argv) {
-	// used for clarity when setting model and integrator options
+	// enum for model options
 	enum ModelType {BAYES, FREQ};
 
 	//
 	// Process input arguments
 	// 
-	if (argc <= 1) { // i.e. no arguments given
+	if (argc <= 1) { // no arguments given
 		print_help(NULL);
 		return 1;
 	}
 	argv++; // ignore executable name
 	argc--;
+	// first argument should be the command:
+	// 'identify' or 'quantify', or a help flag
 	const char* command = argv[0];
 	// get command
 	bool quantifying = false;
@@ -76,7 +84,8 @@ int main (int argc, char** argv) {
 	}
 	// Convert parsed options to runtime vars
 	// Note that all arg checking is handled by the parser,
-	// so any args here are assumed valid
+	// so args here are assumed to be individually valid,
+	// although some combinations are still invalid
 
 	//
 	// Argument parsing block
@@ -99,19 +108,24 @@ int main (int argc, char** argv) {
 		log_fname = options[LOGFILE].arg;
 	}
 
+	// plain output makes output machine-readable
+	// Errors and warnings will still be printed, though
 	bool plain_output = (bool) options[PLAIN];
 
 	// Direct file and result output appropriately
-	// Note that fatal errors will go to stdout regardless either by
+	
+	// Fatal errors will go to stderr regardless either by
 	// cerr in the frontend or thrown exceptions in the backend
 	if (log_to_file) {
 		global_log.add_file(log_fname);
 	}
 	global_log.use_cout(use_stdout);
-	// Verbosity levels: 0=silent, 1=warnings only 2=some runtime info 3=too much runtime info
+	
+	// Each of the driver functions has a section in its header listing
+	// what is output at each verbosity level
 	global_log.set_verbosity(verbosity);
 
-	// Set reference and alternative nucleotides and check that they differ
+	// Ref/alt nucleotide options (usually set by damage type flag)
 	nuc_t ref = nuc_N;
 	nuc_t alt = nuc_N;
 	if (options[DAMAGE_TYPE]) {
@@ -136,7 +150,7 @@ int main (int argc, char** argv) {
 			success = false;
 	}
 
-	// Simulation flags
+	// Simulation options
 	bool internal_sim = (bool) options[INT_SIM];
 	bool external_sim = (bool) options[EXT_SIM];
 	std::string ext_sim_fname;
@@ -144,7 +158,7 @@ int main (int argc, char** argv) {
 		ext_sim_fname = options[EXT_SIM].arg;
 	}
 
-	// Input file flags
+	// Alignment file options
 	std::string align_fname;
 	if (!options[BAMFILE]) {
 		std::cerr << 
@@ -154,16 +168,18 @@ int main (int argc, char** argv) {
 		align_fname = options[BAMFILE].arg;
 	}
 
+	// Reference file options
 	std::string ref_fname;
 	if (options[REFFILE]) {
 		ref_fname = options[REFFILE].arg;
 	}
 
-	// SNV file flags
+	// Input SNV file options
 	std::string snv_in_fname;
 	snv::FMTFLAGS_T snv_in_fmt = snv::F_NULL;
 	if (options[IN_SNVFILE]) {
 		snv_in_fname = options[IN_SNVFILE].arg;
+		// opts_to_fmt deduces format either from an explicitly set option or from the filename
 		if (options[IN_SNVFTYPE]) {
 			snv_in_fmt = hts::snv::opts_to_fmt(snv_in_fname.c_str(), options[IN_SNVFTYPE].arg);
 		} else {
@@ -171,10 +187,13 @@ int main (int argc, char** argv) {
 		}
 	}
 
-	std::string snv_out_fname = "out";
+	// Output SNV file options
+	// TODO: add extension if a name is given as well?
+	std::string snv_out_fname = "out"; // default name
 	snv::FMTFLAGS_T snv_out_fmt = snv::F_NULL;
 	if (options[OUT_SNVFILE]) {
 		snv_out_fname = options[OUT_SNVFILE].arg;
+		// opts_to_fmt deduces format either from an explicitly set option or from the filename
 		if (options[OUT_SNVFTYPE]) {
 			snv_out_fmt = hts::snv::opts_to_fmt(snv_out_fname.c_str(), options[OUT_SNVFTYPE].arg);
 		} else {
@@ -185,16 +204,19 @@ int main (int argc, char** argv) {
 		snv_out_fname += fmt_to_xtn(snv_out_fmt);
 	}
 
-	// get statistical model (default is bayes)
+	// Statistical model options, default is Bayesian
 	ModelType model = BAYES;
 	if(options[MODEL]) {
 		if (strcmpi(options[MODEL].arg, "freq") == 0) {
 			model = FREQ;
 		}
 	}
+	
+	// For frequentist identification, whether or not to allow phi to vary during analysis
 	bool fixed_phi = (bool) options[FIXED_PHI];
 
-	// get significance level, if set
+	// Significance level option, setting the threshold for significance for identification
+	// NB: pvals must be /below/ the threshold to be significant, while posterior probs must be /above/
 	double sig_level;
 	if (options[SIGLEVEL]) {
 		sig_level = strtod(options[SIGLEVEL].arg, NULL);
@@ -205,9 +227,12 @@ int main (int argc, char** argv) {
 			sig_level = .05;
 		}
 	}
+	
 	//
 	// Command-specific argument checks
 	//
+	
+	// Now that all options are set, check for missing required args, invalid combinations, etc.
 	if (quantifying) {
 
 		if (ref_fname.empty()) {
@@ -250,6 +275,7 @@ int main (int argc, char** argv) {
 	}
 
 	// Numeric parameter flags
+	// TODO: use --alpha/beta for initial estimates for quant as well
 	double phi = .01;
 	double alpha = 1.0;
 	double beta = 1.0;
@@ -289,22 +315,31 @@ int main (int argc, char** argv) {
 			}
 		}
 	}
+	
+	// Misc options that should be sorted
+	// Minimum mapping quality for analyzed reads
 	int min_mapq = 5;
 	if (options[MIN_MAPQ]) {
 		min_mapq = atoi(options[MIN_MAPQ].arg);
 	}
+	// Minimum base quality for analyzed reads
 	int min_baseq = 20;
 	if (options[MIN_BASEQ]) {
 		min_baseq = atoi(options[MIN_MAPQ].arg);
 	}
+	// Maximum number of reads to analyze during quantification
+	// For Bayesian quant, may need to be increased to achieve convergence
 	long int max_qreads = 75000;
 	if (options[MAX_QREADS]) {
 		max_qreads = atol(options[MAX_QREADS].arg);
 	}
+	// Symmetric log-space bounds for minimizing in freq ident process
 	int minz_bound = 15;
 	if (options[MINZ_BOUND]) {
 		minz_bound = atoi(options[MINZ_BOUND].arg);
 	}
+	// Epsilon for convergence
+	// TODO: apply this to Bayesian quant?
 	double eps = 1e-6;
 	if (options[EPS]) {
 		eps = strtod(options[EPS].arg, NULL);
@@ -339,12 +374,13 @@ int main (int argc, char** argv) {
 	}
 
 	// misc flags
+	// Keep duplicate reads?
 	bool keep_dup = false;
 	if (options[KEEP_DUP]) {
 		keep_dup = options[KEEP_DUP].last()->type() == t_ON;
 	}
 
-	//Exit if a fatal error was encountered, after providing some help
+	// Exit if a fatal error was encountered, after providing some help
 	if (!success) {
 		if (quantifying) {
 			print_help("quantify");
@@ -353,11 +389,11 @@ int main (int argc, char** argv) {
 		}
 		return 1;
 	}
+	
 	//
 	// Direct the program according to parsed options
 	//
 	using namespace hts;
-
 	
 	//
 	// Damage quantification block
@@ -370,6 +406,7 @@ int main (int argc, char** argv) {
 			global_log.v(1) << "Warning: Quantification external sim code does not exist yet.\n"; 
 			return 0;
 		} else {
+			// TODO: reduce dup'd code here
 			if (model == FREQ) {
 				if (!plain_output) {
 					global_log.v(1) << "Starting frequentist quantification...\n";
@@ -388,12 +425,15 @@ int main (int argc, char** argv) {
 						"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
 					return 1;
 				}
+				// do quantification (-->frontend/orient-bias-quantify.hpp)
 				success = orient_bias_quantify_freq(ref, alt, min_mapq, min_baseq,
 					keep_dup, max_qreads, p, faidx, plain_output);
+
 				if (!success) {
 					global_log.v(1) << "Quantification process failed.\n";
 					return 1;
 				}
+				
 			} else if (model == BAYES) {
 				if (!plain_output) {
 					global_log.v(1) << "Starting Bayesian quantification (this will take a bit)...\n";
@@ -412,8 +452,10 @@ int main (int argc, char** argv) {
 						"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
 					return 1;
 				}
+				// do quantification (-->frontend/orient-bias-quantify.hpp)
 				success = orient_bias_quantify_bayes(ref, alt, min_mapq, min_baseq,
 					keep_dup, max_qreads, p, faidx, plain_output);
+					
 				if (!success) {
 					global_log.v(1) << "Quantification process failed.\n";
 					return 1;
@@ -436,14 +478,19 @@ int main (int argc, char** argv) {
 			if (!plain_output) {
 				global_log.v(1) << "Starting identification...\n";
 			}
+			
+			// open BAM data file
 			fetcher alignment_file;
 			if (!alignment_file.open(align_fname.c_str())) {
 				std::cerr <<
 					"Error: Could not open BAM file \'" << align_fname << "\'.";
 				return 1;
 			}
+			
+			// streamer class helps pass paramters from input SNV to output SNV file
 			snv::streamer snv_files (snv_in_fname.c_str(), snv_out_fname.c_str(), snv_in_fmt, snv_out_fmt);
-
+			
+			// do the identification (-->frontend/orient-bias-identify.hpp)
 			if (model == BAYES) {
 				success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta,
 					prior_alt, sig_level, alignment_file, snv_files, plain_output);
@@ -451,6 +498,7 @@ int main (int argc, char** argv) {
 				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi,
 					sig_level, alignment_file, snv_files, fixed_phi, plain_output);
 			}
+			
 			if (!success) {
 				global_log.v(1) << "Identification process failed.";
 				return 1;
