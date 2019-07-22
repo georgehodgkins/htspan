@@ -1,3 +1,6 @@
+#ifndef _HTSPAN_SIMUL_HPP_
+#define _HTSPAN_SIMUL_HPP_
+
 #include <ostream>
 #include <string>
 #include <sstream>
@@ -5,9 +8,6 @@
 #include <list>
 #include <fstream>
 #include <stdexcept>
-
-#ifndef _HTSPAN_SIMUL_HPP_
-#define _HTSPAN_SIMUL_HPP_
 
 /**
 * This file defines a class that writes to multiple ostreams at once.

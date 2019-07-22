@@ -1,3 +1,6 @@
+#ifndef _HTSPAN_PRINT_HELP_HPP_
+#define _HTSPAN_PRINT_HELP_HPP_
+
 #include <stdexcept>
 #include <iostream>
 #include <cstring>
@@ -6,11 +9,23 @@
 #include "options.hpp"
 #include "cstring.hpp"
 
+/**
+* This file contains some generic methods for printing subsets
+* of the option list (not supported by native printUsage from the
+* option parser).
+*
+* It also contains specific uses of those methods for hts-orient-bias.
+*/
+
 namespace hts {
 
 namespace frontend {
 
 using namespace option;
+
+// Formatting markers to turn bold text on and off
+const char* BOLD = "\e[1m";
+const char* NO_BOLD = "\e[0m";
 
 /**
 * Print the help text of a given Descriptor,
@@ -24,12 +39,13 @@ using namespace option;
 void print_descr_usage(const Descriptor descr, std::ostream& prn, size_t width = 80) {
 	size_t wctr = 0;
 	bool tab_in = false;
+	prn << BOLD;
 	for (size_t n = 0; n < strlen(descr.help); ++n) {
-		// CR tells us to feed a newline and tab in all subsequent lines
+		// CR indicates the end of the title
 		if (descr.help[n] == '\r') {
 			tab_in = true;
 			wctr = 0;
-			prn << "\n\t";
+			prn << NO_BOLD << "\n\t";
 		} else if (descr.help[n] == '\n') {
 			wctr = 0;
 			prn << '\n';
@@ -62,6 +78,13 @@ void print_descr_usage(const Descriptor descr, std::ostream& prn, size_t width =
 * This function prints a subset of help texts given
 * the enum indices of the desired options.
 *
+* The complete usage array must be indexed with signed enums, 
+* and must be sorted in ascending order. This is because multiple
+* options can share the same enum index, so an option may not be at
+* the position indicated by its index in the descriptor array,
+* so it can be necessary to search for it (and those restrictions
+* greatly simplify searching).
+*
 * @param full_usage The complete usage array
 * @param n_full Length of full_usage
 * @param selection Array of enum indices whose corresponding help texts should be printed
@@ -90,18 +113,24 @@ void print_selected_usages(const Descriptor full_usage[], size_t n_full, const O
 	}
 }
 
+/**
+* Header printed at the top of all help texts
+*/
 void print_help_info () {
-	std::cerr <<
-	"\nhtspan orient-bias: Corrects errors in high-throughput sequencing data.\n" <<
+	std::cerr << BOLD << 
+	"\nhtspan orient-bias: " << NO_BOLD << "Corrects errors in high-throughput sequencing data.\n" <<
 	"Values in [brackets] are defaults.\n\n";
 }
 
+/**
+* Print a list of available commands.
+*/
 void print_general_usage() {
 	print_help_info();
 	std::cerr << 
 		"Commands:\n" <<
-		"quantify - Calculate an estimate of global damage in the given BAM file.\n" <<
-		"identify - Examine each SNV in the given snv file and provide a likelihood of damage.\n\n" <<
+		BOLD << "quantify " << NO_BOLD << "- Calculate an estimate of global damage in the given BAM file.\n" <<
+		BOLD << "identify " << NO_BOLD << "- Examine each SNV in the given snv file and provide a likelihood of damage.\n\n" <<
 
 		"Use --help [command]  or --help [option] (no dashes) for details on use\n" <<
 		"or --help utility for information on options relating to logging, debugging, and output.\n";
@@ -115,7 +144,7 @@ void print_general_usage() {
 */
 void print_quant_usage() {
 	print_help_info();
-	std::cerr << "Quantification help:\n\n";
+	std::cerr << BOLD << "Quantification help:\n\n" << NO_BOLD;
 	print_selected_usages (usage, total_arg_count, common_args, common_arg_count);
 	print_selected_usages (usage, total_arg_count, quant_only_args, quant_arg_count);
 }
@@ -125,7 +154,7 @@ void print_quant_usage() {
 */
 void print_ident_usage() {
 	print_help_info();
-	std::cerr << "\nIdentification help:\n";
+	std::cerr << BOLD << "\nIdentification help:\n" << NO_BOLD;
 	print_selected_usages (usage, total_arg_count, common_args, common_arg_count);
 	print_selected_usages (usage, total_arg_count, ident_only_args, ident_arg_count);
 }
@@ -135,12 +164,12 @@ void print_ident_usage() {
 */
 void print_utility_usage() {
 	print_help_info();
-	std::cerr << "Utilty flags:\n";
+	std::cerr << BOLD << "Utilty flags:\n" << NO_BOLD;
 	print_selected_usages (usage, total_arg_count, utility_args, utility_arg_count);
 }
 
 /*
-* Print the correct help message based on the argument given.
+* Print the correct help message based on the argument passed to --help.
 */
 void print_help (const char* arg) {
 	if (arg == NULL) {
@@ -177,3 +206,5 @@ void print_help (const char* arg) {
 }// namespace frontend
 
 }// namespace hts
+
+#endif // _HTSPAN_PRINT_HELP_HPP_

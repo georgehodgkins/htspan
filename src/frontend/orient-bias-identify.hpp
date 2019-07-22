@@ -29,6 +29,9 @@ using namespace std;
 * a filter class (Bayesian or frequentist), which returns a statistic indicating how likely it is
 * that each variant is the result of damage. These SNVs are written back to an SNV file, with a field
 * recording the statistic and optionally, for VCF files, an entry in the filter column if they failed.
+*
+* This file is intentionally not include guarded; it contains driver code only and should not be
+* included from multiple locations.
 */ 
 
 namespace hts {
@@ -121,7 +124,6 @@ bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv:
 *		or all damage-consistent SNVS if significance is not considered
 * 	2: number of reads fetched per SNV, significant (passing) SNVs if significance is being considered
 * 	3: Damage-inconsistent SNVs
-*
 *
 * @param ref Reference nucleotide of interest
 * @param alt Alternate nucleotide of interest
@@ -237,8 +239,8 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 * @param alpha Alpha hyperparameter for the beta distribution
 * @param beta Beta hyperparameter for the beta distribution
 * @param prior_alt Prior probability of the alternate model (theta != 0)
-* @param posterior_threshold Posterior probability of alt model must be above this threshold
-*	for a variant to be considered significant; 0 indicates significance is not considered
+* @param posterior_threshold Minimum posterior probability considered significant (i.e. variant is genuine);
+*	 0 indicates significance is not considered
 * @param f Already initialized fetcher containing the alignment of interest
 * @param s Already initialized streamer containing input and output SNV files
 * @param plain_output Whether to print non machine-readable portions of output
@@ -246,6 +248,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 */
 bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bound, 
 		double alpha, double beta, double prior_alt, double posterior_threshold, fetcher &f, snv::streamer &s, bool plain_output) {
+
 	orient_bias_data data (ref, alt, 0);
 	snv::record rec;
 	snv::reader &snvr = *s.snvr_pt;
@@ -305,7 +308,7 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 				frontend::global_log.v(1) << '\n';
 				snvw.write_filter_failed(rec, bobfilter, "BOBP", lposterior);
 			}
-			++n; // number of analyzed variants
+			++n; // number of analyzed SNVs
 	}
 	
 	// Additional caveats and other non machine-readable output

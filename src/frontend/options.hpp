@@ -1,11 +1,16 @@
-#include "optionparser.hpp"
-#include "arg.hpp"
 #ifndef _HTSPAN_OPTION_HPP_
 #define _HTSPAN_OPTION_HPP_
 
-// Array of options for use in the option parser for the unified frontend.
-// The goal is for this file to be mostly self-documenting
-// via the help texts in the array.
+#include "optionparser.hpp"
+#include "arg.hpp"
+
+/**
+* This file contains the list of command-line flags
+* that can be passed to hts-orient-bias.
+*
+* It should be mostly self-documenting, since each option
+* includes a help text describing its usage.
+*/
 
 // TODO: unknown option handling
 

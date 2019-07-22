@@ -1,5 +1,5 @@
-#ifndef _HTSPAN_OPTCHK_HPP_
-#define _HTSPAN_OPTCHK_HPP_
+#ifndef _HTSPAN_ARG_HPP_
+#define _HTSPAN_ARG_HPP_
 
 #include <fstream>
 #include <cstring>
@@ -100,7 +100,7 @@ struct Arg: public option::Arg {
 	}
 
 	/**
-	* Check that a nucleotide argument is canonical
+	* Check that a nucleotide argument is canonical.
 	*/
 	static ArgStatus CanonicalNucleotide (const Option& opt, bool msg) {
 		if (opt.arg == NULL || strlen(opt.arg) == 0) {
@@ -122,7 +122,7 @@ struct Arg: public option::Arg {
 	}
 
 	/**
-	* Check that a integral argument is valid and in the range [lb, ub]
+	* Check that a integral argument is valid and in the range [lb, ub].
 	*/
 	static ArgStatus IntRange (const Option& opt, bool msg, int lb = INT_MIN, int ub = INT_MAX) {
 		if (opt.arg == NULL || strlen(opt.arg) == 0) {
@@ -325,11 +325,11 @@ struct Arg: public option::Arg {
 	}
 
 	static ArgStatus MinMapQ (const Option& opt, bool msg) {
-		return IntRange(opt, msg, 0, 100);// check bounds
+		return IntRange(opt, msg, 0, 100);
 	}
 
 	static ArgStatus MinBaseQ (const Option& opt, bool msg) {
-		return IntRange(opt, msg, 0, 100);// ^^^
+		return IntRange(opt, msg, 0, 100);
 	}
 
 	static ArgStatus MaxQReads (const Option& opt, bool msg) {
@@ -363,4 +363,4 @@ struct Arg: public option::Arg {
 
 }// namespace hts
 
-#endif // _HTSPAN_OPTCHK_HPP_
+#endif // _HTSPAN_ARG_HPP_

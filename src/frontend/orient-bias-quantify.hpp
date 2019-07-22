@@ -24,6 +24,9 @@ using namespace hts;
 * an hts::faidx by an hts::<model>_orient_bias_quant_f object, which performs analysis based
 * on the set of observed nucleotides at each site compared to the reference
 * and returns estimates of parameters used in the identification process.
+*
+* This file is intentionally not include guarded; it contains driver code only and should not be
+* included from multiple locations.
 */
 
 namespace hts {
