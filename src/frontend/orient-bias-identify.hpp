@@ -74,11 +74,19 @@ inline void print_snvr_err(snv::reader &snvr) {
 *		rec is populated with the read SNV, including error codes if reading or fetching fails
 */
 bool fetch_next_snv (snv::reader &snvr, fetcher &f, orient_bias_data &data, snv::record &rec) {
+	static bool warned_multiple_variant = false;
+
 	if (snvr.next(rec)) {
 		
 		// check for non-fatal errors
 		if (snvr.error() != 0) {
-			print_snvr_err(snvr);
+			// don't spam lots of multiple variant warnings
+			if (!warned_multiple_variant && snvr.error() == 3) {
+				print_snvr_err(snvr);
+				warned_multiple_variant = true;
+			} else if (snvr.error() != 3) {
+				print_snvr_err(snvr);
+			}
 			return true;
 		}
 		
@@ -207,7 +215,7 @@ bool orient_bias_identify_freq(nuc_t ref, nuc_t alt, double eps, double minz_bou
 	
 	// Extra caveats and summary data that are not important to a computer
 	if (!plain_output) {
-		frontend::global_log.v(1) << "NOTE 1: P-values are not adjusted for false discovery.\n";
+		frontend::global_log.v(1) << "\nNOTE 1: P-values are not adjusted for false discovery.\n";
 		frontend::global_log.v(1) << "NOTE 2: Statistic values are only accurate to within " << eps << ",\n\t" <<
 			"so p-vals of 0 or 1 are not true 0 or 1";
 			
@@ -314,11 +322,11 @@ bool orient_bias_identify_bayes(nuc_t ref, nuc_t alt, double eps, double minz_bo
 	// Additional caveats and other non machine-readable output
 	if (!plain_output) {
 		
-		frontend::global_log.v(1) << "NOTE 1: posterior probabilities are not adjusted for false discovery.\n";
+		frontend::global_log.v(1) << "\nNOTE 1: posterior probabilities are not adjusted for false discovery.\n";
 		frontend::global_log.v(1) << "NOTE 2: Values are only accurate to within " << eps << ",\n\t" <<
 			"so probabilities of 0 or 1 are not true 0 or 1.";
 
-		frontend::global_log.v(1) << "\nSummary: Total: " << n;
+		frontend::global_log.v(1) << "\nTotal: " << n;
 		if (posterior_threshold > 0) {
 			frontend::global_log.v(1) << " Passed: " << n_sig << " Failed: " << n - n_sig;
 		}

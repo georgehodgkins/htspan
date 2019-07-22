@@ -67,6 +67,8 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min
 
 	// iterate through pileup positions until enough reads have been processed
 	size_t j = 0;
+	// table header for info dump (only at verbosity==3)
+	frontend::global_log.v(3) << "pileup\treads\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\n";
 	while (n_reads < max_qreads) {
 		
 		// advance to next locus
@@ -76,9 +78,6 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min
 		// number of reads at the locus
 		size_t n = p.size();
 
-		frontend::global_log.v(3) << "pileup " << j << ": " << n << " reads at tid = " 
-			   << p.tid << ", pos = " << p.pos << '\n';
-
 		// Get the reference sequence at the corresponding location
 		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
 		if (seq == NULL) {
@@ -86,14 +85,40 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min
 				<< " at position " << p.pos << '\n';
 			continue;
 		}
-		
+
+		frontend::global_log.v(3) << j << '\t' << n << '\t' << p.tid << '\t' << p.pos << '\t' << seq[0] << '\t';
+
+		// dump locus info and observed variables at high verbosity level
+		if (frontend::global_log.v() >= 3) {
+			char palt;
+			for (size_t i = 0; i < p.size()-1; ++i) {
+				palt = nuc_to_char(query_nucleotide(pile[i].b, p.pos));
+				if (palt != seq[0]) {
+					frontend::global_log.v(3) << palt << ',';
+				}
+			}
+			palt = nuc_to_char(query_nucleotide(pile[p.size()-1].b, p.pos));
+			if (palt != seq[0]) {
+				frontend::global_log.v(3) << palt;
+			}
+			frontend::global_log.v(3) << '\t';
+		}
+
+		// used to get observed var values, for debug
+		long int old_xi = fobquant.xi;
+		long int old_xc = fobquant.xc;
+		long int old_ni = fobquant.ni;
+		long int old_nc = fobquant.nc;
+
 		// Check here whether reference nucleotide at position is damage-consistent
 		char s_ref = char_to_nuc(seq[0]);
-		frontend::global_log.v(3) << "ref = " << nuc_to_char(ref) << '\n';
 		if (s_ref == ref || s_ref == nuc_complement(ref)) {
 			// accumulate statistics
 			n_reads += fobquant.push(pile, n, p.pos);
+			frontend::global_log.v(3) << fobquant.xi - old_xi << '\t' << fobquant.xc - old_xc << '\t'
+				<< fobquant.ni - old_ni << '\t' << fobquant.nc - old_nc;
 		}
+		frontend::global_log.v(3) << '\n';
 		++j;
 	}
 	
@@ -155,6 +180,7 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, double min_mapq, double mi
 
 	// iterator through pileup positions
 	size_t j = 0;
+	frontend::global_log.v(3) << "pileup\treads\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\n";
 	while (n_reads < max_qreads) {
 		
 		// advance to next locus
@@ -164,9 +190,6 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, double min_mapq, double mi
 		// number of reads at the locus
 		size_t n = p.size();
 
-		frontend::global_log.v(3) << "pileup " << j << ": " << n << " reads at tid = " 
-			   << p.tid << ", pos = " << p.pos << '\n';
-
 		// Get reference sequence at that locus
 		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
 		if (seq == NULL) {
@@ -175,14 +198,32 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, double min_mapq, double mi
 			continue;
 		}
 	
+		frontend::global_log.v(3) << j << '\t' << n << '\t' << p.tid << '\t' << p.pos << '\t' << seq[0] << '\t';
+
+		// dump locus info and observed variables at high verbosity level
+		if (frontend::global_log.v() >= 3) {
+			char palt;
+			for (size_t i = 0; i < p.size()-1; ++i) {
+				palt = nuc_to_char(query_nucleotide(pile[i].b, p.pos));
+				if (palt != seq[0]) {
+					frontend::global_log.v(3) << palt << ',';
+				}
+			}
+			palt = nuc_to_char(query_nucleotide(pile[p.size()-1].b, p.pos));
+			if (palt != seq[0]) {
+				frontend::global_log.v(3) << palt;
+			}
+			frontend::global_log.v(3) << '\t';
+		}
 		
 		// Check whether reference nucleotide at position is damage-consistent
 		char s_ref = char_to_nuc(seq[0]);
-		frontend::global_log.v(3) << "ref = " << nuc_to_char(ref) << '\n';
 		if (s_ref == ref || s_ref == nuc_complement(ref)) {
 			// accumulate statistics
 			n_reads += bobquant.push(pile, n, p.pos);
+			frontend::global_log.v(3) << bobquant.xi << '\t' << bobquant.xc << '\t' << bobquant.ni << '\t' << bobquant.nc;
 		}
+		frontend::global_log.v(3) << '\n';
 		++j;
 	}
 	
@@ -203,7 +244,7 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, double min_mapq, double mi
 	}
 	frontend::global_log.v(2) << result.alpha_theta/(result.alpha_theta + result.beta_theta) << '\n';
 
-	// Output phi hyperparameters, and E[phi] if verbosity >= 2
+	// Output phi hyperparameters always, and E[phi] if verbosity >= 2
 	if (!plain_output) {
 		frontend::global_log.v(1) << "Alpha_phi: ";
 	}

@@ -49,6 +49,7 @@ class simul_writer {
 	void setprecision(int p) {precision = p; }
 	simul_writer& operator<< (string);
 	simul_writer& operator<< (int);
+	simul_writer& operator<<(long int);
 	simul_writer& operator<< (size_t);
 	simul_writer& operator<< (double);
 	simul_writer& operator<< (char);
@@ -118,6 +119,12 @@ simul_writer& simul_writer::operator<< (string param) {
 // unfortunately, ios manipulators only work with proper ostreams
 // use this->setw and this->setprecision instead
 simul_writer& simul_writer::operator<< (int param) {
+	ostringstream sstream;
+	sstream << std::setw(width) << param;
+	return operator<<(sstream.str());
+}
+
+simul_writer& simul_writer::operator<< (long int param) {
 	ostringstream sstream;
 	sstream << std::setw(width) << param;
 	return operator<<(sstream.str());

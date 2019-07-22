@@ -329,7 +329,7 @@ int main (int argc, char** argv) {
 	}
 	// Maximum number of reads to analyze during quantification
 	// For Bayesian quant, may need to be increased to achieve convergence
-	long int max_qreads = 75000;
+	long int max_qreads = 1000000;
 	if (options[MAX_QREADS]) {
 		max_qreads = atol(options[MAX_QREADS].arg);
 	}

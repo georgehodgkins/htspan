@@ -196,7 +196,7 @@ const option::Descriptor usage[] = {
 		"",
 		"max-reads",
 		Arg::MaxQReads, 
-		"--max-reads [75000]\rMaximum number of reads to process in the damage quantification process. "
+		"--max-reads [1e6]\rMaximum number of reads to process in the damage quantification process. "
 		"Note that this argument has no effect on the damage identification process."
 	},{
 		MINZ_BOUND,
@@ -205,7 +205,7 @@ const option::Descriptor usage[] = {
 		"minimizer-bound",
 		Arg::MinzBound, 
 		"--minimizer-bound [15]\rMagnitude (log space) of the symmetrical domain to minimize in during damage identification. "
-		"i.e. for the default arg the minimizer will search from xval 10^-15 to 10^15 in real space."
+		"i.e. for the default arg the minimizer will search from xval e^-15 to e^15 in constrained space."
 	},{
 		EPS,
 		t_OTHER,
