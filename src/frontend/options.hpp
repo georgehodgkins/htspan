@@ -15,7 +15,7 @@ namespace frontend {
 
 // These indices uniquely identify options
 // They are signed so the print_selected_usages function in print-help.hpp works correctly
-signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
+enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, BAMFILE=7, REFFILE=8, IN_SNVFILE=9, OUT_SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, EPS=18,
 	THETA_SIM=19, PHI_SIM=20, ERR_MEAN_SIM=21, ERR_SD_SIM=22, DAMAGE_TYPE=23, ALPHA=24, BETA=25,
