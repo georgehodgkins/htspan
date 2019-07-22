@@ -317,6 +317,9 @@ struct phi_hparams_optimizable {
 		if (isnan(new_grad[0]) || isnan(new_grad[1])) {
 			throw runtime_error ("NaN returned from gradient!");
 		}
+		if (isinf(new_grad[0]) || isinf(new_grad[1])) {
+			throw runtime_error ("Infinity returned from gradient!");
+		}
 		stograd::add_to(new_grad, current_grad);
 		m.next();
 	}
@@ -324,6 +327,9 @@ struct phi_hparams_optimizable {
 	void update (const vector<double> &delta) {
 		if (isnan(delta[0]) || isnan(delta[1])) {
 			throw runtime_error ("NaN returned from stograd!");
+		}
+		if (isinf(delta[0]) || isinf(delta[1])) {
+			throw runtime_error ("Infinity returned from stograd!");
 		}
 		stograd::add_to(delta, curr_params);
 		constrain_values(curr_params, -15, 15);
@@ -435,18 +441,23 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	template <typename bayes_stepper_t>
 	hparams operator()(const size_t bsize, const size_t nepochs, const double learning_rate, const double eps,
 			const double alpha0_theta, const double beta0_theta, const double alpha0_phi, const double beta0_phi) {
+		// obtain an estimate of theta hyperparameters
 		vector<double> theta_init(2);
 		theta_init[0] = alpha0_theta;
 		theta_init[1] = beta0_theta;
 		theta_hparams_optimizable theta_opt (m, theta_init);
 		bayes_stepper_t stepper (learning_rate);
 		n_theta_epochs = stograd::optimize(theta_opt, stepper, bsize, nepochs, eps);
+
+		// obtain an estimate of phi hyperparameters
 		vector<double> phi_init(2);
 		phi_init[0] = alpha0_phi;
 		phi_init[1] = beta0_phi;
 		phi_hparams_optimizable phi_opt (m, phi_init, theta_opt.alpha(), theta_opt.beta());
-		m.J = 0;
+		m.J = 0; // reset model object to beginning of data
 		n_phi_epochs = stograd::optimize(phi_opt, stepper, bsize, nepochs, eps);
+
+		// package and return the results
 		hparams rtn;
 		rtn.alpha_theta = theta_opt.alpha();
 		rtn.beta_theta = theta_opt.beta();
@@ -457,11 +468,28 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 
 	template <typename bayes_stepper_t>
 	hparams operator() (const size_t bsize, const size_t nepochs, const double learning_rate, const double eps) {
-		// obtain the frequentist estimate to use as a starting point, assuming alpha = 1
+
+		// obtain the frequentist estimate to use as a starting point, assuming alpha = 1 for both params
 		freq_orient_bias_quant_f fobquant (r1_ref, r1_alt);
 		fobquant.copy_data(m.xc_vec, m.xi_vec, m.nc_vec, m.ni_vec);
-		double beta0_theta = (double) 1 / fobquant.theta_hat() - 1;
-		double beta0_phi = (double) 1 / fobquant() - 1; // fobquant.operator() returns phi_hat
+
+		// theta_hat and phi_hat can be zero; if they are, approximate them with eps
+		double beta0_theta;
+		if (fobquant.theta_hat() > eps) {
+			beta0_theta = (double) 1 / fobquant.theta_hat() - 1;
+		} else {
+			beta0_theta = (double) 1 / eps - 1;
+		}
+
+		double beta0_phi;
+		if (fobquant() > eps) {
+			// fobquant.operator() returns phi_hat
+			beta0_phi = (double) 1 / fobquant() - 1;
+		} else {
+			beta0_phi = (double) 1 / eps - 1;
+		}
+
+		// continue to the main method above
 		return operator()<bayes_stepper_t> (bsize, nepochs, learning_rate, eps,
 				1, beta0_theta, 1, beta0_phi);
 	}

@@ -1,6 +1,18 @@
 #ifndef _HTSPAN_BASE_ORIENT_BIAS_HPP_
 #define _HTSPAN_BASE_ORIENT_BIAS_HPP_
 
+/**
+* This class is the base for the functors which
+* implement the damage identification methods.
+* It cannot be implemented directly.
+*
+* This class contains a reference to an underlying data object
+* which should be populated before derived classes are instantiated.
+*
+* It also contains the methods which implement the damage-adjusted
+* variant identfication model, and methods which provide initial 
+* estimates for the theta and phi parameters to its children.
+*/
 
 #include <cassert>
 #include <stdexcept>
@@ -23,28 +35,19 @@ struct theta_and_phi {
 	double phi;
 };
 
-/**
-* This class is the base for the functors which
-* implement various damage identification methods.
-* It cannot be implemented directly.
-*
-* This class contains a reference to an underlying data object
-* which should be populated before derived classes are instantiated.
-* It also contains the methods which implement the damage-adjusted
-* variant identfication model, and methods which provide initial 
-* estimates for the theta and phi parameters to its children.
-*/
-
 struct base_orient_bias_filter_f {
+
 	// Text filter identifier used in VCF annotation (ID field/filter name in column)
 	const char* text_id;// "orientation" set in constructor
+
 	//reference to externally initialized data object
 	const orient_bias_data& data;
 
-	//upper and lower bounds for estimation
+	//upper and lower bounds for optimization (log space)
 	const double minimizer_lb;//default -15.0
 	const double minimizer_ub;//default 15.0
-	//maximum error threshold for estimation (and integration in Bayesian method)
+
+	//maximum error threshold for optimization (and integration in Bayesian method)
 	const double epsabs;//default 1e-6
 
 	base_orient_bias_filter_f(const orient_bias_data &dref,
