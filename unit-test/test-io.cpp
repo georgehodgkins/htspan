@@ -100,9 +100,10 @@ void common_snvw_test (hts::snv::reader &snvr, hts::snv::writer &snvw, const cha
 	snvw.add_numeric_info("Foo", "Foo count data");
 	snvr.next(recF); // discard first line
 	snvr.next(recF); // store second line (new first line)
-	do {
-		snvw.write(snvr.get_cached(), "Foo", 1.337);
-	} while (snvr.next(recL)); // store last line
+	snvw.write(recF, "Foo", -1.337);
+	while (snvr.next(recL)) {
+		snvw.write(recL, "Foo", 1.337);
+	} // store last line
 	int fmt_stored = static_cast<int>(snvr.get_format());
 	snvw.close();
 	snvr.close();
