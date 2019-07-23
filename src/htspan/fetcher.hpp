@@ -37,6 +37,10 @@ struct query_filter_f {
 	/// minimum base quality at query position for inclusion
 	int min_baseq;
 
+	/// minimum and maximum insert size for inclusion
+	int min_isize;
+	int max_isize;
+
 	// by default, exclude reads that are:
 	// 1. unmapped
 	// 2. secondary
@@ -44,7 +48,7 @@ struct query_filter_f {
 	// 4. duplicates
 	query_filter_f()
 		: excl_flags(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP), prereq_flags(0),
-		min_mapq(5), min_baseq(20)
+		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600)
 	{}
 
 	void enable_excl_flags(int flags) {
@@ -69,7 +73,14 @@ struct query_filter_f {
 		if (excl_flags && (b->core.flag & excl_flags) != 0) return false;
 
 		// check mapping quality
+		// TODO: original quality score is preferable here, use that when present
 		if (b->core.qual < min_mapq) return false;
+
+		// check that either this strand or its mate are reverse complemented, but not both
+		if ((b->core.flag & BAM_FREVERSE) == (b->core.flag & BAM_FMREVERSE)) return false;
+
+		// check insert size
+		if (b->core.isize < min_isize || b->core.isize > max_isize) return false;
 
 		// check base quality at query position
 		int qpos = query_position(b, pos);

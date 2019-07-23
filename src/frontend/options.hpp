@@ -22,7 +22,7 @@ namespace frontend {
 // They are signed so that the print_selected_usages function in print-help.hpp works correctly
 signed enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, BAMFILE=7, REFFILE=8, IN_SNVFILE=9, OUT_SNVFILE=10, PHI=11, STDOUT=12,
-	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_QREADS=16, MINZ_BOUND=17, EPS=18,
+	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_READS=16, MINZ_BOUND=17, EPS=18,
 	THETA_SIM=19, PHI_SIM=20, ERR_MEAN_SIM=21, ERR_SD_SIM=22, DAMAGE_TYPE=23, ALPHA=24, BETA=25,
 	ALTPRI=26, MODEL=27, IN_SNVFTYPE=28, OUT_SNVFTYPE=29, SIGLEVEL=30, FIXED_PHI=31, PLAIN=32, HELP=33};
 
@@ -38,7 +38,7 @@ const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 
 // These arrays track arguments that only apply to quantification, identification, and internal simulation
 // Used to report ignored arguments to the user and for printing help texts
-const OptionIndex quant_only_args[] = {REFFILE, MAX_QREADS};
+const OptionIndex quant_only_args[] = {REFFILE, MAX_READS};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
 const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, PHI, FIXED_PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI, SIGLEVEL};
@@ -191,7 +191,7 @@ const option::Descriptor usage[] = {
 		Arg::None,
 		"-D, --keep-duplicate\rKeep reads at the same reference position present in multiple sequences."
 	},{
-		MAX_QREADS,
+		MAX_READS,
 		t_OTHER,
 		"",
 		"max-reads",

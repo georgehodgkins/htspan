@@ -36,8 +36,8 @@ namespace hts {
 *
 * Verbosity output levels:
 *	1: Warnings, Phi estimator
-*	2: Nothing extra
-*	3: Info dump for each piled locus
+*	2: Overall observed variables, theta estimator
+*	3: Info dump for each piled locus (pos, read count, observed vars)
 *
 * @param ref Reference nucleotide for damage type
 * @param alt Alternative nucleotide for damage type
@@ -61,6 +61,14 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min
 	if (keep_dup) {
 		p.qfilter.disable_excl_flags(BAM_FDUP);
 	}
+
+	// compile-time fixed for testing, TODO: expose these as frontend options in future
+	p.qfilter.enable_prereq_flags(BAM_FPROPER_PAIR); 
+	// FUNMAP (0x04), FSECONDARY (0x100), FQCFAIL (0x200) are excluded by default, plus FDUP depending on keep_dup option
+	p.qfilter.enable_excl_flags(BAM_FMUNMAP | BAM_FSUPPLEMENTARY); 
+
+	p.qfilter.min_isize = 60;
+	p.qfilter.max_isize = 600;
 	
 	// number of processed reads
 	size_t n_reads = 0;
@@ -125,11 +133,22 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min
 	//calculate the phi estimator
 	double phi = fobquant();
 	
-	//output the estimator
+	
+	if (!plain_output) {
+		frontend::global_log.v(2) << "xi: " << fobquant.xi << " xc: " << fobquant.xc << " ni: " << fobquant.ni <<
+			" nc: " << fobquant.nc << '\n';
+	}
+	
+	//output the estimator(s)
+	if (!plain_output) {
+		frontend::global_log.v(2) << "Theta estimator: ";
+	}
+	frontend::global_log.v(2) << fobquant.theta_hat() << '\n';
 	if (!plain_output) {
 		frontend::global_log.v(1) << "Phi estimator: ";
 	} 
 	frontend::global_log.v(1) << phi << '\n';
+
 	return true;
 } // end frequentist quant
 
