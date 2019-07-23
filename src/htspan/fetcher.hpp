@@ -51,7 +51,8 @@ struct query_filter_f {
 	// 4. duplicates
 	query_filter_f()
 		: excl_flags(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP), prereq_flags(0),
-		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600), excl_tandem_reads(false) {}
+		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600), excl_tandem_reads(false)
+	{}
 
 	void enable_excl_flags(int flags) {
 		excl_flags |= flags;
