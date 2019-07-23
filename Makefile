@@ -55,8 +55,9 @@ all: $(deps) $(targets)
 
 mlat: $(mlat_deps) $(mlat_targets)
 	
+
 $(src)/alglib/libalg.a: $(src)/alglib
-	cd $(src)/alglib && make defines="-DAE_COMPILE_CHISQUAREDISTR -DAE_COMPILE_HQRND -DAE_COMPILE_PSIF"
+	cd $(src)/alglib && make targets="-DAE_COMPILE_CHISQUAREDISTR -DAE_COMPILE_HQRND -DAE_COMPILE_PSIF"
 
 $(src)/htslib/libhts.a: $(src)/htslib
 	cd $(src)/htslib && make
