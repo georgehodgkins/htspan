@@ -52,23 +52,9 @@ namespace hts {
 */
 bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min_baseq, bool keep_dup,
 		 size_t max_qreads, piler &p, faidx_reader &faidx, bool plain_output) {
+
 	// Initialize quantification class
 	freq_orient_bias_quant_f fobquant (ref, alt);
-	
-	// set quality filter thresholds
-	p.qfilter.min_mapq = min_mapq;
-	p.qfilter.min_baseq = min_baseq;
-	if (keep_dup) {
-		p.qfilter.disable_excl_flags(BAM_FDUP);
-	}
-
-	// compile-time fixed for testing, TODO: expose these as frontend options in future
-	p.qfilter.enable_prereq_flags(BAM_FPROPER_PAIR); 
-	// FUNMAP (0x04), FSECONDARY (0x100), FQCFAIL (0x200) are excluded by default, plus FDUP depending on keep_dup option
-	p.qfilter.enable_excl_flags(BAM_FMUNMAP | BAM_FSUPPLEMENTARY); 
-
-	p.qfilter.min_isize = 60;
-	p.qfilter.max_isize = 600;
 	
 	// number of processed reads
 	size_t n_reads = 0;
@@ -79,7 +65,7 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min
 	frontend::global_log.v(3) << "pileup\treads\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\n";
 	while (n_reads < max_qreads) {
 		
-		// advance to next locus
+		// advance to next locus, break if EOF has been reached
 		const bam_pileup1_t* pile = p.next();
 		if (pile == NULL) break;
 		
@@ -96,7 +82,7 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min
 
 		frontend::global_log.v(3) << j << '\t' << n << '\t' << p.tid << '\t' << p.pos << '\t' << seq[0] << '\t';
 
-		// dump locus info and observed variables at high verbosity level
+		// dump locus info and observed variables at verbosity==3
 		if (frontend::global_log.v() >= 3) {
 			char palt;
 			for (size_t i = 0; i < p.size()-1; ++i) {
@@ -187,14 +173,8 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, double min_mapq, double mi
 		 size_t max_qreads, piler &p, faidx_reader &faidx, bool plain_output) {
 	// Initialize objects
 	bayes_orient_bias_quant_f bobquant (ref, alt);
-	//set quality filter theresholds
-	p.qfilter.min_mapq = min_mapq;
-	p.qfilter.min_baseq = min_baseq;
-	if (keep_dup) {
-		p.qfilter.disable_excl_flags(BAM_FDUP);
-	}
 	
-	//process reads up to max_reads
+	//process reads up to max_reads (or EOF)
 	size_t n_reads = 0;
 
 	// iterator through pileup positions

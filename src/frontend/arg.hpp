@@ -333,7 +333,7 @@ struct Arg: public option::Arg {
 	}
 
 	static ArgStatus MaxQReads (const Option& opt, bool msg) {
-		return IntRange(opt, msg, 100, 1e9);
+		return IntRange(opt, msg, 100, INT_MAX);
 	}
 
 	static ArgStatus MinzBound (const Option& opt, bool msg) {

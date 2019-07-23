@@ -412,58 +412,62 @@ int main (int argc, char** argv) {
 			global_log.v(1) << "Warning: Quantification external sim code does not exist yet.\n"; 
 			return 0;
 		} else {
-			// TODO: reduce dup'd code here
+			// open BAM data file
+			piler p;
+			if (!p.open(align_fname.c_str())) {
+				std::cerr <<
+					"Error: could not open BAM file \'" << align_fname << "\'.\n";
+				return 1;
+			}
+
+			// set query filter parameters
+			// minimum mapping and base quality for inclusion
+			p.qfilter.min_mapq = min_mapq;
+			p.qfilter.min_baseq = min_baseq;
+			// include only reads which are properly aligned
+			p.qfilter.enable_prereq_flags(BAM_FPROPER_PAIR); 
+			// exclude any reads whose mates are unmapped or are supplementary reads
+			p.qfilter.enable_excl_flags(BAM_FMUNMAP | BAM_FSUPPLEMENTARY); 
+			// exclude duplicate reads, depending on keep_dup parameter
+			if (keep_dup) {
+				p.qfilter.disable_excl_flags(BAM_FDUP);
+			}
+			// exclude any reads which map to the same strand as their mate
+			p.qfilter.excl_tandem_reads = true;
+			// minimum and maximum insert size for inclusion
+			p.qfilter.min_isize = 60;
+			p.qfilter.max_isize = 600;
+
+			// open reference sequence file
+			faidx_reader faidx;
+			if (!faidx.open(ref_fname.c_str())) {
+				std::cerr <<
+					"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
+				return 1;
+			}
+
 			if (model == FREQ) {
 				if (!plain_output) {
-					global_log.v(1) << "Starting frequentist quantification...\n";
-				}
-				// open BAM data file
-				piler p;
-				faidx_reader faidx;
-				if (!p.open(align_fname.c_str())) {
-					std::cerr <<
-						"Error: could not open BAM file \'" << align_fname << "\'.\n";
-					return 1;
-				}
-				// open reference sequence file
-				if (!faidx.open(ref_fname.c_str())) {
-					std::cerr <<
-						"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
-					return 1;
+					std::cerr << "Starting frequentist quantification...\n";
 				}
 				// do quantification (-->frontend/orient-bias-quantify.hpp)
 				success = orient_bias_quantify_freq(ref, alt, min_mapq, min_baseq,
 					keep_dup, max_qreads, p, faidx, plain_output);
 
 				if (!success) {
-					global_log.v(1) << "Quantification process failed.\n";
+					std::cerr << "Quantification process failed.\n";
 					return 1;
 				}
-				
 			} else if (model == BAYES) {
 				if (!plain_output) {
-					global_log.v(1) << "Starting Bayesian quantification (this will take a bit)...\n";
-				}
-				// open BAM data file
-				piler p;
-				faidx_reader faidx;
-				if (!p.open(align_fname.c_str())) {
-					std::cerr <<
-						"Error: could not open BAM file \'" << align_fname << "\'.\n";
-					return 1;
-				}
-				// open reference sequence file
-				if (!faidx.open(ref_fname.c_str())) {
-					std::cerr <<
-						"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
-					return 1;
+					std::cerr << "Starting Bayesian quantification (this will take a bit)...\n";
 				}
 				// do quantification (-->frontend/orient-bias-quantify.hpp)
 				success = orient_bias_quantify_bayes(ref, alt, min_mapq, min_baseq,
 					keep_dup, max_qreads, p, faidx, plain_output);
 					
 				if (!success) {
-					global_log.v(1) << "Quantification process failed.\n";
+					std::cerr << "Quantification process failed.\n";
 					return 1;
 				}
 			}

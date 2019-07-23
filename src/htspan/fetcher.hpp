@@ -41,6 +41,9 @@ struct query_filter_f {
 	int min_isize;
 	int max_isize;
 
+	// whether to check for tandem reads, those where both the read and its mate are on the same strand
+	bool excl_tandem_reads;
+
 	// by default, exclude reads that are:
 	// 1. unmapped
 	// 2. secondary
@@ -48,7 +51,7 @@ struct query_filter_f {
 	// 4. duplicates
 	query_filter_f()
 		: excl_flags(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP), prereq_flags(0),
-		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600)
+		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600), excl_tandem_reads(false);
 	{}
 
 	void enable_excl_flags(int flags) {
@@ -77,7 +80,8 @@ struct query_filter_f {
 		if (b->core.qual < min_mapq) return false;
 
 		// check that either this strand or its mate are reverse complemented, but not both
-		if ((b->core.flag & BAM_FREVERSE) == (b->core.flag & BAM_FMREVERSE)) return false;
+		// this check is only done if excl_tandem_reads is set to true
+		if (excl_tandem_reads && (b->core.flag & BAM_FREVERSE) == (b->core.flag & BAM_FMREVERSE)) return false;
 
 		// check insert size
 		if (b->core.isize < min_isize || b->core.isize > max_isize) return false;

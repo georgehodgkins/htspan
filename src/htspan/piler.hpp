@@ -111,8 +111,10 @@ struct piler {
 	const bam_pileup1_t* next() {
 		// get next pileup and update target id, position, and read depth
 		const bam_pileup1_t* inner = bam_plp_auto(plp_itr, &tid, &pos, &n);
-		if (n == -1) {
-			cerr << "Error in" << __func__ << ": failed to get next pileup" << endl;
+		if (n <= -1) {
+			if (n < -1) {
+				cerr << "Error in" << __func__ << ": failed to get next pileup" << endl;
+			}
 			inner = NULL;
 		}
 		return inner;
