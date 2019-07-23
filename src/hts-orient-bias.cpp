@@ -330,8 +330,8 @@ int main (int argc, char** argv) {
 	// Maximum number of reads to analyze during quantification
 	// For Bayesian quant, may need to be increased to achieve convergence
 	long int max_qreads = 1000000;
-	if (options[MAX_QREADS]) {
-		max_qreads = atol(options[MAX_QREADS].arg);
+	if (options[MAX_READS]) {
+		max_qreads = atol(options[MAX_READS].arg);
 	}
 	// Symmetric log-space bounds for minimizing in freq ident process
 	int minz_bound = 15;
@@ -380,13 +380,19 @@ int main (int argc, char** argv) {
 		keep_dup = options[KEEP_DUP].last()->type() == t_ON;
 	}
 
+	// error on unknown options
+	if (options[UNKNOWN]) {
+		success = false;
+		Option* opt = options[UNKNOWN].first();
+		while (opt) {
+			std::cerr << "Error: Option " << opt->name << " is not recognized.\n";
+			opt = opt->next();
+		}
+	}
+
 	// Exit if a fatal error was encountered, after providing some help
 	if (!success) {
-		if (quantifying) {
-			print_help("quantify");
-		} else if (identifying) {
-			print_help("identify");
-		}
+		print_help(NULL);
 		return 1;
 	}
 	
