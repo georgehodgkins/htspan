@@ -318,7 +318,7 @@ int main (int argc, char** argv) {
 	
 	// Misc options that should be sorted
 	// Minimum mapping quality for analyzed reads
-	int min_mapq = 5;
+	int min_mapq = 30;
 	if (options[MIN_MAPQ]) {
 		min_mapq = atoi(options[MIN_MAPQ].arg);
 	}

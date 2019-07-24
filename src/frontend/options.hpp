@@ -175,7 +175,7 @@ const option::Descriptor usage[] = {
 		"",
 		"min-mapq",
 		Arg::MinMapQ, 
-		"--min-mapq [5]\rMinimum mapping quality for a read to be included in analysis."
+		"--min-mapq [30]\rMinimum mapping quality for a read to be included in analysis."
 	},{
 		MIN_BASEQ,
 		t_OTHER,
