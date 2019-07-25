@@ -29,7 +29,72 @@ using namespace hts;
 * included from multiple locations.
 */
 
+// TODO: Redoc
+
 namespace hts {
+
+
+size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_reader &faidx,
+		size_t max_reads, bool plain_output) {
+
+	// number of processed reads
+	size_t n_reads = 0;
+
+	// number of processed sites
+	size_t j = 0;
+
+	// table header for info dump (only at verbosity==3)
+	frontend::global_log.v(3) << "pileup\treads\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\n";
+	while (n_reads < max_reads) {
+		
+		// advance to next locus, break if EOF has been reached
+		const vector<bam1_t*> &pile = p.next();
+		if (p.n <= 0) break;
+		
+		// total number of reads at the locus, including those that failed the filter
+		size_t n = p.size();
+
+		// Get the reference sequence at the corresponding location
+		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
+		if (seq == NULL) {
+			frontend::global_log.v(1) << "Warning: reference sequence could not be retrieved for contig " << p.tid
+				<< " at position " << p.pos << '\n';
+			continue;
+		}
+
+		frontend::global_log.v(3) << j << '\t' << pile.size() << " (" << n << ")\t" << p.tid << '\t' << p.pos << '\t' << seq[0] << '\t';
+
+		// dump locus info and observed variables at verbosity==3
+		// this adds some extra overhead to evaluate, plus the overhead inherent from large amounts of tty output
+		if (frontend::global_log.v() >= 3 && !pile.empty()) {
+			char palt;
+			for (size_t i = 0; i < pile.size()-1; ++i) {
+				palt = nuc_to_char(query_nucleotide(pile[i], p.pos));
+				if (palt != seq[0]) {
+					frontend::global_log.v(3) << palt << ',';
+				}
+			}
+			palt = nuc_to_char(query_nucleotide(pile[pile.size()-1], p.pos));
+			if (palt != seq[0]) {
+				frontend::global_log.v(3) << palt;
+			}
+			frontend::global_log.v(3) << '\t';
+		}
+
+		// Check here whether reference nucleotide at position is damage-consistent
+		nuc_t s_ref = char_to_nuc(seq[0]);
+		if (s_ref == obquant.r1_ref || s_ref == obquant.r2_ref) {
+			// accumulate statistics
+			n_reads += obquant.push(pile, p.pos);
+			frontend::global_log.v(3) << obquant.xij() << '\t' << obquant.xcj() << '\t'
+				<< obquant.nij() << '\t' << obquant.ncj();
+		}
+		frontend::global_log.v(3) << '\n';
+		++j;
+	}
+
+	return n_reads;
+}
 
 /**
 * This function provides a driver for the process of frequentist quantification.
@@ -50,71 +115,14 @@ namespace hts {
 * @param plain_output Whether to include non machine-readable output
 * @return Whether the operation succeeded
 */
-bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min_baseq, bool keep_dup,
-		 size_t max_qreads, piler &p, faidx_reader &faidx, bool plain_output) {
+bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx,
+		 size_t max_reads, bool plain_output) {
 
 	// Initialize quantification class
 	freq_orient_bias_quant_f fobquant (ref, alt);
 	
-	// number of processed reads
-	size_t n_reads = 0;
-
-	// iterate through pileup positions until enough reads have been processed
-	size_t j = 0;
-	// table header for info dump (only at verbosity==3)
-	frontend::global_log.v(3) << "pileup\treads\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\n";
-	while (n_reads < max_qreads) {
-		
-		// advance to next locus, break if EOF has been reached
-		const bam_pileup1_t* pile = p.next();
-		if (pile == NULL) break;
-		
-		// number of reads at the locus
-		size_t n = p.size();
-
-		// Get the reference sequence at the corresponding location
-		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
-		if (seq == NULL) {
-			frontend::global_log.v(1) << "Warning: reference sequence could not be retrieved for contig " << p.tid
-				<< " at position " << p.pos << '\n';
-			continue;
-		}
-
-		frontend::global_log.v(3) << j << '\t' << n << '\t' << p.tid << '\t' << p.pos << '\t' << seq[0] << '\t';
-
-		// dump locus info and observed variables at verbosity==3
-		if (frontend::global_log.v() >= 3) {
-			char palt;
-			for (size_t i = 0; i < p.size()-1; ++i) {
-				palt = nuc_to_char(query_nucleotide(pile[i].b, p.pos));
-				if (palt != seq[0]) {
-					frontend::global_log.v(3) << palt << ',';
-				}
-			}
-			palt = nuc_to_char(query_nucleotide(pile[p.size()-1].b, p.pos));
-			if (palt != seq[0]) {
-				frontend::global_log.v(3) << palt;
-			}
-			frontend::global_log.v(3) << '\t';
-		}
-
-		// used to get observed var values, for debug
-		long int old_xi = fobquant.xi;
-		long int old_xc = fobquant.xc;
-		long int old_ni = fobquant.ni;
-		long int old_nc = fobquant.nc;
-
-		// Check here whether reference nucleotide at position is damage-consistent
-		char s_ref = char_to_nuc(seq[0]);
-		if (s_ref == ref || s_ref == nuc_complement(ref)) {
-			// accumulate statistics
-			n_reads += fobquant.push(pile, n, p.pos);
-			frontend::global_log.v(3) << fobquant.xi - old_xi << '\t' << fobquant.xc - old_xc << '\t'
-				<< fobquant.ni - old_ni << '\t' << fobquant.nc - old_nc;
-		}
-		frontend::global_log.v(3) << '\n';
-		++j;
-	}
+	// Accumulate observed variables
+	size_t n_reads = obquant_accumulate(fobquant, p, faidx, max_reads, plain_output);
 	
 	//calculate the phi estimator
 	double phi = fobquant();
@@ -169,62 +177,14 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, double min_mapq, double min
 * @param plain_output Whether to include non machine-readable output
 * @return Whether the operation succeeded
 */
-bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, double min_mapq, double min_baseq, bool keep_dup,
-		 size_t max_qreads, piler &p, faidx_reader &faidx, bool plain_output) {
+bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx,
+		 size_t max_reads, bool plain_output) {
+
 	// Initialize objects
 	bayes_orient_bias_quant_f bobquant (ref, alt);
 	
-	//process reads up to max_reads (or EOF)
-	size_t n_reads = 0;
-
-	// iterator through pileup positions
-	size_t j = 0;
-	frontend::global_log.v(3) << "pileup\treads\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\n";
-	while (n_reads < max_qreads) {
-		
-		// advance to next locus
-		const bam_pileup1_t* pile = p.next();
-		if (pile == NULL) break;
-		
-		// number of reads at the locus
-		size_t n = p.size();
-
-		// Get reference sequence at that locus
-		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
-		if (seq == NULL) {
-			frontend::global_log.v(1) << "Warning: reference sequence could not be retrieved for contig " << p.tid
-				<< " at position " << p.pos << '\n';
-			continue;
-		}
-	
-		frontend::global_log.v(3) << j << '\t' << n << '\t' << p.tid << '\t' << p.pos << '\t' << seq[0] << '\t';
-
-		// dump locus info and observed variables at high verbosity level
-		if (frontend::global_log.v() >= 3) {
-			char palt;
-			for (size_t i = 0; i < p.size()-1; ++i) {
-				palt = nuc_to_char(query_nucleotide(pile[i].b, p.pos));
-				if (palt != seq[0]) {
-					frontend::global_log.v(3) << palt << ',';
-				}
-			}
-			palt = nuc_to_char(query_nucleotide(pile[p.size()-1].b, p.pos));
-			if (palt != seq[0]) {
-				frontend::global_log.v(3) << palt;
-			}
-			frontend::global_log.v(3) << '\t';
-		}
-		
-		// Check whether reference nucleotide at position is damage-consistent
-		char s_ref = char_to_nuc(seq[0]);
-		if (s_ref == ref || s_ref == nuc_complement(ref)) {
-			// accumulate statistics
-			n_reads += bobquant.push(pile, n, p.pos);
-			frontend::global_log.v(3) << bobquant.xi << '\t' << bobquant.xc << '\t' << bobquant.ni << '\t' << bobquant.nc;
-		}
-		frontend::global_log.v(3) << '\n';
-		++j;
-	}
+	// accumulate observed variables
+	size_t n_reads = obquant_accumulate(bobquant, p, faidx, max_reads, plain_output);
 	
 	// Get hyperparameter estimates (computationally expensive)
 	hts::hparams result = bobquant.operator()<stograd::stepper::constant<double> > (BATCH_SIZE, N_EPOCHS, LRATE, CONVERGENCE_EPS);

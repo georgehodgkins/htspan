@@ -438,6 +438,9 @@ int main (int argc, char** argv) {
 			p.qfilter.min_isize = 60;
 			p.qfilter.max_isize = 600;
 
+			// allocate some space for the read buffer in the piler (not a cap)
+			p.reserve(100);
+
 			// open reference sequence file
 			faidx_reader faidx;
 			if (!faidx.open(ref_fname.c_str())) {
@@ -451,8 +454,7 @@ int main (int argc, char** argv) {
 					std::cerr << "Starting frequentist quantification...\n";
 				}
 				// do quantification (-->frontend/orient-bias-quantify.hpp)
-				success = orient_bias_quantify_freq(ref, alt, min_mapq, min_baseq,
-					keep_dup, max_qreads, p, faidx, plain_output);
+				success = orient_bias_quantify_freq(ref, alt, p, faidx, max_reads, plain_output);
 
 				if (!success) {
 					std::cerr << "Quantification process failed.\n";
@@ -463,8 +465,7 @@ int main (int argc, char** argv) {
 					std::cerr << "Starting Bayesian quantification (this will take a bit)...\n";
 				}
 				// do quantification (-->frontend/orient-bias-quantify.hpp)
-				success = orient_bias_quantify_bayes(ref, alt, min_mapq, min_baseq,
-					keep_dup, max_qreads, p, faidx, plain_output);
+				success = orient_bias_quantify_bayes(ref, alt, p, faidx, max_reads, plain_output);
 					
 				if (!success) {
 					std::cerr << "Quantification process failed.\n";
@@ -473,6 +474,7 @@ int main (int argc, char** argv) {
 			}
 		}
 	} // End quantification block
+
 	//
 	// Damage identification block
 	// 
