@@ -16,7 +16,7 @@ Collection of utilities for filtering high-throughput sequencing data:
 * mlat >= 0.1 (submodule)
 * ALGLIB >= 3.15.0 (submodule)
 * Lean Mean C++ Option Parser 1.7 (single-header)
-* picoJSON >= 1.31 (single-header)
+* simpleson commit 598932c (single-header)
 * tanh-sinh quadrature method from https://www.codeproject.com/Articles/31550/Fast-Numerical-Integration
 
 ### Optional dependencies for testing and development
