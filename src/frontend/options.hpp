@@ -102,7 +102,9 @@ const option::Descriptor usage[] = {
 		"verbosity",
 		Arg::Verbosity,
 		"-v, --verbosity\rLevel of runtime verbosity (separate from result output), "
-		"from 0 (silent) - 3 (details about every pushed read)."
+		"from 0 (silent) - 3 (details about every pushed read).\n"
+		"NB: Level 3 may perform extra computations to produce its output, "
+		"at a penalty to overall program performance."
 	},{
 		LOGFILE,
 		t_OTHER,
@@ -197,7 +199,7 @@ const option::Descriptor usage[] = {
 		"max-reads",
 		Arg::MaxQReads, 
 		"--max-reads [1e6]\rMaximum number of reads to process in the damage quantification process. "
-		"Note that this argument has no effect on the damage identification process."
+		"Note that this count only includes reads that pass the quality filter and are relevant to the analysis."
 	},{
 		MINZ_BOUND,
 		t_OTHER,

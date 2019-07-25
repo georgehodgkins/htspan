@@ -1,5 +1,4 @@
 #include <iostream>
-#include <queue>
 #include <vector>
 #include <cassert>
 #include <cstdlib>
@@ -40,6 +39,9 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 	// number of processed reads
 	size_t n_reads = 0;
 
+	// number of total reads (incl failing and irrelevant)
+	size_t t_reads = 0;
+
 	// number of processed sites
 	size_t j = 0;
 
@@ -53,6 +55,7 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 		
 		// total number of reads at the locus, including those that failed the filter
 		size_t n = p.size();
+		t_reads += n;
 
 		// Get the reference sequence at the corresponding location
 		const char* seq = faidx.get(p.tid, p.pos, p.pos+1);
@@ -92,6 +95,8 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 		frontend::global_log.v(3) << '\n';
 		++j;
 	}
+
+	frontend::global_log.v(2) << "Reads processed: " << t_reads << " (passing: " << n_reads << "), sites: " << j << '\n';
 
 	return n_reads;
 }
