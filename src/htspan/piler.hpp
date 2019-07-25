@@ -32,15 +32,10 @@ struct piler {
 
 	/// pointer to BAM header
 	bam_hdr_t *hdr;
-
-	/// file iterator
-	//hts_itr_t *itr;
-
-	/// bam index
-	//hts_idx_t *idx;
 	
-	/// buffer for a single query
-	//bam1_t *buf;
+	/// vector of pointers to passing reads at the current locus
+	// the pointed records are allocated and destroyed by the pileup iterator
+	vector<bam1_t*> pile;
 
 	/// query filter
 	query_filter_f qfilter;
@@ -93,6 +88,7 @@ struct piler {
 	}
 
 	void reserve(int n) {
+		pile.reserve(n);
 		bam_plp_set_maxcnt(plp_itr, (int) n);
 	}
 
@@ -104,20 +100,42 @@ struct piler {
 	}
 
 	/**
-	 * Get pileup for next position.
+	 * Get reads that pass the query filter for the next site. 
+	 * The pointed reads are allocated and deallocated by the 
+	 * pileup iterator, so they are only valid until the next call to this
+	 * function.
 	 *
-	 * @return whether operation succeeded
+	 * The value of n should be checked before using the returned values;
+	 * if it is 0, EOF was reached; it it is less than 0, an error occurred.
+	 *
+	 * @return reference to a vector of pointers to passing reads 
 	 */
-	const bam_pileup1_t* next() {
+	const vector<bam1_t*>& next() {
+		// clear buffer
+		pile.clear();
+
 		// get next pileup and update target id, position, and read depth
 		const bam_pileup1_t* inner = bam_plp_auto(plp_itr, &tid, &pos, &n);
-		if (n <= -1) {
-			if (n < -1) {
+
+		// if inner is NULL (error or EOF), return a vector with a single NULL value
+		if (!inner) {
+			// if n < 0, an error occurred (not EOF)
+			if (n < 0) {
 				cerr << "Error in" << __func__ << ": failed to get next pileup" << endl;
 			}
-			inner = NULL;
+
+			return pile;
 		}
-		return inner;
+
+		// otherwise, put each read in the returned pileup through the filter
+		for (size_t i = 0; i < n; ++i) {
+			if (qfilter(inner[i].b, pos)) {
+				pile.push_back(inner[i].b);
+			}
+		}
+		return pile;
+
+
 	}
 
 	/**
@@ -179,12 +197,7 @@ struct piler {
 
 inline int pileup_func(void* data, bam1_t* b) {
 	piler* p = (piler*) data;
-	int ret;
-	// read next the next passing read
-	do {
-		ret = sam_read1(p->hf, p->hdr, b);
-	} while (ret >= 0 && !p->qfilter(b, p->pos));
-	return ret;	
+	return sam_read1(p->hf, p->hdr, b);
 }
 
 }  // namespace hts

@@ -275,26 +275,21 @@ struct Arg: public option::Arg {
 			return ARG_ILLEGAL;
 		}
 
-		const bam_pileup1_t *pile = p.next();
-		if (pile == NULL) {
-			if (msg) {
-				std::cerr << "Could not get pileup from \'" << opt.arg << "\'.";
-			}
-			return ARG_ILLEGAL;
-		}
-
 		// check up to 10 reads
 		int total = 0;
 		while (total < n_checks) {
+			// get some reads
+			const vector<bam1_t*> &pile = p.next();
+			if (pile.empty()) continue; // no reads passing the qfilter, keep going
+			if (pile[0] == NULL) break; // error or EOF
+			
 			// if any read in the pile has a read1/read2 flag, consider it paired-end
-			for (size_t r = 0; r < p.size(); ++r) {
-				if (bam_is_read1 (pile[r].b) || bam_is_read2 (pile[r].b)) {
+			for (size_t r = 0; r < pile.size(); ++r) {
+				if (bam_is_read1 (pile[r]) || bam_is_read2 (pile[r])) {
 					return ARG_OK;
 				}
 				++total;
 			}
-			pile = p.next();
-			if (pile == NULL) break;
 		}
 
 		// none of the checked reads are paired-end: error

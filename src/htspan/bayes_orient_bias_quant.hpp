@@ -352,21 +352,20 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		}
 
 	/*
-	* Process the reads at one locus, contained in a BAM pileup object.
+	* Process the reads at one locus.
 	*
-	* @param pile Already populated BAM pileup object 
-	* @param n Number of reads in pileup
+	* @param pile Already populated vector of pointers to BAM records
 	* @param pos Reference position of the locus
 	* @return Nubmer of successfully processed reads
 	*/
-	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
+	size_t push(const vector<bam1_t*> &pile, int32_t pos) {
 		xc = 0;
 		xi = 0;
 		nc = 0;
 		ni = 0;
 		size_t success = 0;
-		for (size_t i = 0; i < n; ++i) {
-			if (base_orient_bias_quant_f::push(pile[i].b, pos)) {
+		for (size_t i = 0; i < pile.size(); ++i) {
+			if (base_orient_bias_quant_f::push(pile[i], pos)) {
 				++success;
 			}
 		}
@@ -493,6 +492,12 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		return operator()<bayes_stepper_t> (bsize, nepochs, learning_rate, eps,
 				1, beta0_theta, 1, beta0_phi);
 	}
+
+	// Output observed variables at the last pushed site, for debug
+	long int xij () const {return m.xi_vec.back();}
+	long int xcj () const {return m.xc_vec.back();}
+	long int nij () const {return m.ni_vec.back();}
+	long int ncj () const {return m.nc_vec.back();}
 
 };// struct bayes_orient_bias_quant_f
 

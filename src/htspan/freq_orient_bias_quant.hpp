@@ -7,11 +7,15 @@ namespace hts {
 
 struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 
+	// previous values of observed variables, used for debug
+	long int old_xi, old_xc, old_ni, old_nc;
+
 	// count of read loci (not reads)
 	size_t site_count;
 
 	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) : 
 			base_orient_bias_quant_f(_ref, _alt),
+			old_xi(0), old_xc(0), old_ni(0), old_nc(0),
 			site_count(0)
 		{
 		}
@@ -39,18 +43,25 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	}
 
 	/**
-	 * Process a bam pileup object containing
+	 * Process a vector containing
 	 * the reads at one locus and update the observed variables accordingly.
 	 *
-	 * @param pile bam pileup object
-	 * @param n    number of reads in pileup object
+	 * @param pile Already populated vector of pointers to BAM records
 	 * @param pos  locus reference position
 	 * @return number of successfully processed reads
 	 */
-	size_t push(const bam_pileup1_t* pile, size_t n, int32_t pos) {
+	size_t push(const vector<bam1_t*> &pile, int32_t pos) {
 		size_t success = 0;
-		for (size_t i = 0; i < n; ++i) {
-			if (base_orient_bias_quant_f::push(pile[i].b, pos)) {
+
+		// copy old values of observed vars
+		old_xi = xi;
+		old_xc = xc;
+		old_ni = ni;
+		old_nc = nc;
+
+		// accumulate statistics from new reads
+		for (size_t i = 0; i < pile.size(); ++i) {
+			if (base_orient_bias_quant_f::push(pile[i], pos)) {
 				++success;
 			}
 		}
@@ -90,6 +101,12 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 		}
 		return phi_hat;
 	}
+
+	// return observed variables at last pushed site, for debug
+	long int xij () const {return xi - old_xi;}
+	long int xcj () const {return xc - old_xc;}
+	long int nij () const {return ni - old_ni;}
+	long int ncj () const {return nc - old_nc;}
 };
 
 } // namespace hts

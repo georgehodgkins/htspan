@@ -147,12 +147,17 @@ struct base_orient_bias_quant_f {
 	/**
 	* Accumulate statistics for a set of reads at the given locus.
 	*
-	* @param pile Pointer to HTSlib pileup object populated with reads of interest
-	* @param n Number of reads to process
-	* @param pos Reference position of the given pileup
+	* @param pile Vector of pointers to the set of reads at the locus passing the quality filter
+	* @param pos Reference position of the locus
 	* @return Number of reads pushed.
 	*/
-	virtual size_t push (const bam_pileup1_t *pile, size_t n, int32_t pos) = 0;
+	virtual size_t push (const vector<bam1_t*> &pile, int32_t pos) = 0;
+
+	// access statistics for the last site pushed, for debug
+	virtual long int xij () const = 0;
+	virtual long int xcj () const = 0;
+	virtual long int nij () const = 0;
+	virtual long int ncj () const = 0;
 };
 
 }  // namespace hts
