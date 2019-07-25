@@ -37,9 +37,10 @@ struct query_filter_f {
 	/// minimum base quality at query position for inclusion
 	int min_baseq;
 
-	/// minimum and maximum insert size for inclusion
+	/// minimum and maximum insert size for inclusion, and whether to check insert size
 	int min_isize;
 	int max_isize;
+	bool check_isize;
 
 	// whether to check for tandem reads, those where both the read and its mate are on the same strand
 	bool excl_tandem_reads;
@@ -51,7 +52,7 @@ struct query_filter_f {
 	// 4. duplicates
 	query_filter_f()
 		: excl_flags(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP), prereq_flags(0),
-		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600), excl_tandem_reads(true)
+		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600), check_isize(true), excl_tandem_reads(true)
 	{}
 
 	void enable_excl_flags(int flags) {
@@ -83,13 +84,13 @@ struct query_filter_f {
 		// this check is only done if excl_tandem_reads is set to true
 		if (excl_tandem_reads && ((b->core.flag & BAM_FREVERSE) << 1) == (b->core.flag & BAM_FMREVERSE)) return false;
 
-		// check insert size
-		if (b->core.isize < min_isize || b->core.isize > max_isize) return false;
+		// check insert size, if enabled
+		if (check_isize && (b->core.isize < min_isize || b->core.isize > max_isize)) return false;
 
 		// check base quality at query position
 		int qpos = query_position(b, pos);
 		if (qpos >= 0 && bam_get_qual(b)[qpos] < min_baseq) return false;
-
+		
 		return true;
 	}
 };
