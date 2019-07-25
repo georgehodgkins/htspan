@@ -106,7 +106,8 @@ void print_selected_usages(const Descriptor full_usage[], size_t n_full, const O
 				++i;
 			}
 		}
-		if (i < 0 || i >= (signed int) n_full) {
+		// if i goes below zero, it will wrap around and be > n_full
+		if (i >= (signed int) n_full) {
 			throw std::runtime_error("Error: a requested option was not found in the usage list (check that the list is sorted).");
 		}
 		print_descr_usage(full_usage[i], prn);
