@@ -433,7 +433,7 @@ int main (int argc, char** argv) {
 				p.qfilter.disable_excl_flags(BAM_FDUP);
 			}
 			// exclude any reads which map to the same strand as their mate
-			p.qfilter.excl_tandem_reads = true;
+			//p.qfilter.excl_tandem_reads = true;
 			// minimum and maximum insert size for inclusion
 			p.qfilter.min_isize = 60;
 			p.qfilter.max_isize = 600;
