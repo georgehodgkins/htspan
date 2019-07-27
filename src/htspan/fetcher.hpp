@@ -52,7 +52,7 @@ struct query_filter_f {
 	// 4. duplicates
 	query_filter_f()
 		: excl_flags(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP), prereq_flags(0),
-		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600), check_isize(true), excl_tandem_reads(true)
+		min_mapq(5), min_baseq(20), min_isize(60), max_isize(600), check_isize(false), excl_tandem_reads(true)
 	{}
 
 	void enable_excl_flags(int flags) {
@@ -228,6 +228,7 @@ struct fetcher {
 		: hf(NULL), hdr(NULL), itr(NULL), idx(NULL),
 		buf(bam_init1())
 	{
+		qfilter.excl_tandem_reads = false;
 	}
 
 	/**
