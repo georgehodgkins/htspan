@@ -38,7 +38,7 @@ struct seed_fixture {
 
 	seed_fixture()
 		{
-			if (boost::unit_test::framework::master_test_suite().argc > 0) {
+			if (boost::unit_test::framework::master_test_suite().argc > 1) {
 				SIM_SEED = atoi(boost::unit_test::framework::master_test_suite().argv[1]);
 			} else {
 				SIM_SEED = 0;

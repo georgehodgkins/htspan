@@ -78,22 +78,22 @@ BOOST_AUTO_TEST_CASE (lp_functions) {
 	data.orients.swap(orient_t);
 	hts::freq_orient_bias_filter_f fobfilter(data);
 	double lp_ref = fobfilter.lp_ref_base_given(THETA, PHI, LP_REF_ERR);
-	BOOST_CHECK_MESSAGE((abs(lp_ref - LP_REF_STD) < TEST_EPS),
+	BOOST_CHECK_MESSAGE(test_val(lp_ref, LP_REF_STD),
 		"LP with ref base: got: " << lp_ref << ", expected: " << LP_REF_STD);
 	double lp_alt = fobfilter.lp_alt_base_given(THETA, PHI, LP_ALT_ERR);
-	BOOST_CHECK_MESSAGE((abs(lp_alt - LP_ALT_STD) < TEST_EPS),
+	BOOST_CHECK_MESSAGE(test_val(lp_alt, LP_ALT_STD),
 		"LP with alt base: got: " << lp_alt << ", expected: " << LP_ALT_STD);
 	double lp_oth = fobfilter.lp_other_base_given(THETA, PHI, LP_OTH_ERR);
-	BOOST_CHECK_MESSAGE((abs(lp_oth - LP_OTH_STD) < TEST_EPS),
+	BOOST_CHECK_MESSAGE(test_val(lp_oth, LP_OTH_STD),
 		"LP with oth base: got: " << lp_alt << ", expected: " << LP_OTH_STD);
 	double lp_full = fobfilter.lp_bases_given(THETA, PHI);
-	BOOST_CHECK_MESSAGE((abs(lp_full - LP_FULL_STD) < TEST_EPS),
+	BOOST_CHECK_MESSAGE(test_val(lp_full, LP_FULL_STD),
 		"LP with test data: got: " << lp_full << ", expected: " << LP_FULL_STD);
 	double lp_base = fobfilter.lp_bases_given(0, PHI);
-	BOOST_CHECK_MESSAGE((abs(lp_base - LP_BASE_STD) < TEST_EPS),
+	BOOST_CHECK_MESSAGE(test_val(lp_base, LP_BASE_STD),
 		"LP for base model: got: " << lp_base << ", expected: " << LP_BASE_STD);
 	double dev = fobfilter.deviance_theta(THETA, PHI);
-	BOOST_CHECK_MESSAGE((abs(dev - DEV_STD) < TEST_EPS),
+	BOOST_CHECK_MESSAGE(test_val(dev, DEV_STD),
 		"Model deviance: got: " << dev << ", expected: " << DEV_STD);
 }
 
