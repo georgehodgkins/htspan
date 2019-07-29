@@ -36,7 +36,7 @@ namespace hts {
 
 
 size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_reader &faidx,
-		size_t max_reads, bool plain_output) {
+		bool plain_output) {
 
 	// number of processed reads
 	size_t n_reads = 0;
@@ -48,8 +48,11 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 	size_t j = 0;
 
 	// table header for info dump (only at verbosity==3)
-	frontend::global_log.v(3) << "pileup\treads\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\n";
-	while (n_reads < max_reads) {
+	frontend::global_log.v(3) << "pileup\tbases\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\tsum\n";
+	// the two quantifiers have different conditions for done():
+	// frequentist checks convergence and max reads,
+	// while Bayesian only checks max reads
+	while (!obquant.done()) {	
 		
 		// advance to next locus, break if EOF has been reached
 		const vector<bam1_t*> &pile = p.next();
@@ -92,13 +95,13 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 			// accumulate statistics
 			n_reads += obquant.push(pile, p.pos);
 			frontend::global_log.v(3) << obquant.xij() << '\t' << obquant.xcj() << '\t'
-				<< obquant.nij() << '\t' << obquant.ncj();
+				<< obquant.nij() << '\t' << obquant.ncj() << '\t' << n_reads << " (" << t_reads << ")";
 		}
 		frontend::global_log.v(3) << '\n';
 		++j;
 	}
 
-	frontend::global_log.v(2) << "Reads processed: " << t_reads << " (passing: " << n_reads << "), sites: " << j << '\n';
+	frontend::global_log.v(2) << "Bases processed: " << t_reads << " (passing: " << n_reads << "), sites: " << j << '\n';
 
 	return n_reads;
 }
@@ -126,10 +129,10 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 		 size_t max_reads, bool plain_output) {
 
 	// Initialize quantification class
-	freq_orient_bias_quant_f fobquant (ref, alt);
+	freq_orient_bias_quant_f fobquant (ref, alt, max_reads, 1e-8);
 	
 	// Accumulate observed variables
-	size_t n_reads = obquant_accumulate(fobquant, p, faidx, max_reads, plain_output);
+	size_t n_reads = obquant_accumulate(fobquant, p, faidx, plain_output);
 	
 	//calculate the estimators
 	double theta_hat = fobquant.theta_hat();
@@ -206,11 +209,11 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx, simpleson::json::jobject &quant_results,
 		 size_t max_reads, bool plain_output) {
 
-	// Initialize objects
-	bayes_orient_bias_quant_f bobquant (ref, alt);
+	// Initialize quantifier object
+	bayes_orient_bias_quant_f bobquant (ref, alt, max_reads);
 	
 	// accumulate observed variables
-	size_t n_reads = obquant_accumulate(bobquant, p, faidx, max_reads, plain_output);
+	size_t n_reads = obquant_accumulate(bobquant, p, faidx, plain_output);
 	
 	// Get hyperparameter estimates (computationally expensive)
 	hts::hparams result = bobquant.operator()<stograd::stepper::constant<double> > (BATCH_SIZE, N_EPOCHS, LRATE, CONVERGENCE_EPS);
