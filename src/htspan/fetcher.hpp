@@ -83,7 +83,7 @@ struct query_filter_f {
 		// check that either this strand or its mate are reverse complemented, but not both
 		// this check is only done if excl_tandem_reads is set to true
 		bool is_rev = (b->core.flag & BAM_FREVERSE);
-		bool mate_is_rev = (b->core.flag & BAM_FREVERSE);
+		bool mate_is_rev = (b->core.flag & BAM_FMREVERSE);
 		if (excl_tandem_reads && (is_rev == mate_is_rev)) return false;
 
 		// check insert size, if enabled
