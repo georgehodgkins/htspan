@@ -10,6 +10,8 @@
 
 #define NUMBER_TO_STRING_BUFFER_LENGTH 100
 
+namespace simpleson {
+
 namespace json
 {
 	namespace parsing
@@ -715,6 +717,8 @@ namespace json
 			return result;
 		}
 	};
-}
+} // namespace json
+
+} // namespace simpleson
 
 #endif // !JSON_H
