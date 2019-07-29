@@ -40,10 +40,7 @@ struct base_orient_bias_quant_f {
 	long int ni;
 
 	// count of total reads pushed
-	size_t read_count;
-
-	// maximum number of reads to push
-	const size_t max_reads;
+	int read_count;
 
 	/**
 	 * Initialize class.
@@ -53,12 +50,12 @@ struct base_orient_bias_quant_f {
 	 * @param _p Initialized hts::piler containing sequence data of interest
 	 * @param _f Initialized hts::faidx_reader containing reference sequence
 	 */
-	base_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, size_t _mx)
+	base_orient_bias_quant_f(nuc_t _ref, nuc_t _alt)
 	: r1_ref(_ref),
 		r1_alt(_alt),
 		r2_ref(nuc_complement(_ref)),
 		r2_alt(nuc_complement(_alt)),
-		xc(0), xi(0), nc(0), ni(0), read_count(0), max_reads(_mx)
+		xc(0), xi(0), nc(0), ni(0), read_count(0)
 	{
 	}
 
@@ -161,16 +158,6 @@ struct base_orient_bias_quant_f {
 	virtual long int xcj () const = 0;
 	virtual long int nij () const = 0;
 	virtual long int ncj () const = 0;
-
-	/*
-	* Return whether or not more reads should be pushed.
-	*
-	* If max_reads == 0, this will never be false, so accumulation will only 
-	* stop when the end of the file is reached (unless other conditions are added).
-	*/
-	virtual bool done () const {
-		return (max_reads != 0 && read_count > max_reads);
-	}
 };
 
 }  // namespace hts

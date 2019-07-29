@@ -345,8 +345,8 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	int n_phi_epochs;
 	int n_theta_epochs;
 
-	bayes_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, size_t _mx) :
-			base_orient_bias_quant_f(_ref, _alt, _mx),
+	bayes_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) :
+			base_orient_bias_quant_f(_ref, _alt),
 			n_phi_epochs(0), n_theta_epochs(0)
 		{
 		}
@@ -375,16 +375,6 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 		m.ni_vec.push_back(ni);
 		read_count += success;
 		return success;
-	}
-
-	/*
-	* Return whether or not more reads should be pushed.
-	*
-	* If max_reads == 0, this will never be false, so accumulation will only 
-	* stop when the end of the file is reached.
-	*/
-	bool done() const {
-		return base_orient_bias_quant_f::done();
 	}
 
 	/*
@@ -479,7 +469,7 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	hparams operator() (const size_t bsize, const size_t nepochs, const double learning_rate, const double eps) {
 
 		// obtain the frequentist estimate to use as a starting point, assuming alpha = 1 for both params
-		freq_orient_bias_quant_f fobquant (r1_ref, r1_alt, 0, 0);
+		freq_orient_bias_quant_f fobquant (r1_ref, r1_alt);
 		fobquant.copy_data(m.xc_vec, m.xi_vec, m.nc_vec, m.ni_vec);
 
 		// theta_hat and phi_hat can be zero; if they are, approximate them with eps

@@ -13,13 +13,10 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	// count of read loci (not reads)
 	size_t site_count;
 
-	// epsilon for convergence
-	const double eps;
-
-	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, size_t _mx, double _e) : 
-			base_orient_bias_quant_f(_ref, _alt, _mx),
+	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt) : 
+			base_orient_bias_quant_f(_ref, _alt),
 			old_xi(0), old_xc(0), old_ni(0), old_nc(0),
-			site_count(0), eps(_e)
+			site_count(0)
 		{
 		}
 
@@ -110,34 +107,6 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	long int xcj () const {return xc - old_xc;}
 	long int nij () const {return ni - old_ni;}
 	long int ncj () const {return nc - old_nc;}
-
-	/*
-	* Whether more reads should be pushed.
-	* 
-	* Returns true if the estimate converges (checked every 10K reads) or
-	* the maximum number of reads is reached.
-	*
-	* Specifically, convergence is checked against the mean of the
-	* previous estimates, sampling every 10K reads; possible at 20K reads at the earliest.
-	*
-	* Also note that if the estimate is less than the set eps, it is not considered convergent
-	* (not a big issue; eps should be very small).
-	*/
-	bool done () const {
-		// sum of previously sampled estimates
-		static double est_sum = 0;
-		// number of checks performed
-		static size_t n_checks = 0;
-		// check for convergence
-		bool converged = false;
-		if (read_count > 10000*(n_checks + 1)) {
-			converged = abs(est_sum / n_checks - operator()()) < eps && operator()() > eps;
-			est_sum += operator()();
-			++n_checks;
-		}
-		return converged || base_orient_bias_quant_f::done();
-	}
-
 };
 
 } // namespace hts
