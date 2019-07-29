@@ -22,13 +22,7 @@ rd_count=${6:-10000}
 # SNV mutation rate of 0.05
 # no indels
 printf 'chrom\tpos\tref\talt\n' > $out.snv
-dwgsim -H -1 100 -2 100 -z $seed -r ${mut_rate} -e ${base_error} -N ${rd_count} -R 0 \
-	$ref $out
-cat $out.mutations.txt | cut -f 1-4 >> $out.snv
+wgsim -h -1 100 -2 100 -S $seed -r ${mut_rate} -e ${base_error} -N ${rd_count} -R 0 \
+	$ref $out.r1.fq $out.r2.fq |
+	cut -f 1-4 >> $out.snv
 
-# the rest of the scripts expect these names
-mv $out.bwa.read1.fastq $out.r1.fq
-mv $out.bwa.read2.fastq $out.r2.fq
-
-# don't need these files
-rm -f $out.mutations.txt $out.mutations.vcf
