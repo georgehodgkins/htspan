@@ -24,7 +24,7 @@ enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4,
 	VERBOSITY=5, LOGFILE=6, BAMFILE=7, REFFILE=8, IN_SNVFILE=9, OUT_SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_READS=16, MINZ_BOUND=17, EPS=18,
 	THETA_SIM=19, PHI_SIM=20, ERR_MEAN_SIM=21, ERR_SD_SIM=22, DAMAGE_TYPE=23, ALPHA=24, BETA=25,
-	ALTPRI=26, MODEL=27, IN_SNVFTYPE=28, OUT_SNVFTYPE=29, SIGLEVEL=30, FIXED_PHI=31, PLAIN=32, HELP=33};
+	ALTPRI=26, MODEL=27, IN_SNVFTYPE=28, OUT_SNVFTYPE=29, SIGLEVEL=30, FIXED_PHI=31, PLAIN=32, JSON_OUT=33, HELP=34};
 
 enum OptionType {t_ON, t_OFF, t_OTHER};
 
@@ -33,12 +33,12 @@ enum OptionType {t_ON, t_OFF, t_OTHER};
 const OptionIndex common_args[] = {DAMAGE_TYPE, BAMFILE, REF, ALT, MODEL, INT_SIM, EXT_SIM, KEEP_DUP, MIN_MAPQ, MIN_BASEQ};
 const size_t common_arg_count = sizeof(common_args)/sizeof(OptionIndex);
 
-const OptionIndex utility_args[] = {VERBOSITY, LOGFILE, STDOUT, HELP};
+const OptionIndex utility_args[] = {VERBOSITY, LOGFILE, STDOUT, PLAIN, HELP};
 const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 
 // These arrays track arguments that only apply to quantification, identification, and internal simulation
 // Used to report ignored arguments to the user and for printing help texts
-const OptionIndex quant_only_args[] = {REFFILE, MAX_READS};
+const OptionIndex quant_only_args[] = {REFFILE, MAX_READS, JSON_OUT};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
 const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, PHI, FIXED_PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI, SIGLEVEL};
@@ -320,19 +320,26 @@ const option::Descriptor usage[] = {
 		"--fixed-phi\rIn the frequentist model, fix phi to the supplied value "
 		"(or the default if none was supplied) rather than estimating it."
 	},{
-		HELP,
-		t_OTHER,
-		"?",
-		"help",
-		Arg::Optional,
-		"-?, --help\rPrint this help message."
-	},{
 		PLAIN,
 		t_OTHER,
 		"",
 		"plain",
 		Arg::None,
-		"--plain Make output more machine-readable"
+		"--plain\rMake output more machine-readable"
+	},{
+		JSON_OUT,
+		t_OTHER,
+		"J",
+		"json-out",
+		Arg::OutputFile,
+		"-J, --json-out\rOutput quantification results and extra info to a JSON file."
+	},{
+		HELP,
+		t_OTHER,
+		"?",
+		"help",
+		Arg::Optional,
+		"-?, --help\rPrint a help message."
 	},{// null terminator
 		UNKNOWN,
 		0,

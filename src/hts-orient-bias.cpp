@@ -109,6 +109,10 @@ int main (int argc, char** argv) {
 	if (log_to_file) {
 		log_fname = options[LOGFILE].arg;
 	}
+	std::string json_fname;
+	if (options[JSON_OUT]) {
+		json_fname = options[JSON_OUT].arg;
+	}
 
 	// plain output makes output machine-readable
 	// Errors and warnings will still be printed, though
@@ -130,17 +134,21 @@ int main (int argc, char** argv) {
 	// Ref/alt nucleotide options (usually set by damage type flag)
 	nuc_t ref = nuc_N;
 	nuc_t alt = nuc_N;
+	string dtype;
 	if (options[DAMAGE_TYPE]) {
 		if (strcmpi(options[DAMAGE_TYPE].arg, "ffpe") == 0) {
 			ref = nuc_C;
 			alt = nuc_T;
+			dtype = "ffpe";
 		} else if (strcmpi(options[DAMAGE_TYPE].arg, "oxog") == 0) {
 			ref = nuc_G;
 			alt = nuc_T;
+			dtype = "oxog";
 		}
 	} else if (options[REF] && options[ALT]) {
 		ref = char_to_nuc(options[REF].arg[0]);
 		alt = char_to_nuc(options[ALT].arg[0]);
+		dtype = "other";
 		if (nuc_equal (alt, ref)) {
 			std::cerr <<
 				"Error: The reference and alternative nucleotides cannot be the same.\n";
@@ -451,12 +459,17 @@ int main (int argc, char** argv) {
 				return 1;
 			}
 
+			// initialize JSON output object
+			simpleson::json::jobject quant_results;
+			quant_results["bam_file"] = align_fname;
+			quant_results["damage_type"] = dtype;
+
 			if (model == FREQ) {
 				if (!plain_output) {
 					std::cerr << "Starting frequentist quantification...\n";
 				}
 				// do quantification (-->frontend/orient-bias-quantify.hpp)
-				success = orient_bias_quantify_freq(ref, alt, p, faidx, max_reads, plain_output);
+				success = orient_bias_quantify_freq(ref, alt, p, faidx, quant_results, max_reads, plain_output);
 
 				if (!success) {
 					std::cerr << "Quantification process failed.\n";
@@ -467,12 +480,21 @@ int main (int argc, char** argv) {
 					std::cerr << "Starting Bayesian quantification (this will take a bit)...\n";
 				}
 				// do quantification (-->frontend/orient-bias-quantify.hpp)
-				success = orient_bias_quantify_bayes(ref, alt, p, faidx, max_reads, plain_output);
+				success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output);
 					
 				if (!success) {
 					std::cerr << "Quantification process failed.\n";
 					return 1;
 				}
+			}
+
+			// write out to JSON if asked to
+			if (!json_fname.empty()) {
+				string json_out = (string) quant_results;
+				indent_serialized_json(json_out); // defined in frontend/string.hpp
+				ofstream writeout (json_fname.c_str());
+				writeout << json_out << endl;
+				writeout.close();
 			}
 		}
 	} // End quantification block

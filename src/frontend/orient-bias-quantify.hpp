@@ -2,6 +2,7 @@
 #include <vector>
 #include <cassert>
 #include <cstdlib>
+#include <numeric>
 using namespace std;
 
 #include <htslib/hts.h>
@@ -14,6 +15,7 @@ using namespace std;
 #include "htspan/bayes_orient_bias_quant.hpp"
 
 #include "simul_writer.hpp"
+#include "json.h"
 using namespace hts;
 
 /**
@@ -120,7 +122,7 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 * @param plain_output Whether to include non machine-readable output
 * @return Whether the operation succeeded
 */
-bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx,
+bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx, simpleson::json::jobject &quant_results,
 		 size_t max_reads, bool plain_output) {
 
 	// Initialize quantification class
@@ -129,10 +131,29 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 	// Accumulate observed variables
 	size_t n_reads = obquant_accumulate(fobquant, p, faidx, max_reads, plain_output);
 	
-	//calculate the phi estimator
-	double phi = fobquant();
+	//calculate the estimators
+	double theta_hat = fobquant.theta_hat();
+	double phi_hat = fobquant();
 	
-	
+	//output results to JSON
+	using simpleson::json::jobject;
+	jobject json_estimate;
+	json_estimate["phi"] = phi_hat;
+
+	jobject json_auxiliary;
+	json_auxiliary["theta"] = theta_hat;
+
+	jobject json_summary;
+	json_summary["xc"] = fobquant.xc;
+	json_summary["nc"] = fobquant.nc;
+	json_summary["xi"] = fobquant.xi;
+	json_summary["ni"] = fobquant.ni;
+
+	quant_results["estimate"] = json_estimate;
+	quant_results["auxiliary"] = json_auxiliary;
+	quant_results["summary"] = json_summary;
+
+	// output summary
 	if (!plain_output) {
 		frontend::global_log.v(2) << "xi: " << fobquant.xi << " xc: " << fobquant.xc << " ni: " << fobquant.ni <<
 			" nc: " << fobquant.nc << '\n';
@@ -142,11 +163,11 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 	if (!plain_output) {
 		frontend::global_log.v(2) << "Theta estimator: ";
 	}
-	frontend::global_log.v(2) << fobquant.theta_hat() << '\n';
+	frontend::global_log.v(2) << theta_hat << '\n';
 	if (!plain_output) {
 		frontend::global_log.v(1) << "Phi estimator: ";
 	} 
-	frontend::global_log.v(1) << phi << '\n';
+	frontend::global_log.v(1) << phi_hat << '\n';
 
 	return true;
 } // end frequentist quant
@@ -182,7 +203,7 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 * @param plain_output Whether to include non machine-readable output
 * @return Whether the operation succeeded
 */
-bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx,
+bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx, simpleson::json::jobject &quant_results,
 		 size_t max_reads, bool plain_output) {
 
 	// Initialize objects
@@ -193,6 +214,26 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fa
 	
 	// Get hyperparameter estimates (computationally expensive)
 	hts::hparams result = bobquant.operator()<stograd::stepper::constant<double> > (BATCH_SIZE, N_EPOCHS, LRATE, CONVERGENCE_EPS);
+
+	// output results to JSON
+	using simpleson::json::jobject;
+	jobject json_estimate;
+	json_estimate["alpha_phi"] = result.alpha_phi;
+	json_estimate["beta_phi"] = result.beta_phi;
+
+	jobject json_auxiliary;
+	json_auxiliary["alpha_theta"] = result.alpha_theta;
+	json_auxiliary["beta_theta"] = result.beta_theta;
+
+	jobject json_summary;
+	json_summary["xc"] = accumulate(bobquant.m.xc_vec.begin(), bobquant.m.xc_vec.end(), 0);
+	json_summary["nc"] = accumulate(bobquant.m.nc_vec.begin(), bobquant.m.nc_vec.end(), 0);
+	json_summary["xi"] = accumulate(bobquant.m.xi_vec.begin(), bobquant.m.xi_vec.end(), 0);
+	json_summary["ni"] = accumulate(bobquant.m.ni_vec.begin(), bobquant.m.ni_vec.end(), 0);
+
+	quant_results += json_estimate;
+	quant_results += json_auxiliary;
+	quant_results += json_summary;
 
 	// Output theta hyperparameters and E[theta], if verbosity >= 2
 	if (!plain_output) {
