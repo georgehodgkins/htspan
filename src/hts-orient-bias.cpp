@@ -77,8 +77,13 @@ int main (int argc, char** argv) {
 	}
 	// print the requested help message and quit if the help flag is passed
 	if (options[HELP]) {
-		print_help(options[HELP].arg);
-		return 0;
+		if (options[HELP].arg) {
+			print_help(options[HELP].arg);
+			return 0;
+		} else {
+			print_help(command);
+			return 0;
+		}
 	} else if (!quantifying && !identifying) {
 		std::cerr << "\'" << command << "\' is not a recognized command.\n\n";
 		print_help(NULL);
