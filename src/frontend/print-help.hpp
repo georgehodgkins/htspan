@@ -131,7 +131,7 @@ void print_general_usage() {
 	std::cerr << 
 		"Commands:\n" <<
 		BOLD << "quantify " << NO_BOLD << "- Calculate an estimate of global damage in the given BAM file.\n" <<
-		BOLD << "identify " << NO_BOLD << "- Examine each SNV in the given snv file and provide a likelihood of damage.\n\n" <<
+		BOLD << "identify " << NO_BOLD << "- Examine each SNV in the given snv file and distinguish genuine variants from damage artifacts.\n\n" <<
 
 		"Use --help [command]  or --help [option] (no dashes) for details on use\n" <<
 		"or --help utility for information on options relating to logging, debugging, and output.\n";
