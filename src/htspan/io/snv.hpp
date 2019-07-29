@@ -1,7 +1,7 @@
 #ifndef _HTSPAN_SNV_HPP_
 #define _HTSPAN_SNV_HPP_
 
-#include "frontend/cstring.hpp"
+#include "frontend/string.hpp"
 
 namespace hts {
 

@@ -7,7 +7,7 @@
 
 #include "optionparser.hpp"
 #include "options.hpp"
-#include "cstring.hpp"
+#include "string.hpp"
 
 /**
 * This file contains some generic methods for printing subsets

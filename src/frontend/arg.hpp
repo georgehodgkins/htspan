@@ -15,7 +15,7 @@
 #include "../htspan/nucleotide.hpp"
 #include "../htspan/piler.hpp"
 #include "file.hpp"
-#include "cstring.hpp"
+#include "string.hpp"
 
 // This file contains argument checks for the options defined in options.hpp
 

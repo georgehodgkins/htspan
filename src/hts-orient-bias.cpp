@@ -2,14 +2,16 @@
 #include <fstream>
 #include <string>
 #include <cstring>
+#include <utility>
 
 #include "frontend/options.hpp"
 #include "frontend/print-help.hpp"
 #include "frontend/orient-bias-identify.hpp"
 #include "frontend/orient-bias-quantify.hpp"
 #include "frontend/optionparser.hpp"
-#include "frontend/cstring.hpp"
+#include "frontend/string.hpp"
 #include "frontend/simul_writer.hpp"
+#include "frontend/json.h"
 
 #include "htspan/nucleotide.hpp"
 #include "htspan/fetcher.hpp"

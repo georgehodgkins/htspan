@@ -15,7 +15,7 @@
 #include "htspan/bam.hpp"
 
 #include "snv.hpp"
-#include "frontend/cstring.hpp"
+#include "frontend/string.hpp"
 
 // TODO: Make readers uniformly follow the path of 1) validate data 2) store in cache 3) copy to output record
 
