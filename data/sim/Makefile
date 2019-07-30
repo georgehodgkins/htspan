@@ -18,7 +18,7 @@ sim.orig.bam: sim.orig.r1.fq sim.orig.r2.fq
 	./align.sh sim.orig $(ref)
 
 sim.ffpe.r1.fq: sim.orig.r1.fq sim.orig.r2.fq
-	./damage.py --type ffpe sim.orig.r1.fq sim.orig.r2.fq --out1 sim.ffpe.r1.fq --out2 sim.ffpe.r2.fq --seed $(seed)
+	./damage.py --type ffpe --phi 0.2 sim.orig.r1.fq sim.orig.r2.fq --out1 sim.ffpe.r1.fq --out2 sim.ffpe.r2.fq --seed $(seed)
 
 sim.ffpe.r2.fq: sim.ffpe.r1.fq
 	
@@ -27,7 +27,7 @@ sim.ffpe.bam: sim.ffpe.r1.fq sim.ffpe.r2.fq
 	./align.sh sim.ffpe $(ref)
 
 sim.oxog.r1.fq: sim.orig.r1.fq sim.orig.r2.fq
-	./damage.py --type oxog sim.orig.r1.fq sim.orig.r2.fq --out1 sim.oxog.r1.fq --out2 sim.oxog.r2.fq --seed $(seed)
+	./damage.py --type oxog --phi 0.2 sim.orig.r1.fq sim.orig.r2.fq --out1 sim.oxog.r1.fq --out2 sim.oxog.r2.fq --seed $(seed)
 
 sim.oxog.r2.fq: sim.oxog.r1.fq
 	
