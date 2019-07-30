@@ -70,7 +70,8 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 			continue;
 		}
 
-		frontend::global_log.v(3) << j << '\t' << pile.size() << " (" << n << ")\t" << p.tid << '\t' << p.pos << '\t' << seq[0] << '\t';
+		frontend::global_log.v(3) << j << '\t' << pile.size() << " (" << n << ")\t" << p.tid << '\t' << p.pos <<
+			" (r" << (bam_is_read1(pile[0]) ? 1 : 2) << (bam_is_rev(pile[0]) ? '-' : '+') <<  ")\t" << seq[0] << '\t';
 
 		// dump locus info and observed variables at verbosity==3
 		// this adds some extra overhead to evaluate, plus the overhead inherent from large amounts of tty output
@@ -91,12 +92,10 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 
 		// Check here whether reference nucleotide at position is damage-consistent
 		nuc_t s_ref = char_to_nuc(seq[0]);
-		if (s_ref == obquant.r1_ref || s_ref == obquant.r2_ref) {
-			// accumulate statistics
-			n_reads += obquant.push(pile, p.pos);
-			frontend::global_log.v(3) << obquant.xij() << '\t' << obquant.xcj() << '\t'
-				<< obquant.nij() << '\t' << obquant.ncj() << '\t' << n_reads << " (" << t_reads << ")";
-		}
+		// accumulate statistics
+		n_reads += obquant.push(pile, p.pos, s_ref);
+		//frontend::global_log.v(3) << obquant.xij() << '\t' << obquant.xcj() << '\t'
+		//	<< obquant.nij() << '\t' << obquant.ncj() << '\t' << n_reads << " (" << t_reads << ")";
 		frontend::global_log.v(3) << '\n';
 		++j;
 	}
@@ -131,6 +130,8 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 	// Initialize quantification class
 	freq_orient_bias_quant_f fobquant (ref, alt, max_reads, 1e-8);
 	
+	cerr << "ref: " << nuc_to_char(ref) << " alt: " << nuc_to_char(alt) << endl; 
+
 	// Accumulate observed variables
 	size_t n_reads = obquant_accumulate(fobquant, p, faidx, plain_output);
 	

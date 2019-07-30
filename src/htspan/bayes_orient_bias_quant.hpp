@@ -358,14 +358,14 @@ struct bayes_orient_bias_quant_f : public base_orient_bias_quant_f {
 	* @param pos Reference position of the locus
 	* @return Nubmer of successfully processed reads
 	*/
-	size_t push(const vector<bam1_t*> &pile, int32_t pos) {
+	size_t push(const vector<bam1_t*> &pile, int32_t pos, nuc_t ref) {
 		xc = 0;
 		xi = 0;
 		nc = 0;
 		ni = 0;
 		size_t success = 0;
 		for (size_t i = 0; i < pile.size(); ++i) {
-			if (base_orient_bias_quant_f::push(pile[i], pos)) {
+			if (base_orient_bias_quant_f::push(pile[i], pos, ref)) {
 				++success;
 			}
 		}
