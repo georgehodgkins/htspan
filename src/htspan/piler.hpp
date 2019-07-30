@@ -93,10 +93,7 @@ struct piler {
 	}
 
 	size_t size() const {
-		if (n < 0) {
-			return 0;
-		}
-		return (size_t) n;
+		return pile.size();
 	}
 
 	/**
@@ -117,7 +114,6 @@ struct piler {
 		// get next pileup and update target id, position, and read depth
 		const bam_pileup1_t* inner = bam_plp_auto(plp_itr, &tid, &pos, &n);
 
-		// if inner is NULL (error or EOF), return a vector with a single NULL value
 		if (!inner) {
 			// if n < 0, an error occurred (not EOF)
 			if (n < 0) {

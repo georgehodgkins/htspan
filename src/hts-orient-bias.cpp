@@ -452,6 +452,7 @@ int main (int argc, char** argv) {
 			// minimum and maximum insert size for inclusion
 			p.qfilter.min_isize = 60;
 			p.qfilter.max_isize = 600;
+			// TODO: turn this on
 
 			// allocate some space for the read buffer in the piler (not a cap)
 			p.reserve(100);
