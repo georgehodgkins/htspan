@@ -73,17 +73,29 @@ struct base_orient_bias_quant_f {
 	 * @param b       BAM record of a read
 	 * @param pos     reference position
 	 */
-	bool push(const bam1_t* b, int32_t pos) {
+	bool push(const bam1_t* b, int32_t pos, nuc_t ref) {
+
+		// redundant check but allows for early exit and saves work
+		if (ref != r1_ref && ref != r2_ref) return false;
+
 		// only analyze nucleotides A, C, G, T (no indels)
-		nuc_t qnuc = query_nucleotide(b, pos);
-		if (!nuc_is_canonical(qnuc)) return false;
+		nuc_t alt = query_nucleotide(b, pos);
+		if (!nuc_is_canonical(alt)) return false;
+		
+		// only consider specific variants and non-variants
+		if (!(ref == r1_ref && alt == r1_alt) &&
+			!(ref == r1_ref && alt == r1_ref) &&
+			!(ref == r2_ref && alt == r2_alt) &&
+			!(ref == r2_ref && alt == r2_ref)
+		) return false;
+
 		// query aligning against the reverse strand is reverse-complemented,
 		// so we need to reverse-complement again to get the original nucleotide
 		nuc_t onuc;
 		if (bam_is_rev(b)) {
-			onuc = nuc_complement(qnuc);
+			onuc = nuc_complement(alt);
 		} else {
-			onuc = qnuc;
+			onuc = alt;
 		}
 
 		// accmulate statistics based on read1 vs. read2 and original nucleotide
@@ -151,7 +163,7 @@ struct base_orient_bias_quant_f {
 	* @param pos Reference position of the locus
 	* @return Number of reads pushed.
 	*/
-	virtual size_t push (const vector<bam1_t*> &pile, int32_t pos) = 0;
+	virtual size_t push (const vector<bam1_t*> &pile, int32_t pos, nuc_t ref) = 0;
 
 	// access statistics for the last site pushed, for debug
 	virtual long int xij () const = 0;

@@ -50,7 +50,7 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	 * @param pos  locus reference position
 	 * @return number of successfully processed reads
 	 */
-	size_t push(const vector<bam1_t*> &pile, int32_t pos) {
+	size_t push(const vector<bam1_t*> &pile, int32_t pos, nuc_t ref) {
 		size_t success = 0;
 
 		// copy old values of observed vars
@@ -61,7 +61,7 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 
 		// accumulate statistics from new reads
 		for (size_t i = 0; i < pile.size(); ++i) {
-			if (base_orient_bias_quant_f::push(pile[i], pos)) {
+			if (base_orient_bias_quant_f::push(pile[i], pos, ref)) {
 				++success;
 			}
 		}
