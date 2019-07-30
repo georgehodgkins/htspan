@@ -89,7 +89,7 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 
 		// Check here whether reference nucleotide at position is damage-consistent
 		nuc_t s_ref = char_to_nuc(seq[0]);
-
+		
 		// accumulate statistics
 		n_reads += obquant.push(pile, p.pos, s_ref);
 		//frontend::global_log.v(3) << obquant.xij() << '\t' << obquant.xcj() << '\t'
