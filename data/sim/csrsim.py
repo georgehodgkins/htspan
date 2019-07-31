@@ -8,7 +8,7 @@ if __name__ == "__main__":
     import subprocess
 
     pr = argparse.ArgumentParser("Cancer short read simulator")
-    pr.add_argument("-t", "--theta", type=float, help="rate of genuine mutations", default=0.02)
+    pr.add_argument("-T", "--theta", type=float, help="rate of genuine mutations", default=0.02)
     pr.add_argument("-e", "--base_error", type=float, help="rate of base error", default=0.005)
     pr.add_argument("-p", "--purity", type=float, help="cancer purity", default=0.8)
     pr.add_argument("-s", "--seed", type=int, help="seed for random number generator", default=0)
