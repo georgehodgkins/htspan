@@ -12,7 +12,7 @@ fi
 bam=$1
 ref=$2
 
-mut_rate=${3:-0.02}
+mut_rate=${3:-0.99}
 
 fname=${bam##*/}
 prefix=${fname%.*}
