@@ -50,11 +50,11 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 	// table header for info dump (only at verbosity==3)
 	frontend::global_log.v(3) << "pileup\treads\ttid\tpos\tref\talts\txij\txcj\tnij\tncj\n";
 	while (n_reads < max_reads) {
-		
+
 		// advance to next locus, break if EOF has been reached
 		const vector<bam1_t*> &pile = p.next();
 		if (p.n <= 0) break;
-		
+
 		// total number of reads at the locus, including those that failed the filter
 		size_t n = p.size();
 		t_reads += n;
@@ -130,11 +130,11 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 
 	// Accumulate observed variables
 	size_t n_reads = obquant_accumulate(fobquant, p, faidx, max_reads, plain_output);
-	
+
 	//calculate the estimators
 	double theta_hat = fobquant.theta_hat();
 	double phi_hat = fobquant();
-	
+
 	//output results to JSON
 	using simpleson::json::jobject;
 	jobject json_estimate;
