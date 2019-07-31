@@ -101,7 +101,7 @@ const option::Descriptor usage[] = {
 		"v",
 		"verbosity",
 		Arg::Verbosity,
-		"-v, --verbosity\rLevel of runtime verbosity (separate from result output), "
+		"-v, --verbosity [1]\rLevel of runtime verbosity (separate from result output), "
 		"from 0 (silent) - 3 (details about every pushed read).\n"
 		"NB: Level 3 may perform extra computations to produce its output, "
 		"at a penalty to overall program performance."
@@ -111,7 +111,7 @@ const option::Descriptor usage[] = {
 		"l",
 		"log-file",
 		Arg::OutputFile,
-		"-l, --log-file\rPath to write runtime output (not results) to.\n"
+		"-l, --log-file\rPath to write runtime output to.\n"
 		"Note: Runtime output and results on stdout are controlled by the -O flag."
 	},{
 		BAMFILE,
@@ -144,7 +144,7 @@ const option::Descriptor usage[] = {
 		"o",
 		"out-snv-file",
 		Arg::OutputFile,
-		"-o, --out-snv-file\rPath for the output list of filtered SNVs.\n"
+		"-o, --out-snv-file [out.snv]\rPath for the output list of filtered SNVs.\n"
 		"If the -O flag is not set, output file type will be deduced from the extension of this file.\n"
 	},{
 		PHI,
@@ -159,7 +159,7 @@ const option::Descriptor usage[] = {
 		"",
 		"stdout",
 		Arg::None,
-		"--stdout\rTurns on printing runtime output and results to stdout, "
+		"--stdout [true]\rTurns on printing runtime output and results to stdout, "
 		"in addition to any log or result files specified "
 		"(default behavior)."
 	},{
@@ -168,7 +168,7 @@ const option::Descriptor usage[] = {
 		"",
 		"no-stdout",
 		Arg::None,
-		"--no-stdout\rTurns off printing runtime output and results to stdout.\n"
+		"--no-stdout [false]\rTurns off printing runtime output and results to stdout.\n"
 		"Note that if you use this flag and do not specify a result file (-o), "
 		"you will not be able to see your results."
 	},{
@@ -189,9 +189,9 @@ const option::Descriptor usage[] = {
 		KEEP_DUP,
 		t_ON,
 		"D",
-		"keep-duplicate",
+		"keep-dup",
 		Arg::None,
-		"-D, --keep-duplicate\rKeep reads at the same reference position present in multiple sequences."
+		"-D, --keep-dup [false]\rKeep reads at the same reference position present in multiple sequences."
 	},{
 		MAX_READS,
 		t_OTHER,
@@ -280,7 +280,7 @@ const option::Descriptor usage[] = {
 		"M",
 		"model",
 		Arg::Model,
-		"-M, --model [bayes]\rModel to use for identification or quantification. "
+		"-M, --model [freq]\rModel to use for identification or quantification. "
 		"Choices are \'freq\' or \'bayes\'."
 	},{
 		IN_SNVFTYPE,
@@ -310,7 +310,7 @@ const option::Descriptor usage[] = {
 		"-g, --sig-level [.05 freq/.95 bayes]\rThreshold for a variant to be considered damaged by the filter.\n"
 		"Specifically, a variant with a p-val /above/ (freq model) or a posterior probability /below/ (bayes model) "
 		"this threshold is flagged as damaged by the filter.\n"
-		"Set to 0 to disable filtering (statistics will still be recorded in the output file)."
+		"Set to 0 to disable automatic filtering (statistics will still be recorded in the output file)."
 	},{
 		FIXED_PHI,
 		t_OTHER,
@@ -339,7 +339,7 @@ const option::Descriptor usage[] = {
 		"?",
 		"help",
 		Arg::Optional,
-		"-?, --help\rPrint a help message."
+		"-?, --help\rPrint a help message (pass a command, argument name, or \"utility\" to get more detailed help)."
 	},{// null terminator
 		UNKNOWN,
 		0,

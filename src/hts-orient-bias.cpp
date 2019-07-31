@@ -37,6 +37,30 @@ int main (int argc, char** argv) {
 	enum ModelType {BAYES, FREQ};
 
 	//
+	// Parameter defaults
+	// The value of these is noted as a comment where they are used to set parameters;
+	// if you change a value here, change it there too
+	//
+	const bool default_use_stdout = true;
+	const int default_verbosity = 1;
+	const string default_snv_out_fname = "out.snv";
+	const ModelType default_model = FREQ;
+	// default siglevel depends on the model used, since they return different statistics
+	const double default_siglevel_freq = .05;
+	const double default_siglevel_bayes = .95;
+	const double default_phi = .01;
+	const double default_alpha = 1.0;
+	const double default_beta = 1.0;
+	const double default_prior_alt = .5;
+	const int default_min_mapq = 30;
+	const int default_min_baseq = 20;
+	const int default_max_reads = 1000000;
+	const int default_minz_bound = 15;
+	const double default_eps = 1e-6;
+	const bool default_keep_dup = false;
+
+
+	//
 	// Process input arguments
 	// 
 	if (argc <= 1) { // no arguments given
@@ -101,11 +125,11 @@ int main (int argc, char** argv) {
 
 	// Set up logging output
 	// TODO: update so '-' redirects to stdout
-	bool use_stdout = true;
+	bool use_stdout = default_use_stdout; // true
 	if (options[STDOUT]) {
 		use_stdout = options[STDOUT].last()->type() == t_ON;
 	}
-	int verbosity = 1;
+	int verbosity = default_verbosity; // 1
 	if (options[VERBOSITY]) {
 		verbosity = atoi(options[VERBOSITY].arg);
 	}
@@ -203,8 +227,7 @@ int main (int argc, char** argv) {
 	}
 
 	// Output SNV file options
-	// TODO: add extension if a name is given as well?
-	std::string snv_out_fname = "out"; // default name
+	std::string snv_out_fname = default_snv_out_fname; // "out.snv"
 	snv::FMTFLAGS_T snv_out_fmt = snv::F_NULL;
 	if (options[OUT_SNVFILE]) {
 		snv_out_fname = options[OUT_SNVFILE].arg;
@@ -220,10 +243,15 @@ int main (int argc, char** argv) {
 	}
 
 	// Statistical model options, default is Bayesian
-	ModelType model = BAYES;
+	ModelType model = default_model; // FREQ
 	if(options[MODEL]) {
-		if (strcmpi(options[MODEL].arg, "freq") == 0) {
+		if (strcmpi(options[MODEL].arg, "bayes") == 0) {
+			model = BAYES;
+		} else if (strcmpi(options[MODEL].arg, "freq") == 0) {
 			model = FREQ;
+		} else {
+			cerr << "Error: " << options[MODEL].arg << " is not a recognized model.\n";
+			success = false;
 		}
 	}
 	
@@ -237,9 +265,9 @@ int main (int argc, char** argv) {
 		sig_level = strtod(options[SIGLEVEL].arg, NULL);
 	} else {// set defaults
 		if (model == BAYES) {
-			sig_level = .95;
+			sig_level = default_siglevel_bayes; // .95
 		} else if (model == FREQ) {
-			sig_level = .05;
+			sig_level = default_siglevel_freq; // .05
 		}
 	}
 	
@@ -291,10 +319,10 @@ int main (int argc, char** argv) {
 
 	// Numeric parameter flags
 	// TODO: use --alpha/beta for initial estimates for quant as well
-	double phi = .01;
-	double alpha = 1.0;
-	double beta = 1.0;
-	double prior_alt = .5;
+	double phi = default_phi; // .01
+	double alpha = default_alpha; // 1.0
+	double beta = default_beta; // 1.0
+	double prior_alt = default_prior_alt; // 0.5
 	if (model == BAYES) {
 		if (identifying) {
 			// alpha hyperparameter
@@ -333,29 +361,29 @@ int main (int argc, char** argv) {
 	
 	// Misc options that should be sorted
 	// Minimum mapping quality for analyzed reads
-	int min_mapq = 30;
+	int min_mapq = default_min_mapq; // 30
 	if (options[MIN_MAPQ]) {
 		min_mapq = atoi(options[MIN_MAPQ].arg);
 	}
 	// Minimum base quality for analyzed reads
-	int min_baseq = 20;
+	int min_baseq = default_min_baseq; // 20
 	if (options[MIN_BASEQ]) {
 		min_baseq = atoi(options[MIN_BASEQ].arg);
 	}
 	// Maximum number of reads to analyze during quantification
 	// For Bayesian quant, may need to be increased to achieve convergence
-	long int max_reads = 1000000;
+	long int max_reads = default_max_reads; // 1000000
 	if (options[MAX_READS]) {
 		max_reads = atol(options[MAX_READS].arg);
 	}
 	// Symmetric log-space bounds for minimizing in freq ident process
-	int minz_bound = 15;
+	int minz_bound = default_minz_bound; // 15
 	if (options[MINZ_BOUND]) {
 		minz_bound = atoi(options[MINZ_BOUND].arg);
 	}
 	// Epsilon for convergence
 	// TODO: apply this to Bayesian quant?
-	double eps = 1e-6;
+	double eps = default_eps; // 1e-6
 	if (options[EPS]) {
 		eps = strtod(options[EPS].arg, NULL);
 	}
@@ -390,7 +418,7 @@ int main (int argc, char** argv) {
 
 	// misc flags
 	// Keep duplicate reads?
-	bool keep_dup = false;
+	bool keep_dup = default_keep_dup; // false
 	if (options[KEEP_DUP]) {
 		keep_dup = options[KEEP_DUP].last()->type() == t_ON;
 	}
