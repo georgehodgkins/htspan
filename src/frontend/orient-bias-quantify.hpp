@@ -67,8 +67,8 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 			continue;
 		}
 
-		frontend::global_log.v(3) << j << '\t' << pile.size() << " (" << n << ")\t" << p.tid << '\t' << p.pos <<
-			" (r" << (bam_is_read1(pile[0]) ? 1 : 2) << (bam_is_rev(pile[0]) ? '-' : '+') <<  ")\t" << seq[0] << '\t';
+		//frontend::global_log.v(3) << j << '\t' << pile.size() << " (" << n << ")\t" << p.tid << '\t' << p.pos <<
+		//	" (r" << (bam_is_read1(pile[0]) ? 1 : 2) << (bam_is_rev(pile[0]) ? '-' : '+') <<  ")\t" << seq[0] << '\t';
 
 		// dump locus info and observed variables at verbosity==3
 		// this adds some extra overhead to evaluate, plus the overhead inherent from large amounts of tty output
@@ -127,8 +127,6 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 
 	// Initialize quantification class
 	freq_orient_bias_quant_f fobquant (ref, alt);
-	
-	cerr << "ref: " << nuc_to_char(ref) << " alt: " << nuc_to_char(alt) << endl; 
 
 	// Accumulate observed variables
 	size_t n_reads = obquant_accumulate(fobquant, p, faidx, max_reads, plain_output);
