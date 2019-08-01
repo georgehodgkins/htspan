@@ -32,12 +32,20 @@ def write_fastq_record(r, f):
     """Write a FASTQ record r to file f."""
     f.write('\n'.join([r.name, r.seq, "+", r.qual, ""]))
 
-
-def damage_seq(xs, ref, alt, phi):
+def damage_seq(xs, ref, alt, phi=0, alpha=0, beta=0):
     """
     Randomly mutate ref nucleotides in sequence xs to alt nucleotides
-    with probability phi.
+    with probability phi or Beta(alpha, beta).
     """
+
+    if phi <= 0:
+        # sample phi ~ Beta(alpha, beta)
+        if alpha > 0 and beta > 0:
+            import numpy as np
+            phi = np.random.beta(alpha, beta)
+        else:
+            raise ValueError("need alpha > 0 and beta > 0")
+
     ys = ""
     for n in xs:
         if n.upper() == ref:
@@ -63,12 +71,23 @@ if __name__ == "__main__":
     pr.add_argument("-1", "--out1", help="output file name for R1 reads")
     pr.add_argument("-2", "--out2", help="output file name for R2 reads")
     pr.add_argument("-P", "--phi", type=float, default=0.2, help="damage rate")
+    pr.add_argument("-A", "--alpha", type=float, default=0, help="hyperparameter for damage rate")
+    pr.add_argument("-B", "--beta", type=float, default=0, help="hyperparameter for damage rate")
     pr.add_argument("-s", "--seed", type=int, default=0, help="random seed")
     pr.add_argument("-t", "--type", default="FFPE", help="damage type [FFPE or oxoG]")
 
     args = pr.parse_args()
 
-    phi = args.phi
+    alpha = args.alpha
+    beta = args.beta
+    if alpha > 0:
+        if beta > 0:
+            phi = 0
+    elif beta > 0:
+        raise ValueError("Need alpha > 0 and beta > 0; got: alpha = {}, beta = {}".format(alpha, beta))
+    else:
+        phi = args.phi
+
 
     # set random seed to fixed or arbitrary value
     if args.seed != 0:
@@ -106,8 +125,8 @@ if __name__ == "__main__":
             r2 = read_fastq_record(r2f)
             if not r1 or not r2: break
 
-            r1_new_seq = damage_seq(r1.seq, nt_ref_r1, nt_alt_r1, phi)
-            r2_new_seq = damage_seq(r2.seq, nt_ref_r2, nt_alt_r2, phi)
+            r1_new_seq = damage_seq(r1.seq, nt_ref_r1, nt_alt_r1, phi, alpha, beta)
+            r2_new_seq = damage_seq(r2.seq, nt_ref_r2, nt_alt_r2, phi, alpha, beta)
 
             s1 = fastq_record(r1.name, r1_new_seq, r1.qual)
             s2 = fastq_record(r2.name, r2_new_seq, r2.qual)
