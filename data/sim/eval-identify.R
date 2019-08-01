@@ -20,7 +20,6 @@ annotate_truth <- function(d, positives) {
 
 dset <- "grid2";
 groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04");
-#groups <- c("05_01_01");
 
 for (group in groups) {
 
