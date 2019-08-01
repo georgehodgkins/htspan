@@ -11,7 +11,7 @@ mkdir -p $outdir
 $bindir/hts-count $testdir/snvs.tsv $bam $outdir/cov.tsv 0 0 0 1
 
 
-echo "Testing diff ..."
+echo "Testing diff (hts-count) ..."
 
 diff ${outdir}/cov.tsv ${testdir}/cov.tsv
 echo "${outdir}/cov.tsv ... $?"

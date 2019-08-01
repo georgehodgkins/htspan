@@ -8,10 +8,10 @@ testdir=ans/pileup
 mkdir -p $outdir
 
 # do not keep duplicate
-$bindir/hts-pileup $bam 0 0 20 > ${outdir}/pileup.tsv
+$bindir/hts-pileup $bam 0 30 20 10 > ${outdir}/pileup.tsv
 
 
-echo "Testing diff ..."
+echo "Testing diff (hts-pileup) ..."
 
 diff ${outdir}/pileup.tsv ${testdir}/pileup.tsv
 echo "${outdir}/pileup.tsv ... $?"

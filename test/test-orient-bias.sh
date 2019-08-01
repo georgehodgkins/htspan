@@ -15,7 +15,7 @@ for pos in ${poss[@]}; do
 	$bindir//hts-orient-bias $bam $target $pos G T 0.01 1 0 0 > ${outdir}/out_${target}-${pos}-dup.txt
 done
 
-echo "Testing diff ..."
+echo "Testing diff (hts-orient-bias)..."
 
 dups=( dup nodup )
 

@@ -75,6 +75,6 @@ if [ $(echo "$OXOG_FFPE < $ND_MAX" | bc) -eq 0 ]; then
 	FAIL=1
 fi
 
-if [ $FAIL -eq 0]; then
+if [ $FAIL -eq 0 ]; then
 	echo "All tests passed."
 fi

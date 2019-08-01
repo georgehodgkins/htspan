@@ -118,13 +118,19 @@ clean:
 	rm -f $(targets) $(utest_targets) $(mlat_targets)
 
 utest: $(utest_targets)
+
 	
+sim: all
+	make -C data/sim
 
 test: check
 	
 
 quant-testing: $(bin)/bayes-quant-testing
 
+
+memcheck: all sim
+	cd $(test) && ./memcheck.sh
 
 check: $(utest_targets)
 	cd $(test) && ./test.sh
