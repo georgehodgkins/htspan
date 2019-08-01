@@ -318,7 +318,6 @@ int main (int argc, char** argv) {
 	}
 
 	// Numeric parameter flags
-	// TODO: use --alpha/beta for initial estimates for quant as well
 	double phi = default_phi; // .01
 	double alpha = default_alpha; // 1.0
 	double beta = default_beta; // 1.0
@@ -382,7 +381,6 @@ int main (int argc, char** argv) {
 		minz_bound = atoi(options[MINZ_BOUND].arg);
 	}
 	// Epsilon for convergence
-	// TODO: apply this to Bayesian quant?
 	double eps = default_eps; // 1e-6
 	if (options[EPS]) {
 		eps = strtod(options[EPS].arg, NULL);
@@ -478,9 +476,9 @@ int main (int argc, char** argv) {
 			// exclude any reads which map to the same strand as their mate
 			p.qfilter.excl_tandem_reads = true;
 			// minimum and maximum insert size for inclusion
+			p.qfilter.check_isize = true;
 			p.qfilter.min_isize = 60;
 			p.qfilter.max_isize = 600;
-			// TODO: turn this on
 
 			// allocate some space for the read buffer in the piler (not a cap)
 			p.reserve(100);
@@ -514,7 +512,13 @@ int main (int argc, char** argv) {
 					std::cerr << "Starting Bayesian quantification (this will take a bit)...\n";
 				}
 				// do quantification (-->frontend/orient-bias-quantify.hpp)
-				success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output);
+				if (options[ALPHA] || options[BETA]) {
+					// use initial estimates for alpha and beta if they were passed
+					success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output, eps, alpha, beta);
+				} else {
+					// if no estimates given, use frequentist quant to obtain an initial estimate
+					success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output, eps);
+				}
 					
 				if (!success) {
 					std::cerr << "Quantification process failed.\n";

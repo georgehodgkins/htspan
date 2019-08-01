@@ -37,7 +37,6 @@ using namespace std;
 namespace hts {
 
 // Disambiguate non-fatal error codes from SNV reading (defined in snv.hpp)
-// TODO move to snv.hpp
 inline void print_snvr_err(snv::reader &snvr) {
 	switch(snvr.error()) {
 	case -2:

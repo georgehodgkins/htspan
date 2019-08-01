@@ -172,17 +172,6 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 	return true;
 } // end frequentist quant
 
-// Compile-time fixed parameters for the stochastic gradient (stograd)
-// optimization process used in Bayesian quantification
-
-// Programatically, these do not need to be compile-time fixed,
-// but it is not necessary to expose them to the end user
-// Feel free to tweak them to achieve a better estimate
-
-#define BATCH_SIZE 250 // size of each stograd batch
-#define N_EPOCHS 5000 // maximum number of stograd epochs (stops early if convergence is achieved)
-#define LRATE 1e-4 // stograd learning rate (scales size of each parameter adjustment)
-#define CONVERGENCE_EPS 1e-6 // threshold for convergence (TODO: use command-line eps)
 
 /**
 * This function provides a driver for the process of Bayesian quantification.
@@ -204,7 +193,16 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 * @return Whether the operation succeeded
 */
 bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx, simpleson::json::jobject &quant_results,
-		 size_t max_reads, bool plain_output) {
+		 size_t max_reads, bool plain_output, double eps, double ialpha = -1, double ibeta = -1) {
+
+	// Parameters for stograd optimization
+	// Programatically, these do not need to be compile-time fixed (except stepper),
+	// but it is not necessary to expose them to the end user
+	// Feel free to tweak them to achieve a better estimate
+#define STEP_FUNC stograd::stepper::adam<double>
+	const size_t BATCH_SIZE = 250;
+	const size_t N_EPOCHS = 5000;
+	const double LRATE = 1e-4;
 
 	// Initialize objects
 	bayes_orient_bias_quant_f bobquant (ref, alt);
@@ -213,7 +211,12 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fa
 	size_t n_reads = obquant_accumulate(bobquant, p, faidx, max_reads, plain_output);
 	
 	// Get hyperparameter estimates (computationally expensive)
-	hts::hparams result = bobquant.operator()<stograd::stepper::constant<double> > (BATCH_SIZE, N_EPOCHS, LRATE, CONVERGENCE_EPS);
+	hts::hparams result;
+	if (ialpha != -1 && ibeta != -1) { // use estimates if they were given
+		result = bobquant.operator()<STEP_FUNC> (BATCH_SIZE, N_EPOCHS, LRATE, eps, ialpha, ibeta, ialpha, ibeta);
+	} else { // use estimate from frequentist quant
+		result = bobquant.operator()<STEP_FUNC> (BATCH_SIZE, N_EPOCHS, LRATE, eps);
+	}
 
 	// output results to JSON
 	using simpleson::json::jobject;
@@ -268,4 +271,4 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fa
 	return true;
 } // end Bayesian quant
 
-}// namespace hts
+} // namespace hts

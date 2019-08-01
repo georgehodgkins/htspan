@@ -12,14 +12,11 @@
 * includes a help text describing its usage.
 */
 
-// TODO: unknown option handling
-
 namespace hts {
 	
 namespace frontend {
 
 // These indices uniquely identify options
-// They are signed so that the print_selected_usages function in print-help.hpp works correctly
 enum OptionIndex {UNKNOWN=0, REF=1, ALT=2, INT_SIM=3, EXT_SIM=4, 
 	VERBOSITY=5, LOGFILE=6, BAMFILE=7, REFFILE=8, IN_SNVFILE=9, OUT_SNVFILE=10, PHI=11, STDOUT=12,
 	MIN_MAPQ=13, MIN_BASEQ=14, KEEP_DUP=15, MAX_READS=16, MINZ_BOUND=17, EPS=18,
@@ -38,6 +35,7 @@ const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 
 // These arrays track arguments that only apply to quantification, identification, and internal simulation
 // Used to report ignored arguments to the user and for printing help texts
+// TODO: also split options into Bayesian and frequentist
 const OptionIndex quant_only_args[] = {REFFILE, MAX_READS, JSON_OUT};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
@@ -51,7 +49,7 @@ const size_t sim_arg_count = sizeof(intsim_only_args)/sizeof(OptionIndex);
 * Main array of options passed to the parser.
 * This array must stay ordered least to greatest index for help printing to work.
 * Note that in help descrs, \r feeds a newline + indentation for all subsequent lines in that description
-* All option checks are defined in arg.hpp, except for basic Arg::None and Arg::Optional.
+* All option checks are defined in arg.hpp, except for built-in Arg::None and Arg::Optional.
 */
 const option::Descriptor usage[] = {
 	{
@@ -214,7 +212,7 @@ const option::Descriptor usage[] = {
 		"e",
 		"epsilon",
 		Arg::Eps,
-		"--epsilon [1e-6]\rMaximum allowable distance (epsilon) for convergence in minimization and integration methods used."
+		"-e, --epsilon [1e-6]\rThreshold for convergence in optimization and integration methods used."
 	},{
 		THETA_SIM,
 		t_OTHER,
@@ -259,14 +257,16 @@ const option::Descriptor usage[] = {
 		"",
 		"alpha",
 		Arg::PositiveDouble,
-		"--alpha [1]\rAlpha hyperparameter for beta distribution used in Bayesian identification."
+		"--alpha [1]\rAlpha hyperparameter for beta distribution; used as a parameter in Bayesian identification "
+		"and as an initial estimate in Bayesian quantification.\nNote that both --alpha and --beta must be set to be used as initial estimates."
 	},{
 		BETA,
 		t_OTHER,
 		"",
 		"beta",
 		Arg::PositiveDouble,
-		"--beta [1]\rBeta hyperparameter for beta distribution used in Bayesian identification."
+		"--beta [1]\rBeta hyperparameter for beta distribution; used as a parameter in Bayesian identification "
+		"and as an initial estimate in Bayesian quantification.\nNote that both --alpha and --beta must be set to be used as initial estimates."
 	},{
 		ALTPRI,
 		t_OTHER,
