@@ -30,11 +30,22 @@ using namespace hts;
 * included from multiple locations.
 */
 
-// TODO: Redoc
+// TODO: Different conditions for convergence bwtn bayes & freq
+// TODO: Determine optimal stograd params
 
 namespace hts {
 
-
+/**
+* Accumulate observed variables in one of the quantification classes,
+* which handle pushed data differently.
+*
+* @param obquant Quantification class to accumulate data in
+* @param p Piler containing alignment data
+* @param faidx FASTA reader containing reference sequence
+* @param max_reads Maximum number of reads to push (or until the end of the file)
+* @param plain_output Whether to produce machine-readable output
+* @return Number of reads pushed; data members in obquant are also populated
+*/
 size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_reader &faidx,
 		size_t max_reads, bool plain_output) {
 
@@ -113,13 +124,11 @@ size_t obquant_accumulate (base_orient_bias_quant_f &obquant, piler &p, faidx_re
 *
 * @param ref Reference nucleotide for damage type
 * @param alt Alternative nucleotide for damage type
-* @param min_mapq Minimum mapping quality for a read to be considered
-* @param min_baseq Minimum base quality for a read to be considered
-* @param keep_dup Whether to exclude duplicated reads from consideration
-* @param max_qreads Maximum number of reads (that pass initial filters) to analyze
 * @param p Already initialized hts::piler containing alignment (BAM data) of interest
 * @param faidx Already intialized hts::faidx_reader containing reference sequence to compare against
-* @param plain_output Whether to include non machine-readable output
+* @param quant_results JSON object to write results to
+* @param max_reads Maximum number of reads (that pass initial filters) to analyze
+* @param plain_output Whether to machine-readable output
 * @return Whether the operation succeeded
 */
 bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx, simpleson::json::jobject &quant_results,
@@ -183,13 +192,14 @@ bool orient_bias_quantify_freq(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fai
 *
 * @param ref Reference nucleotide for damage type
 * @param alt Alternative nucleotide for damage type
-* @param min_mapq Minimum mapping quality for a read to be considered
-* @param min_baseq Minimum base quality for a read to be considered
-* @param keep_dup Whether to exclude duplicated reads from consideration
-* @param max_qreads Maximum number of reads (that pass initial filters) to analyze
 * @param p Already initialized hts::piler containing alignment (BAM data) of interest
 * @param faidx Already intialized hts::faidx_reader containing reference sequence to compare against
-* @param plain_output Whether to include non machine-readable output
+* @param quant_results JSON object to write results to
+* @param max_reads Maximum number of reads (that pass initial filters) to analyze
+* @param plain_output Whether to machine-readable output
+* @param eps Epsilon for convergence in stograd optimization
+* @param ialpha Initial alpha estimate (-1 indicates that it should be estimated using frequentist quant instead)
+* @param ibeta Inital beta estimate (^^)
 * @return Whether the operation succeeded
 */
 bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &faidx, simpleson::json::jobject &quant_results,
@@ -199,10 +209,12 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fa
 	// Programatically, these do not need to be compile-time fixed (except stepper),
 	// but it is not necessary to expose them to the end user
 	// Feel free to tweak them to achieve a better estimate
-#define STEP_FUNC stograd::stepper::adam<double>
-	const size_t BATCH_SIZE = 250;
-	const size_t N_EPOCHS = 5000;
-	const double LRATE = 1e-4;
+	
+#define STEP_FUNC stograd::stepper::adam<double> // stepper function to use (each one adjusts parameters differently)
+	// see stograd.hpp for a list of stepper options
+	const size_t BATCH_SIZE = 250; // number of sites to process between each parameter adjustment
+	const size_t N_EPOCHS = 5000; // maximum number of runs over the data (stops early if convergence is achieved)
+	const double LRATE = 1e-4; // learning rate (scales parameter adjustment)
 
 	// Initialize objects
 	bayes_orient_bias_quant_f bobquant (ref, alt);
@@ -212,7 +224,7 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fa
 	
 	// Get hyperparameter estimates (computationally expensive)
 	hts::hparams result;
-	if (ialpha != -1 && ibeta != -1) { // use estimates if they were given
+	if (ialpha > 0 && ibeta > 0) { // use estimates if they were given
 		result = bobquant.operator()<STEP_FUNC> (BATCH_SIZE, N_EPOCHS, LRATE, eps, ialpha, ibeta, ialpha, ibeta);
 	} else { // use estimate from frequentist quant
 		result = bobquant.operator()<STEP_FUNC> (BATCH_SIZE, N_EPOCHS, LRATE, eps);

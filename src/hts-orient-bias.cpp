@@ -29,9 +29,6 @@ using namespace hts::frontend;
 * and initializing input/output files; it then passes these to driver functions
 * located in frontend/orient-bias-identify.hpp and frontend/orient-bias-quantify.hpp.
 */
-
-// TODO: expose simulation capabilities
-
 int main (int argc, char** argv) {
 	// enum for model options
 	enum ModelType {BAYES, FREQ};
@@ -124,7 +121,6 @@ int main (int argc, char** argv) {
 	bool success = true;
 
 	// Set up logging output
-	// TODO: update so '-' redirects to stdout
 	bool use_stdout = default_use_stdout; // true
 	if (options[STDOUT]) {
 		use_stdout = options[STDOUT].last()->type() == t_ON;
@@ -469,10 +465,13 @@ int main (int argc, char** argv) {
 				std::cerr << "Starting Bayesian quantification (this will take a bit)...\n";
 			}
 			// do quantification (-->frontend/orient-bias-quantify.hpp)
-			if (options[ALPHA] || options[BETA]) {
-				// use initial estimates for alpha and beta if they were passed
+			if (options[ALPHA] && options[BETA]) {
+				// use initial estimates for alpha and beta if they were passed (both reqd)
 				success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output, eps, alpha, beta);
 			} else {
+				if (options[ALPHA] || options[BETA]) {
+					frontend::global_log.v(1) << "Warning: Both --alpha and --beta must be specified to pass an initial estimate to Bayesian quant.\n";
+				}
 				// if no estimates given, use frequentist quant to obtain an initial estimate
 				success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output, eps);
 			}
@@ -528,5 +527,5 @@ int main (int argc, char** argv) {
 	} // identification block
 
 	return 0;
-	
+
 }// main
