@@ -189,14 +189,6 @@ int main (int argc, char** argv) {
 			success = false;
 	}
 
-	// Simulation options
-	bool internal_sim = (bool) options[INT_SIM];
-	bool external_sim = (bool) options[EXT_SIM];
-	std::string ext_sim_fname;
-	if (external_sim) {
-		ext_sim_fname = options[EXT_SIM].arg;
-	}
-
 	// Alignment file options
 	std::string align_fname;
 	if (!options[BAMFILE]) {
@@ -386,34 +378,6 @@ int main (int argc, char** argv) {
 		eps = strtod(options[EPS].arg, NULL);
 	}
 
-	// simulation-only flags
-	double theta_sim = 0.1;
-	double phi_sim = 0.1;
-	double err_mean_sim = 30.0;
-	double err_sd_sim = 2.0;
-	if (internal_sim) {
-		if (external_sim) {
-			global_log.v(1) << "Warning: the -S/--internal-sim flag overrides -s/--external-sim.\n";
-		}
-		if (!options[THETA_SIM] || !options[PHI_SIM]
-			|| !options[ERR_MEAN_SIM] || !options[ERR_SD_SIM]) {
-			std::cerr <<
-				"Error: All --*-sim parameters are required for internal simulation. Use --help for usage.\n";
-			success = false;
-		} else {
-			theta_sim = strtod(options[THETA_SIM].arg, NULL);
-			phi_sim = strtod(options[PHI_SIM].arg, NULL);
-			err_mean_sim = strtod(options[ERR_MEAN_SIM].arg, NULL);
-			err_sd_sim = strtod(options[ERR_SD_SIM].arg, NULL);
-		}
-	} else {
-		for (size_t n = 0; n < sim_arg_count; ++n) {
-			if (options[intsim_only_args[n]]) {
-				global_log.v(1) << "Warning: option [-/--]" << options[intsim_only_args[n]].name << " only applies to internal simulation. Ignored.\n";
-			}
-		}
-	}
-
 	// misc flags
 	// Keep duplicate reads?
 	bool keep_dup = default_keep_dup; // false
@@ -446,94 +410,86 @@ int main (int argc, char** argv) {
 	// Damage quantification block
 	//
 	if (quantifying) {
-		if (internal_sim) {
-			global_log.v(1) << "Warning: Quantification internal sim code does not exist yet.\n";
-			return 0;
-		} else if (external_sim) {
-			global_log.v(1) << "Warning: Quantification external sim code does not exist yet.\n"; 
-			return 0;
-		} else {
-			// open BAM data file
-			piler p;
-			if (!p.open(align_fname.c_str())) {
-				std::cerr <<
-					"Error: could not open BAM file \'" << align_fname << "\'.\n";
+		// open BAM data file
+		piler p;
+		if (!p.open(align_fname.c_str())) {
+			std::cerr <<
+				"Error: could not open BAM file \'" << align_fname << "\'.\n";
+			return 1;
+		}
+
+		// set query filter parameters
+		// minimum mapping and base quality for inclusion
+		p.qfilter.min_mapq = min_mapq;
+		p.qfilter.min_baseq = min_baseq;
+		// include only reads which are properly aligned
+		p.qfilter.enable_prereq_flags(BAM_FPROPER_PAIR); 
+		// exclude any reads whose mates are unmapped or are supplementary reads
+		p.qfilter.enable_excl_flags(BAM_FMUNMAP | BAM_FSUPPLEMENTARY); 
+		// exclude duplicate reads, depending on keep_dup parameter
+		if (keep_dup) {
+			p.qfilter.disable_excl_flags(BAM_FDUP);
+		}
+		// exclude any reads which map to the same strand as their mate
+		p.qfilter.excl_tandem_reads = true;
+		// minimum and maximum insert size for inclusion
+		p.qfilter.check_isize = true;
+		p.qfilter.min_isize = 60;
+		p.qfilter.max_isize = 600;
+
+		// allocate some space for the read buffer in the piler (not a cap)
+		p.reserve(100);
+
+		// open reference sequence file
+		faidx_reader faidx;
+		if (!faidx.open(ref_fname.c_str())) {
+			std::cerr <<
+				"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
+			return 1;
+		}
+
+		// initialize JSON output object
+		simpleson::json::jobject quant_results;
+		quant_results["bam_file"] = align_fname;
+		quant_results["damage_type"] = dtype;
+
+		if (model == FREQ) {
+			if (!plain_output) {
+				std::cerr << "Starting frequentist quantification...\n";
+			}
+			// do quantification (-->frontend/orient-bias-quantify.hpp)
+			success = orient_bias_quantify_freq(ref, alt, p, faidx, quant_results, max_reads, plain_output);
+
+			if (!success) {
+				std::cerr << "Quantification process failed.\n";
 				return 1;
 			}
-
-			// set query filter parameters
-			// minimum mapping and base quality for inclusion
-			p.qfilter.min_mapq = min_mapq;
-			p.qfilter.min_baseq = min_baseq;
-			// include only reads which are properly aligned
-			p.qfilter.enable_prereq_flags(BAM_FPROPER_PAIR); 
-			// exclude any reads whose mates are unmapped or are supplementary reads
-			p.qfilter.enable_excl_flags(BAM_FMUNMAP | BAM_FSUPPLEMENTARY); 
-			// exclude duplicate reads, depending on keep_dup parameter
-			if (keep_dup) {
-				p.qfilter.disable_excl_flags(BAM_FDUP);
+		} else if (model == BAYES) {
+			if (!plain_output) {
+				std::cerr << "Starting Bayesian quantification (this will take a bit)...\n";
 			}
-			// exclude any reads which map to the same strand as their mate
-			p.qfilter.excl_tandem_reads = true;
-			// minimum and maximum insert size for inclusion
-			p.qfilter.check_isize = true;
-			p.qfilter.min_isize = 60;
-			p.qfilter.max_isize = 600;
-
-			// allocate some space for the read buffer in the piler (not a cap)
-			p.reserve(100);
-
-			// open reference sequence file
-			faidx_reader faidx;
-			if (!faidx.open(ref_fname.c_str())) {
-				std::cerr <<
-					"Error: could not open reference sequence file \'" << ref_fname << "\'.\n";
+			// do quantification (-->frontend/orient-bias-quantify.hpp)
+			if (options[ALPHA] || options[BETA]) {
+				// use initial estimates for alpha and beta if they were passed
+				success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output, eps, alpha, beta);
+			} else {
+				// if no estimates given, use frequentist quant to obtain an initial estimate
+				success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output, eps);
+			}
+				
+			if (!success) {
+				std::cerr << "Quantification process failed.\n";
 				return 1;
 			}
+		}
 
-			// initialize JSON output object
-			simpleson::json::jobject quant_results;
-			quant_results["bam_file"] = align_fname;
-			quant_results["damage_type"] = dtype;
-
-			if (model == FREQ) {
-				if (!plain_output) {
-					std::cerr << "Starting frequentist quantification...\n";
-				}
-				// do quantification (-->frontend/orient-bias-quantify.hpp)
-				success = orient_bias_quantify_freq(ref, alt, p, faidx, quant_results, max_reads, plain_output);
-
-				if (!success) {
-					std::cerr << "Quantification process failed.\n";
-					return 1;
-				}
-			} else if (model == BAYES) {
-				if (!plain_output) {
-					std::cerr << "Starting Bayesian quantification (this will take a bit)...\n";
-				}
-				// do quantification (-->frontend/orient-bias-quantify.hpp)
-				if (options[ALPHA] || options[BETA]) {
-					// use initial estimates for alpha and beta if they were passed
-					success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output, eps, alpha, beta);
-				} else {
-					// if no estimates given, use frequentist quant to obtain an initial estimate
-					success = orient_bias_quantify_bayes(ref, alt, p, faidx, quant_results, max_reads, plain_output, eps);
-				}
-					
-				if (!success) {
-					std::cerr << "Quantification process failed.\n";
-					return 1;
-				}
-			}
-
-			// write out to JSON if asked to
-			if (!json_fname.empty()) {
-				string json_out = (string) quant_results;
-				indent_serialized_json(json_out); // defined in frontend/string.hpp
-				ofstream writeout (json_fname.c_str());
-				writeout << json_out << endl;
-				writeout.close();
-			}
+		// write out to JSON if asked to
+		if (!json_fname.empty()) {
+			string json_out = (string) quant_results;
+			indent_serialized_json(json_out); // defined in frontend/string.hpp
+			ofstream writeout (json_fname.c_str());
+			writeout << json_out << endl;
+			writeout.close();
 		}
 	} // End quantification block
 
@@ -541,43 +497,36 @@ int main (int argc, char** argv) {
 	// Damage identification block
 	// 
 	if (identifying) {
-		if (internal_sim) { // TODO: move simulation calls to intermediate file
-			//orient_bias_filter_f obfilter(alt, ref, 0);
-			//obfilter.simulate(theta_sim, phi_sim, err_mean_sim, err_sd_sim);
-		} else if (external_sim) {
-			//orient_bias_filter_f obfilter(alt, ref, 0,
-			//	-1*minz_bound, minz_bound, minz_eps, minz_iter);// change count param when param options are added
-			//obfilter.read(ext_sim_fname.c_str());
-		} else {
-			if (!plain_output) {
-				global_log.v(1) << "Starting identification...\n";
-			}
-			
-			// open BAM data file
-			fetcher alignment_file;
-			if (!alignment_file.open(align_fname.c_str())) {
-				std::cerr <<
-					"Error: Could not open BAM file \'" << align_fname << "\'.";
-				return 1;
-			}
-			
-			// streamer class helps pass paramters from input SNV to output SNV file
-			snv::streamer snv_files (snv_in_fname.c_str(), snv_out_fname.c_str(), snv_in_fmt, snv_out_fmt);
-			
-			// do the identification (-->frontend/orient-bias-identify.hpp)
-			if (model == BAYES) {
-				success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta,
-					prior_alt, sig_level, alignment_file, snv_files, plain_output);
-			} else if (model == FREQ) {
-				success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi,
-					sig_level, alignment_file, snv_files, fixed_phi, plain_output);
-			}
-			
-			if (!success) {
-				global_log.v(1) << "Identification process failed.";
-				return 1;
-			}
+		if (!plain_output) {
+			global_log.v(1) << "Starting identification...\n";
+		}
+		
+		// open BAM data file
+		fetcher alignment_file;
+		if (!alignment_file.open(align_fname.c_str())) {
+			std::cerr <<
+				"Error: Could not open BAM file \'" << align_fname << "\'.";
+			return 1;
+		}
+		
+		// streamer class helps pass paramters from input SNV to output SNV file
+		snv::streamer snv_files (snv_in_fname.c_str(), snv_out_fname.c_str(), snv_in_fmt, snv_out_fmt);
+		
+		// do the identification (-->frontend/orient-bias-identify.hpp)
+		if (model == BAYES) {
+			success = orient_bias_identify_bayes(ref, alt, eps, minz_bound, alpha, beta,
+				prior_alt, sig_level, alignment_file, snv_files, plain_output);
+		} else if (model == FREQ) {
+			success = orient_bias_identify_freq(ref, alt, eps, minz_bound, phi,
+				sig_level, alignment_file, snv_files, fixed_phi, plain_output);
+		}
+		
+		if (!success) {
+			global_log.v(1) << "Identification process failed.";
+			return 1;
 		}
 	} // identification block
+
 	return 0;
+	
 }// main
