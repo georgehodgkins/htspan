@@ -115,6 +115,27 @@ void print_selected_usages(const Descriptor full_usage[], size_t n_full, const O
 }
 
 /**
+* Warn about arguments that are present but not used in various contexts.
+*
+* @param usage Main list of parse options
+* @param arg_list List of args to check for
+* @param arg_count Length of arg_list
+* @param valid_context A description of the context in which these args should be used.
+* @return none
+*/
+void warn_ignored_args (const Option usage[], const OptionIndex arg_list[], const size_t arg_count, const char* valid_context) {
+	for (size_t n = 0; n < arg_count; ++n) {
+		if (usage[arg_list[n]]) {
+			std::cerr << "Warning: option ";
+			if (strlen(usage[arg_list[n]].name) == 1) { // for some reason short opts do not include the dash while long ones do
+				std::cerr << '-';
+			}
+			std::cerr << usage[arg_list[n]].name << " only applies to " << valid_context << ". Ignored here.\n";
+		}
+	}
+}
+
+/**
 * Header printed at the top of all help texts
 */
 void print_help_info () {
@@ -134,7 +155,7 @@ void print_general_usage() {
 		BOLD << "identify " << NO_BOLD << "- Examine each SNV in the given snv file and distinguish genuine variants from damage artifacts.\n\n" <<
 
 		"Use --help [command]  or --help [option] (no dashes) for details on use\n" <<
-		"or --help utility for information on options relating to logging, debugging, and output.\n";
+		"or --help utility for information on options relating to logging, debugging and output.\n";
 	std::cerr.flush();
 }
 
@@ -148,6 +169,8 @@ void print_quant_usage() {
 	std::cerr << BOLD << "Quantification help:\n\n" << NO_BOLD;
 	print_selected_usages (usage, total_arg_count, common_args, common_arg_count);
 	print_selected_usages (usage, total_arg_count, quant_only_args, quant_arg_count);
+	std::cerr << BOLD << "Bayesian-specific flags:\n\n" << NO_BOLD;
+	print_selected_usages (usage, total_arg_count, bayes_quant_only_args, bayes_quant_arg_count);
 }
 
 /**
@@ -155,9 +178,13 @@ void print_quant_usage() {
 */
 void print_ident_usage() {
 	print_help_info();
-	std::cerr << BOLD << "\nIdentification help:\n" << NO_BOLD;
+	std::cerr << BOLD << "Identification help:\n\n" << NO_BOLD;
 	print_selected_usages (usage, total_arg_count, common_args, common_arg_count);
 	print_selected_usages (usage, total_arg_count, ident_only_args, ident_arg_count);
+	std::cerr << BOLD << "Frequentist-specific flags:\n\n" << NO_BOLD;
+	print_selected_usages (usage, total_arg_count, freq_ident_only_args, freq_ident_arg_count);
+	std::cerr << BOLD << "Bayesian-specific flags:\n\n" << NO_BOLD;
+	print_selected_usages (usage, total_arg_count, bayes_ident_only_args, bayes_ident_arg_count);
 }
 
 /**
@@ -165,8 +192,17 @@ void print_ident_usage() {
 */
 void print_utility_usage() {
 	print_help_info();
-	std::cerr << BOLD << "Utilty flags:\n" << NO_BOLD;
+	std::cerr << BOLD << "Utility flags:\n" << NO_BOLD;
 	print_selected_usages (usage, total_arg_count, utility_args, utility_arg_count);
+}
+
+/**
+* Print the usage information for filter-related commands.
+*/
+void print_filter_usage() {
+	print_help_info();
+	std::cerr << BOLD << "Read filter flags:\n" << NO_BOLD;
+	print_selected_usages(usage, total_arg_count, filter_args, filter_arg_count);
 }
 
 /*
@@ -181,6 +217,8 @@ void print_help (const char* arg) {
 		print_ident_usage();
 	} else if (strcmpi(arg, "utility") == 0) {
 		print_utility_usage();
+	} else if (strcmpi(arg, "filter") == 0) {
+		print_filter_usage();
 	} else {
 		if (strlen(arg) == 1) {
 			for (size_t n = 0; n < total_arg_count; ++n) {
