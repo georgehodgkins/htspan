@@ -15,14 +15,14 @@ ref=$2
 seed=${3:--1}
 mut_rate=${4:-0.02}
 base_error=${5:-0.005}
-rd_count=${6:-10000}
+nreads=${6:-10000}
 
 
 # 2*100 bp reads * 10000 reads / 19149 bp seq = 104x coverage
-# SNV mutation rate of 0.05
-# no indels
+# SNV mutation rate > 0
+# indel mutation rate = 0
 printf 'chrom\tpos\tref\talt\n' > $out.snv
-wgsim -h -1 100 -2 100 -S $seed -r ${mut_rate} -e ${base_error} -N ${rd_count} -R 0 \
+wgsim -h -1 100 -2 100 -S $seed -r ${mut_rate} -e ${base_error} -N ${nreads} -R 0 \
 	$ref $out.r1.fq $out.r2.fq |
 	cut -f 1-4 >> $out.snv
 

@@ -20,7 +20,10 @@ if [[ ! -f ${ref}.bwt ]]; then
 	bwa index ${ref}
 fi
 
-bwa mem $ref $r1 $r2 | 
+sm=${prefix##*/}
+rg="@RG\\tID:$sm\\tPU:$sm\\tSM:$sm\\tLB:$sm\\tPL:illumina"
+
+bwa mem $ref $r1 $r2 -R $rg |
 	samtools view -b > $prefix.raw.bam
 samtools sort $prefix.raw.bam -o $prefix.bam
 rm $prefix.raw.bam
