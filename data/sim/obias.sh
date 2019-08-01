@@ -3,16 +3,18 @@
 obias=../../bin/hts-orient-bias
 ref=../tp53_hg38.fasta
 
-tags=( 01_01_01 01_01_02 01_01_03 01_01_04 01_01_05 )
-#tags=( 01_01_02 01_01_03 01_01_04 01_01_05 )
+#dset=grid
+dset=grid2
 
-for tag in "${tags[@]}"; do
+groups=( 01_01_01 01_01_02 01_01_03 01_01_04 )
+#groups=( 05_01_01 05_01_02 05_01_03 05_01_04 )
 
-	echo $tag
+for group in "${groups[@]}"; do
 
-	indir=grid/${tag}
-	#tag=${indir##*/}
-	outdir=grid/obias/${tag}
+	echo $group
+
+	indir="${dset}/input/${group}"
+	outdir="${dset}/obias/${group}"
 
 	mkdir -p $outdir
 
