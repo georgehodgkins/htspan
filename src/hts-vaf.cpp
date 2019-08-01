@@ -60,8 +60,10 @@ int main (int argc, char** argv) {
 	if (verbose) cout << "snv\tfreq\n";
 
 	while (fetch_next_snv(snvr, f, data, rec)) {
-		if (snvr.error() == -1) {
-			snvw.write(rec);
+		if (snvr.error()) {
+			if (snvr.error() == -1) { // successful read, inconsistent variant
+				snvw.write(rec);
+			}
 			continue;
 		}
 
@@ -76,7 +78,7 @@ int main (int argc, char** argv) {
 
 		snvw.write(rec, "VAFF", freq);
 		if (verbose) cout << rec.to_string() << '\t' << freq << '\n';
-		
+
 	}
 	return 0;
 }
