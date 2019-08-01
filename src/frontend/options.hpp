@@ -27,20 +27,31 @@ enum OptionType {t_ON, t_OFF, t_OTHER};
 
 // These arrays track arguments that apply to both commands, for printing help texts
 // common_args help will be printed before args unique to the command
-const OptionIndex common_args[] = {DAMAGE_TYPE, BAMFILE, REF, ALT, MODEL, KEEP_DUP, MIN_MAPQ, MIN_BASEQ, EPS};
+const OptionIndex common_args[] = {DAMAGE_TYPE, BAMFILE, REF, ALT, MODEL};
 const size_t common_arg_count = sizeof(common_args)/sizeof(OptionIndex);
 
 const OptionIndex utility_args[] = {VERBOSITY, LOGFILE, STDOUT, PLAIN, HELP};
 const size_t utility_arg_count = sizeof(utility_args)/sizeof(OptionIndex);
 
-// These arrays track arguments that only apply to quantification or identification
+const OptionIndex filter_args[] = {KEEP_DUP, MIN_MAPQ, MIN_BASEQ};
+const size_t filter_arg_count = sizeof(filter_args)/sizeof(OptionIndex);
+
+// These arrays track arguments that only apply to bayes/freq quantification/identification
 // Used to report ignored arguments to the user and for printing help texts
-// TODO: also split options into Bayesian and frequentist
-const OptionIndex quant_only_args[] = {REFFILE, MAX_READS, ALPHA, BETA, JSON_OUT};
+const OptionIndex quant_only_args[] = {REFFILE, MAX_READS, JSON_OUT};
 const size_t quant_arg_count = sizeof(quant_only_args)/sizeof(OptionIndex);
 
-const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, PHI, FIXED_PHI, MINZ_BOUND, EPS, ALPHA, BETA, ALTPRI, SIGLEVEL};
+const OptionIndex bayes_quant_only_args[] = {ALPHA, BETA, EPS};
+const size_t bayes_quant_arg_count = sizeof(bayes_quant_only_args)/sizeof(OptionIndex);
+
+const OptionIndex ident_only_args[] = {IN_SNVFILE, OUT_SNVFILE, IN_SNVFTYPE, OUT_SNVFTYPE, MINZ_BOUND, SIGLEVEL, EPS};
 const size_t ident_arg_count = sizeof(ident_only_args)/sizeof(OptionIndex);
+
+const OptionIndex freq_ident_only_args[] = {PHI, FIXED_PHI};
+const size_t freq_ident_arg_count = sizeof(freq_ident_only_args)/sizeof(OptionIndex);
+
+const OptionIndex bayes_ident_only_args[] = {ALPHA, BETA, ALTPRI};
+const size_t bayes_ident_arg_count = sizeof(bayes_ident_only_args)/sizeof(OptionIndex);
 
 /**
 * Main array of options passed to the parser.

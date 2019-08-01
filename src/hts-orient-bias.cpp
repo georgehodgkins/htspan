@@ -83,7 +83,9 @@ int main (int argc, char** argv) {
 		argv++;
 		argc--;
 	} else if (strcmpi(command, "--help") == 0 ||
-			strcmpi(command, "-?") == 0) {
+			strcmpi(command, "-?") == 0 ||
+			strcmpi(command, "help") == 0) {
+		
 		print_help(argv[1]);
 		return 0;
 	}
@@ -274,10 +276,11 @@ int main (int argc, char** argv) {
 
 		// Warn about ignored arguments
 		// Array and counter defined in options.hpp
-		for (size_t n = 0; n < ident_arg_count; ++n) {
-			if (options[ident_only_args[n]]) {
-				global_log.v(1) << "Warning: option [-/--]" << options[ident_only_args[n]].name << " only applies to damage identification. Ignored.\n";
-			}
+		warn_ignored_args(options, ident_only_args, ident_arg_count, "damage identification");
+		warn_ignored_args(options, freq_ident_only_args, freq_ident_arg_count, "damage identification");
+		warn_ignored_args(options, bayes_ident_only_args, bayes_ident_arg_count, "damage identification");
+		if (model == FREQ) {
+			warn_ignored_args(options, bayes_quant_only_args, bayes_quant_arg_count, "the Bayesian model");
 		}
 
 	} else if (identifying) {
@@ -297,11 +300,13 @@ int main (int argc, char** argv) {
 		}
 
 		// Warn about ignored arguments
-		// Array and counter defined in options.hpp
-		for (size_t n = 0; n < quant_arg_count; ++n) {
-			if (options[quant_only_args[n]]) {
-				global_log.v(1) << "Warning: option [-/--]" << options[quant_only_args[n]].name << " only applies to damage quantification. Ignored.\n";
-			}
+		// Array and counter defined in options.hpp, function defined in print_help.hpp
+		warn_ignored_args(options, quant_only_args, quant_arg_count, "damage quantification");
+		warn_ignored_args(options, bayes_quant_only_args, bayes_quant_arg_count, "damage quantification");
+		if (model == FREQ) {
+			warn_ignored_args(options, bayes_ident_only_args, bayes_ident_arg_count, "the Bayesian model");
+		} else if (model == BAYES) {
+			warn_ignored_args(options, freq_ident_only_args, freq_ident_arg_count, "the frequentist model");
 		}
 	}
 

@@ -246,9 +246,9 @@ bool orient_bias_quantify_bayes(nuc_t ref, nuc_t alt, piler &p, faidx_reader &fa
 	json_summary["xi"] = accumulate(bobquant.m.xi_vec.begin(), bobquant.m.xi_vec.end(), 0);
 	json_summary["ni"] = accumulate(bobquant.m.ni_vec.begin(), bobquant.m.ni_vec.end(), 0);
 
-	quant_results += json_estimate;
-	quant_results += json_auxiliary;
-	quant_results += json_summary;
+	quant_results["estimate"] = json_estimate;
+	quant_results["auxiliary"] = json_auxiliary;
+	quant_results["summary"] = json_summary;
 
 	// Output theta hyperparameters and E[theta], if verbosity >= 2
 	if (!plain_output) {
