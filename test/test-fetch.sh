@@ -16,7 +16,7 @@ for pos in ${poss[@]}; do
 done
 
 
-echo "Testing diff ..."
+echo "Testing diff (hts-fetch) ..."
 
 dups=( dup nodup )
 

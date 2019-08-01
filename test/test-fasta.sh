@@ -23,7 +23,7 @@ for format in ${formats[@]}; do
 done
 
 
-echo "Testing diff ...";
+echo "Testing diff (hts-fasta) ...";
 
 dups=( dup nodup )
 mates=( mate nomate )

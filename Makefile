@@ -39,7 +39,7 @@ BOOST_TEST = -lboost_unit_test_framework
 
 deps = $(src)/htslib/libhts.a $(src)/alglib/libalg.a
 
-targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-pileup $(bin)/hts-orient-bias-stats
+targets = $(bin)/hts-fetch $(bin)/hts-fasta $(bin)/hts-count $(bin)/hts-orient-bias $(bin)/hts-pileup $(bin)/hts-orient-bias-stats $(bin)/hts-vaf
 
 utest_targets = $(utest)/$(bin)/test-freq-orient-bias-filter $(utest)/$(bin)/test-orient-bias-quant $(utest)/$(bin)/test-bayes-orient-bias-filter $(utest)/$(bin)/test-io
 
@@ -94,6 +94,9 @@ $(bin)/hts-orient-bias-stats: $(src)/hts-orient-bias-stats.cpp
 $(bin)/hts-orient-bias: $(src)/hts-orient-bias.cpp
 	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(ALG)
 
+$(bin)/hts-vaf: $(src)/hts-vaf.cpp
+	$(CXX) $(CXXFLAGS) $? -o $@ $(HTS) $(ALG)
+
 # experimental determination of best params for Bayesian quant
 # not built by 'all'
 
@@ -118,13 +121,19 @@ clean:
 	rm -f $(targets) $(utest_targets) $(mlat_targets)
 
 utest: $(utest_targets)
+
 	
+sim: all
+	make -C data/sim
 
 test: check
 	
 
 quant-testing: $(bin)/bayes-quant-testing
 
+
+memcheck: all sim
+	cd $(test) && ./memcheck.sh
 
 check: $(utest_targets)
 	cd $(test) && ./test.sh
