@@ -16,6 +16,9 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	// epsilon for convergence
 	const double eps;
 
+	// window size for convergence
+	const size_t check_window_size = 10000;
+
 	freq_orient_bias_quant_f(nuc_t _ref, nuc_t _alt, size_t _mx, double _e) : 
 			base_orient_bias_quant_f(_ref, _alt, _mx),
 			old_xi(0), old_xc(0), old_ni(0), old_nc(0),
@@ -125,15 +128,22 @@ struct freq_orient_bias_quant_f : public base_orient_bias_quant_f {
 	*/
 	bool done () const {
 		// sum of previously sampled estimates
-		static double est_sum = 0;
+		static double window_curr = -1;
+		static double window_prev = -1;
+		static double curr_sum = 0;
 		// number of checks performed
-		static size_t n_checks = 0;
+		static size_t prev_rdc = 0;
+		static size_t n_checks = 1;
+
+		curr_sum += operator()();
 		// check for convergence
 		bool converged = false;
-		if (read_count > 10000*(n_checks + 1)) {
-			converged = abs(est_sum / n_checks - operator()()) < eps && operator()() > eps;
-			est_sum += operator()();
-			++n_checks;
+		// check_window_size is a class constant
+		if (read_count > check_window_size*(n_checks + 1)) {
+			window_prev = window_curr;
+			window_curr = curr_sum / (read_count - prev_rdc);
+			prev_rdc = read_count;
+			converged = abs(window_prev - window_curr) < eps;
 		}
 		return converged || base_orient_bias_quant_f::done();
 	}
