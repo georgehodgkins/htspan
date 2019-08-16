@@ -4,7 +4,7 @@ set -euo pipefail
 
 ref=../tp53_hg38.fasta
 
-outdir="grid2/input"
+outdir=grid
 home="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 bin=$home
 
@@ -19,8 +19,7 @@ berror=0.001
 nreads=50000  # mean coverage ~500x
 purities=( 0.90 0.75 0.50 0.25 0.10 )
 thetas=( 0.05 )
-alpha=1
-betas=( 1 10 100 1000 )
+phis=( 0.4 0.2 0.1 0.05 0.025 )
 damages=( ffpe oxog )
 
 seed=1
@@ -30,7 +29,7 @@ for purity in "${purities[@]}"; do
 	j=1
 	for theta in "${thetas[@]}"; do
 		k=1
-		for beta in "${betas[@]}"; do
+		for phi in "${phis[@]}"; do
 			I=$(printf '%02d' $i)
 			J=$(printf '%02d' $j)
 			K=$(printf '%02d' $k)
@@ -38,7 +37,7 @@ for purity in "${purities[@]}"; do
 			prefix=$outdir/${I}_${J}_${K}
 			mkdir -p $prefix
 
-			params="{ \"purity\": $purity, \"theta\": $theta, \"alpha_phi\": $alpha, \"beta_phi\": $beta }"
+			params="{ \"purity\": $purity, \"theta\": $theta, \"phi\": $phi }"
 			echo $params | tee $prefix/params.json >&2
 
 			# simulate reads
@@ -52,7 +51,7 @@ for purity in "${purities[@]}"; do
 
 			for damage in "${damages[@]}"; do
 				# damage reads
-				$bin/damage.py -s $seed -t $damage -A $alpha -B $beta $prefix/orig.r1.fq $prefix/orig.r2.fq \
+				$bin/damage.py -s $seed -t $damage -P $phi $prefix/orig.r1.fq $prefix/orig.r2.fq \
 					-1 $prefix/${damage}.r1.fq -2 $prefix/${damage}.r2.fq
 
 				# align reads

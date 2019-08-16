@@ -4,7 +4,7 @@ set -euo pipefail
 
 ref=../tp53_hg38.fasta
 
-outdir="grid2/input"
+outdir="grid4/input"
 home="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 bin=$home
 
@@ -16,7 +16,7 @@ if [[ ! -f $ref ]]; then
 fi
 
 berror=0.001
-nreads=50000  # mean coverage ~500x
+nreads=5000   # mean coverage ~50x
 purities=( 0.90 0.75 0.50 0.25 0.10 )
 thetas=( 0.05 )
 alpha=1

@@ -3,8 +3,10 @@
 vaf=../../bin/hts-vaf
 ref=../tp53_hg38.fasta
 
-#dset=grid
-dset=grid2
+#dset=grid1
+#dset=grid2
+#dset=grid3
+dset=grid4
 
 #groups=( 01_01_01 01_01_02 01_01_03 01_01_04 01_01_05 )
 groups=( 05_01_01 05_01_02 05_01_03 05_01_04 05_01_05 )
