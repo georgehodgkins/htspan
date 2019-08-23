@@ -9,6 +9,9 @@ Collection of utilities for filtering high-throughput sequencing data:
 ## Dependencies
 
 * gcc >= 4.8
+* bzip2 >= 1.0 (for htslib)
+* liblzma SDK >= 5.2.4 (for htslib)
+* libcurl SDK >= 7.64 (for htslib, any implementation)
 
 ### Included dependencies
 
@@ -17,7 +20,7 @@ Collection of utilities for filtering high-throughput sequencing data:
 * ALGLIB >= 3.15.0 (submodule)
 * Lean Mean C++ Option Parser 1.7 (single-header)
 * simpleson commit 598932c (single-header)
-* tanh-sinh quadrature method from https://www.codeproject.com/Articles/31550/Fast-Numerical-Integration
+* tanh-sinh quadrature method from https://www.codeproject.com/Articles/31550/Fast-Numerical-Integration (single-header)
 
 ### Optional dependencies for testing and development
 
