@@ -49,8 +49,7 @@ using namespace std;
 * Lifted from R source at src/nmath/rbeta.c.
 *
 * The internal RNG is only seeded once at first call,
-* unless the seed changes. It should produce a consistent
-* sequence of variates for a given seed.
+* unless the seed changes.
 * 
 * @param aa The alpha parameter of the characterizing beta dist
 * @param bb The beta parameter of the characterizing beta dist
@@ -186,8 +185,7 @@ double rbeta(double aa, double bb, int seed = 0)
 * src/nmath/rbinom.c with minor modifications.
 *
 * The internal RNG is only seeded once at first call,
-* unless the seed changes. It should produce a consistent
-* sequence of variates for a given seed.
+* unless the seed changes.
 *
 * @param nin Sample size for distribution
 * @param pp Probability of success per sample

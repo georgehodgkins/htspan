@@ -38,7 +38,7 @@ double anti_phred(double x) {
 	return pow(10, -x/10);
 }
 
-// These methods are taken from the OpenCV source at
+// isinf & isnan methods are taken from the OpenCV source at
 // modules/hal/include/opencv2/hal/defs.h
 bool isinf(double x)
 {
@@ -66,7 +66,7 @@ double fmax2(double x, double y) {
 
 // Some generic funcs that should work with STL containers
 
-// We don't use for_each() here because lambdas aren't in C++98 and
+// We don't use for_each() here because lambdas aren't C++98 and
 // defining external functions is definitely more work than it's worth
 
 /**
@@ -115,10 +115,10 @@ Container exp_c (Container X) {
 
 /**
 * Container-generic constrainer.
-* Fixes values less than lb at lb, less than ub at ub.
+* Fixes values less than lb at lb, greater than ub at ub.
 */
 template <typename Container>
-void constrain_values (Container &X, typename Container::value_type lb, typename Container::value_type ub) {
+Container& constrain_values (Container &X, typename Container::value_type lb, typename Container::value_type ub) {
 	for (typename Container::iterator it = X.begin(); it != X.end(); ++it) {
 		if (*it < lb) {
 			*it = lb;
@@ -127,6 +127,7 @@ void constrain_values (Container &X, typename Container::value_type lb, typename
 			*it = ub;
 		}
 	}
+	return X;
 }
 
 /**
@@ -159,7 +160,8 @@ double log_sum_exp(size_t n, double xs[]) {
 
 /**
 * Returns the CDF of the chi-squared distribution
-* with n degrees of freedom at the value x.
+* with n degrees of freedom at the value x,
+* returning 0 for x <= 0.
 */
 double chisq_cdf (double x, double n) {
 	if (x <= 0.0) {
@@ -177,17 +179,27 @@ double lbeta (const double alpha, const double beta) {
 	return alglib::lngamma(alpha, foo) + alglib::lngamma(beta, foo) - alglib::lngamma(alpha + beta, foo);
 }
 
-// log(n!/(k!(n-k)!))
+/**
+ *
+ * log(n!/(k!(n-k)!)) a.k.a. log(n choose k),
+ * using accumulated terms.
+ *
+ */
+
 double lchoose (const int n, const int k) {
 	double nfac_log = 0.0;// log(n!)
 	double kfac_log = 0.0;// log(k!)
 	double nkdfac_log = 0.0;// log((n-k)!)
 	int G; // max(k, n-k)
+
+	// Calculate k! and (n-k)! while accumulating terms of n!
 	if (n-k >= k) {
 		G = n-k;
+		// accumulate terms up to k!
 		for (int x = 2; x <= k; ++x) {
 			kfac_log += log(x);
 		}
+		// then accumulate terms up to (n-k)!
 		nkdfac_log = kfac_log;
 		for (int x = k+1; x <= n-k; ++x) {
 			nkdfac_log += log(x);
@@ -195,15 +207,19 @@ double lchoose (const int n, const int k) {
 		nfac_log = nkdfac_log;
 	} else {
 		G = k;
+		// accumulate terms up to (n-k)!
 		for (int x = 2; x <= n-k; ++x) {
 			nkdfac_log += log(x);
 		}
 		kfac_log = nkdfac_log;
+		// then accumulate terms up to k!
 		for (int x = n-k+1; x <= k; ++x) {
 			kfac_log += log(x);
 		}
 		nfac_log = kfac_log;
 	}
+
+	// accumulate remaining terms up to n!
 	for (int x = G+1; x <= n; ++x) {
 		nfac_log += log(x);
 	}
