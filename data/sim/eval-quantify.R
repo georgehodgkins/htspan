@@ -7,33 +7,35 @@ library(reshape2)
 groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04", "01_01_05");
 #groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04", "05_01_05");
 
-out.fname <- filename("eval", path=c("grid", "eval-quantify"), date=NA);
+group <- "grid";
+
+out.fname <- filename("eval", path=c(group, "eval-quantify"), date=NA);
 pdf.fname <- insert(out.fname, ext="pdf");
 
 truths <- unlist(lapply(groups,
 	function(group) {
-		params <- read_json(file.path("grid", "input", group, "params.json"));
+		params <- read_json(file.path(group, "input", group, "params.json"));
 		params$phi
 	}
 ));
 
 obquants <- unlist(lapply(groups,
 	function(group) {
-		obquant <- read_json(file.path("grid", "obias", group, "ffpe.obquant.json"));
+		obquant <- read_json(file.path(group, "obias", group, "ffpe.obquant.json"));
 		obquant$estimate$phi
 	}
 ));
 
 bobquants <- unlist(lapply(groups,
 	function(group) {
-		bobquant <- read_json(file.path("grid", "obias", group, "ffpe.bobquant.json"));
+		bobquant <- read_json(file.path(group, "obias", group, "ffpe.bobquant.json"));
 		with(bobquant, alpha_phi / (alpha_phi + beta_phi))
 	}
 ));
 
 gatks <- unlist(lapply(groups,
 	function(group) {
-		gatk <- read.table(file.path("grid", "gatk", group, "ffpe.pre_adapter_summary_metrics"), header=TRUE, sep="\t");
+		gatk <- read.table(file.path(group, "gatk", group, "ffpe.pre_adapter_summary_metrics"), header=TRUE, sep="\t");
 		gatk.q <- gatk$TOTAL_QSCORE[which(gatk$ARTIFACT_NAME == "Deamination")];
 		10^(-gatk.q/10)
 	}

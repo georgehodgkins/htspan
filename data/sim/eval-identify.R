@@ -21,7 +21,11 @@ annotate_truth <- function(d, positives) {
 #dset <- "grid2";
 #groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04");
 
-dset <- "grid3";
+#dset <- "grid3";
+#groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04");
+#groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04");
+
+dset <- "grid4";
 #groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04");
 groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04");
 
@@ -37,6 +41,9 @@ for (group in groups) {
 
 	vaf <- qread(file.path(dset, "vaf", group, "ffpe.vaf.snv"), type="tsv", fill=TRUE);
 	vaf <- annotate_truth(add_id(vaf), positives);
+	
+	sob <- qread(file.path(dset, "sobdetector", group, "ffpe.sobdetector.snv"), type="tsv", fill=TRUE, na=".");
+	sob <- annotate_truth(add_id(sob), positives);
 
 	fixed <- qread(file.path(dset, "obias", group, "ffpe.fixed.snv"), type="tsv", fill=TRUE);
 	fixed <- annotate_truth(add_id(fixed), positives);
@@ -48,11 +55,13 @@ for (group in groups) {
 	variable <- annotate_truth(add_id(variable), positives);
 
 	summary(vaf$VAFF)
+	summary(sob$SOB)
 	summary(fixed$FOBP)
 	summary(unknown$FOBP)
 	summary(variable$BOBP)
 
 	p.vaf <- with(vaf, evalmod(scores=-VAFF, labels=truth));
+	p.sob <- with(sob, evalmod(scores=-abs(SOB), labels=truth));
 	p.fixed <- with(fixed, evalmod(scores=-FOBP, labels=truth));
 	p.unknown <- with(unknown, evalmod(scores=-FOBP, labels=truth));
 	p.variable <- with(variable, evalmod(scores=BOBP, labels=truth));
@@ -78,6 +87,12 @@ for (group in groups) {
 			autoplot(p.vaf, curvetype=ct) + ggtitle(auc_title(p.vaf, ct))
 			,
 			file=insert(pdf.fname, c("vaf", tolower(ct)))
+		);
+
+		qdraw(
+			autoplot(p.sob, curvetype=ct) + ggtitle(auc_title(p.sob, ct))
+			,
+			file=insert(pdf.fname, c("sobdetector", tolower(ct)))
 		);
 
 		qdraw(
