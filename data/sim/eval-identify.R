@@ -45,6 +45,15 @@ for (group in groups) {
 	sob <- qread(file.path(dset, "sobdetector", group, "ffpe.sobdetector.snv"), type="tsv", fill=TRUE, na=".");
 	sob <- annotate_truth(add_id(sob), positives);
 
+	gatk <- qread(file.path(dset, "gatk", group, "ffpe.gatk.snv"), type="tsv", fill=TRUE);
+	gatk <- annotate_truth(add_id(gatk), positives);
+
+	# remove variants with multiple alternatives
+	#alleles <- levels(vaf$ref);
+	#gatk <- gatk[gatk$alt %in% alleles & gatk$ref %in% alleles, ];
+	#gatk$ref <- factor(gatk$ref, alleles);
+	#gatk$alt <- factor(gatk$alt, alleles);
+
 	fixed <- qread(file.path(dset, "obias", group, "ffpe.fixed.snv"), type="tsv", fill=TRUE);
 	fixed <- annotate_truth(add_id(fixed), positives);
 
@@ -56,16 +65,17 @@ for (group in groups) {
 
 	summary(vaf$VAFF)
 	summary(sob$SOB)
+	summary(gatk$OBP)
 	summary(fixed$FOBP)
 	summary(unknown$FOBP)
 	summary(variable$BOBP)
 
 	p.vaf <- with(vaf, evalmod(scores=-VAFF, labels=truth));
 	p.sob <- with(sob, evalmod(scores=-abs(SOB), labels=truth));
+	p.gatk <- with(gatk, evalmod(scores=-OBP, labels=truth));
 	p.fixed <- with(fixed, evalmod(scores=-FOBP, labels=truth));
 	p.unknown <- with(unknown, evalmod(scores=-FOBP, labels=truth));
 	p.variable <- with(variable, evalmod(scores=BOBP, labels=truth));
-
 
 	curvetypes <- c("ROC", "PRC");
 
@@ -96,6 +106,12 @@ for (group in groups) {
 		);
 
 		qdraw(
+			autoplot(p.gatk, curvetype=ct) + ggtitle(auc_title(p.gatk, ct))
+			,
+			file=insert(pdf.fname, c("gatk", tolower(ct)))
+		);
+
+		qdraw(
 			autoplot(p.fixed, curvetype=ct) + ggtitle(auc_title(p.fixed, ct))
 			,
 			file=insert(pdf.fname, c("fixed", tolower(ct)))
@@ -117,6 +133,8 @@ for (group in groups) {
 	res <- list(
 		mod = list(
 			vaf = p.vaf,
+			sob = p.sob,
+			gatk = p.gatk,
 			fixed = p.fixed,
 			unknown = p.unknown,
 			variable = p.fixed

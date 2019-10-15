@@ -6,6 +6,7 @@
 ./vaf.sh
 ./obias.sh
 ./gatk-seqarts.sh
+./gatk-ffpe-filter.sh
 
 Rscript eval-identify.R
 Rscript eval-quantify.R
