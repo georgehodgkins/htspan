@@ -19,7 +19,7 @@ mut_rate=${3:-0.99}
 
 prefix=${bam%.*}
 
-bcftools mpileup -Ou -I -d $max_depth -f $ref $bam |
+samtools mpileup -Ou -I -d $max_depth -f $ref $bam |
 	bcftools call -mv -Ov -P $mut_rate -o $prefix.calls.vcf
 $home/vcf2snv.sh $prefix.calls.vcf $prefix.calls.snv
 
