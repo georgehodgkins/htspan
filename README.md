@@ -28,6 +28,8 @@ Collection of utilities for filtering high-throughput sequencing data:
 * python3 >= 3.6
 * boost >= 1.69
 * bcftools >= 1.3.1
+* freebayes >= 1.3.1
+* vcflib >= 1.0.1
 
 ## Install
 
