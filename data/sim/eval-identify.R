@@ -48,6 +48,10 @@ for (group in groups) {
 	gatk <- qread(file.path(dset, "gatk", group, "ffpe.gatk.snv"), type="tsv", fill=TRUE);
 	gatk <- annotate_truth(add_id(gatk), positives);
 
+	# OBP appears to be NA for non-filtered variants; therefore, set NA to 0
+	gatk$OBP[is.na(gatk$OBP)] <- 0;
+	# however, doing this obliterates GATK's performance, so we ultimately don't do it.
+
 	# remove variants with multiple alternatives
 	#alleles <- levels(vaf$ref);
 	#gatk <- gatk[gatk$alt %in% alleles & gatk$ref %in% alleles, ];
@@ -72,9 +76,13 @@ for (group in groups) {
 
 	p.vaf <- with(vaf, evalmod(scores=-VAFF, labels=truth));
 	p.sob <- with(sob, evalmod(scores=-abs(SOB), labels=truth));
-	p.gatk <- with(gatk, evalmod(scores=-OBP, labels=truth));
+	# higher is better
+	p.gatk <- with(gatk, evalmod(scores=OBP, labels=truth));
+	# lower is better
 	p.fixed <- with(fixed, evalmod(scores=-FOBP, labels=truth));
+	# lower is better
 	p.unknown <- with(unknown, evalmod(scores=-FOBP, labels=truth));
+	# higher is better
 	p.variable <- with(variable, evalmod(scores=BOBP, labels=truth));
 
 	curvetypes <- c("ROC", "PRC");
