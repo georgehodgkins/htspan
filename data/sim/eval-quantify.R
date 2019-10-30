@@ -7,7 +7,7 @@ library(reshape2)
 groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04", "01_01_05");
 #groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04", "05_01_05");
 
-group <- "grid";
+group <- "grid1";
 
 out.fname <- filename("eval", path=c(group, "eval-quantify"), date=NA);
 pdf.fname <- insert(out.fname, ext="pdf");

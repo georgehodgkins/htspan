@@ -19,15 +19,13 @@ annotate_truth <- function(d, positives) {
 #groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04", "05_01_05");
 
 #dset <- "grid2";
-#groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04");
+#groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04", "05_01_01", "05_01_02", "05_01_03", "05_01_04");
 
-#dset <- "grid3";
-#groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04");
-#groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04");
+dset <- "grid3";
+groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04", "05_01_01", "05_01_02", "05_01_03", "05_01_04");
 
-dset <- "grid4";
-#groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04");
-groups <- c("05_01_01", "05_01_02", "05_01_03", "05_01_04");
+#dset <- "grid4";
+#groups <- c("01_01_01", "01_01_02", "01_01_03", "01_01_04", "05_01_01", "05_01_02", "05_01_03", "05_01_04");
 
 for (group in groups) {
 
@@ -50,7 +48,6 @@ for (group in groups) {
 
 	# OBP appears to be NA for non-filtered variants; therefore, set NA to 0
 	gatk$OBP[is.na(gatk$OBP)] <- 0;
-	# however, doing this obliterates GATK's performance, so we ultimately don't do it.
 
 	# remove variants with multiple alternatives
 	#alleles <- levels(vaf$ref);
