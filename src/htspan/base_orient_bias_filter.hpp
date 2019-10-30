@@ -72,9 +72,9 @@ struct base_orient_bias_filter_f {
 	static double lp_ref_base_given(double theta, double phi_r, double e_r) {
 		const size_t T = 3;
 		double lxs[T] = {
-			log(theta)     + log(e_r)-log(3) + log(1 - phi_r),
-			log(1 - theta) + log(1 - e_r)    + log(1 - phi_r),
-			log(theta)     + log(1 - e_r)    + log(phi_r)
+			log(theta)     + log(e_r/3),
+			log(1 - theta) + log(phi_r)      + log(e_r/3),
+			log(1 - theta) + log(1 - phi_r)  + log(1 - e_r)    
 		};
 		return log_sum_exp(T, lxs);
 	}
@@ -87,9 +87,9 @@ struct base_orient_bias_filter_f {
 	static double lp_alt_base_given(double theta, double phi_r, double e_r) {
 		const size_t T = 3;
 		double lxs[T] = {
-			log(theta)     + log(1 - e_r)    + log(1 - phi_r),
-			log(1 - theta) + log(e_r)-log(3) + log(1 - phi_r),
-			log(1 - theta) + log(1 - e_r)    + log(phi_r)
+			log(theta)     + log(1 - e_r),
+			log(1 - theta) + log(phi_r)      + log(1 - e_r),
+			log(1 - theta) + log(1 - phi_r)  + log(e_r/3)
 		};
 		return log_sum_exp(T, lxs);
 	}
@@ -100,12 +100,7 @@ struct base_orient_bias_filter_f {
 	 * p( b_{j,r} = \tt{O} \mid \theta_j, phi_{j,r}, e_{j,r} )
 	 */
 	static double lp_other_base_given(double theta, double phi_r, double e_r) {
-		const size_t T = 2;
-		double lxs[T] = {
-			log(e_r)-log(3) + log(1 - phi_r),
-			log(1 - e_r)    + log(phi_r)
-		};
-		return log_sum_exp(T, lxs);
+		return log(e_r/3);
 	}
 	
 	/**
